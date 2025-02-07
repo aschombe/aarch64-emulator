@@ -1,9 +1,9 @@
 #include <stdio.h>
 
 #include "core/Machine.h"
-#include "arm64/dummy.h"
+#include "util/Logging.h"
 
 int main(int argc, char* argv[]) {
-        dummyFunction(NULL);
+    dolog("argc=%d, argv[0]=%s\n", argc, argv[0]);
     return 0;
 }
