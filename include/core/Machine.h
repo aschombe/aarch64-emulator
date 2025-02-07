@@ -1,5 +1,4 @@
-#ifndef MACH_H
-#define MACH_H
+#pragma once
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -7,7 +6,6 @@
 
 #include "core/CoreTypes.h"
 
-uint64_t mapMemoryAddress(uint64_t addr);
 class CMachine;
 
 static CMachine* pMachine = NULL;
@@ -21,12 +19,24 @@ class CMachine {
 public:
     MachineOpts m_sMachineOpts;
 
-    CMachine() { pMachine = this; }
-    ~CMachine() { pMachine = NULL; }
+    CMachine() {
+        m_aLayout = (label_pair_t*) malloc(sizeof(label_pair_t) * USHRT_MAX);
+        m_aMemory = (uint8_t*) malloc(sizeof(uint8_t) * MEM_SIZE);
+        m_sStdinContents = (char*) malloc(sizeof(char) * USHRT_MAX);
 
+        pMachine = this;
+    }
+    ~CMachine() { 
+        free(m_aLayout);
+        free(m_aMemory);
+        free(m_sStdinContents);
+        
+        pMachine = NULL;
+    }
     static CMachine* GetCurrentMachine() { return pMachine; }
 
     uint64_t GetMemBottom() { return m_uMemBottom; }
+    uint64_t MapMemoryAddress(uint64_t addr);
 
     uint64_t ReadQuadwordAt(uint64_t address);
     uint32_t ReadWordAt(uint64_t address);
@@ -46,12 +56,8 @@ private:
 
     label_pair_t* m_pEntryLabel = NULL;
     uint64_t      m_uNumLabels = 0;
-    label_pair_t  m_aLayout[USHRT_MAX];
-
-    char m_sStdinContents[USHRT_MAX] = {0};
-
-    uint64_t m_aRegisters[NUM_REGS] = {0};
-    uint8_t  m_aMemory[MEM_SIZE] = {0};
+    label_pair_t*  m_aLayout;
+    char* m_sStdinContents;
+    uint8_t*  m_aMemory;
+    uint64_t m_aRegisters[NUM_REGS];
 };
-
-#endif

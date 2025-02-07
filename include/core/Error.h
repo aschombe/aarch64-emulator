@@ -1,12 +1,11 @@
-#ifndef ERROR_H
-#define ERROR_H
+#pragma once
 
 #include <stdlib.h>
 #include <stdint.h>
 
 class CEmulatorErrorHandler;
 
-static CEmulatorErrorHandler* pErrorHandler = NULL;
+static CEmulatorErrorHandler* pErrorHandler;
 
 // must be defined in powers of 2
 typedef enum {
@@ -23,7 +22,10 @@ class CEmulatorErrorHandler {
 public:
     static CEmulatorErrorHandler* GetErrorHandler() { return pErrorHandler; }
 
-    CEmulatorErrorHandler() { m_uCurrentError =  emulator_err_t::NONE; pErrorHandler = this; }
+    CEmulatorErrorHandler() { 
+        m_uCurrentError =  emulator_err_t::NONE;
+        pErrorHandler = this;
+    }
     ~CEmulatorErrorHandler() { pErrorHandler = NULL; }
 
     err_mask_t GetAllErrors() { return m_uCurrentError; }
@@ -36,5 +38,3 @@ public:
 private:
     uint32_t m_uCurrentError;
 };
-
-#endif

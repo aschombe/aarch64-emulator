@@ -13,4 +13,5 @@ bool CEmulatorErrorHandler::SetError(emulator_err_t err) {
 bool CEmulatorErrorHandler::HandleError(emulator_err_t err) {
     if (HasError(err)) return false;
     m_uCurrentError &= ~err;
+    return true;
 }

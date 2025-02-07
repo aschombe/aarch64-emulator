@@ -8,6 +8,7 @@ usage() {
     printf "\t./bake [cfg] [args] - builds the project, passing through the [args] to the cmake command.\n"
     printf "\t                      [args] can be useful for defines or flags (i.e. -D[MACRO=?], -Werror)\n"
     printf "\t./bake clean [cfg]  - cleans the project, optionally specify one of the configs.\n"
+    printf "\t./bake info         - shows project information\n"
     printf "\t./bake help         - shows this message\n\n"
     printf "examples:\n"
     printf "\t./bake release [..] - builds project with release configuration\n"
@@ -34,6 +35,11 @@ if [[ $1 == "clean" ]]; then
     /usr/bin/cmake --build ./build --config $BUILD_STR --target clean -j 13 --
     rm ./aarch64eml
     exit $?
+fi
+
+if [[ $1 == "info" ]]; then 
+    cloc . --exclude-dir=build
+    exit 0
 fi
 
 if [[ $1 == "release" ]]; then

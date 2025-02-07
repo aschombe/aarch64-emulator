@@ -25,7 +25,7 @@ const char* stringOfLogLevel(loglevel_t level);
     struct tm now = *localtime(&t); \
     char dtbuf[50] = {0}; \
     sprintf(dtbuf, "%02d/%02d/%02d, %02d:%02d:%02d", now.tm_mon + 1, now.tm_mday, now.tm_year + 1900, now.tm_hour, now.tm_min, now.tm_sec); \
-    printf("%-8s [%s] %s:%-20d ", stringOfLogLevel(mask), dtbuf, __FILENAME__, __LINE__); \
+    printf("%-8s [%s] %25s:%-10d ", stringOfLogLevel(mask), dtbuf, __FILENAME__, __LINE__); \
     printf(__VA_ARGS__); \
 }
 #define dolog(...) dologm(STATUS, __VA_ARGS__)
