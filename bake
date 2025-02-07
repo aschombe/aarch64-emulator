@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+BUILD_STR="DEBUG" #defaults to debug
+VERSION=1.0
+
+usage() {
+    printf "./bake v$VERSION - project compilation\n"
+    printf "general usage:\n"
+    printf "\t./bake [cfg] [args] - builds the project, passing through the [args] to the cmake command.\n"
+    printf "\t                      [args] can be useful for defines or flags (i.e. -D[MACRO=?], -Werror)\n"
+    printf "\t./bake clean [cfg]  - cleans the project, optionally specify one of the configs.\n"
+    printf "\t./bake help         - shows this message\n\n"
+    printf "examples:\n"
+    printf "\t./bake release [..] - builds project with release configuration\n"
+    printf "\t./bake debug [..]   - builds project with debug configuration\n\n"
+
+    exit $1
+}
+
+
+if [[ $1 == "clean" ]]; then
+    if [[ $2 == "release" ]]; then
+        BUILD_STR="RELEASE"
+    fi
+    if [[ $2 == "debug" ]]; then 
+        BUILD_STR="DEBUG"
+    fi
+    if [[ $2 == "min" ]]; then 
+        BUILD_STR="MINSIZEREL"
+    fi
+    if [[ $2 == "release_dbg" ]]; then 
+        BUILD_STR="RELWITHDEBINFO"
+    fi
+    set -x
+    /usr/bin/cmake --build ./build --config $BUILD_STR --target clean -j 13 --
+    rm ./aarch64eml
+    exit $?
+fi
+
+if [[ $1 == "release" ]]; then
+    BUILD_STR="RELEASE"
+fi
+if [[ $1 == "debug" ]]; then 
+    BUILD_STR="DEBUG"
+fi
+if [[ $1 == "min" ]]; then 
+    BUILD_STR="MINSIZEREL"
+fi
+if [[ $1 == "release_dbg" ]]; then 
+    BUILD_STR="RELWITHDEBINFO"
+fi
+
+if [[ $1 == "help" ]]; then
+    (set +x; usage 0)
+    exit $?
+fi
+
+set -x
+/usr/bin/cmake -DCMAKE_BUILD_TYPE:STRING=$BUILD_STR -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE ${@:2} -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/arm-linux-gnueabihf-gcc --no-warn-unused-cli -S./ -B./build -G "Unix Makefiles"
+(set +x; echo "entering build directory...")
+cd ./build
+make
+status=$?
+cp ./main ../aarch64eml
+echo "done!"
+exit $status
