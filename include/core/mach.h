@@ -1,6 +1,0 @@
-#ifndef MACH_H
-#define MACH_H
-
-void helloWorldFunction();
-
-#endif

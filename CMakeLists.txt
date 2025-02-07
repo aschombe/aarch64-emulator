@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15...3.31)
 project(
     Aarch64Emulator
     VERSION 0.1
-    DESCRIPTION "An example project with CMake"
+    DESCRIPTION "A lite system emulator for aarch64"
     LANGUAGES CXX)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

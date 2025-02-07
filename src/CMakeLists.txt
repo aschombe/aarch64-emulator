@@ -1,6 +1,8 @@
 # add headers here as they are created, add them to the relevant libraries
 set(CORE_HEADER_LIST
-    "${Aarch64Emulator_SOURCE_DIR}/include/core/mach.h")
+    "${Aarch64Emulator_SOURCE_DIR}/include/core/Machine.h"
+    "${Aarch64Emulator_SOURCE_DIR}/include/core/CoreTypes.h"
+    "${Aarch64Emulator_SOURCE_DIR}/include/core/Error.h")
 
 set(ARM64_HEADER_LIST
     "${Aarch64Emulator_SOURCE_DIR}/include/arm64/dummy.h")
@@ -15,7 +17,7 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wconversion -Wdeprecated -Werror=missing-dec
 set(CMAKE_CXX_FLAGS_DEBUG "-g -Wpedantic -pedantic-errors")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
-add_library(core core/mach.cpp ${CORE_HEADER_LIST})
+add_library(core core/Machine.cpp ${CORE_HEADER_LIST})
 target_include_directories(core PUBLIC ../include)
 target_compile_features(core PUBLIC cxx_std_17)
 
