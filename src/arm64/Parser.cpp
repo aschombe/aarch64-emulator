@@ -16,12 +16,13 @@ char* readFile(const char* pFile) {
     }
 
     size_t result = fread(pStr, 1, lSize, pF);
-    if (result != lSize) {
+    if (result != (size_t)lSize) {
         return NULL;
     }
 
     fclose(pF);
     pStr[lSize] = '\0';
+
     return pStr;
 }
 
@@ -81,7 +82,115 @@ void strLwr(char* pStr) {
     }
 }
 
-ASTNode** Parse(char* pFile) {
+char* processLine(char* pLine) {
+    if (!pLine || !*pLine) return pLine;
+
+    // Removes leading and trailing spaces (from around commas and brackets)
+    char* pSrc = pLine;
+    char* pDest = pLine;
+    while (*pSrc) {
+        if (*pSrc == ' ' && (*(pSrc + 1) == ',' || *(pSrc + 1) == '[' || *(pSrc + 1) == ']')) {
+            pSrc++;
+            continue;
+        }
+        if ((pDest > pLine && (*(pDest - 1) == ',' || *(pDest - 1) == '[' || *(pDest - 1) == ']')) && *pSrc == ' ') {
+            pSrc++;
+            continue;
+        }
+        *pDest++ = *pSrc++;
+    }
+    *pDest = '\0';
+
+    // Remove brackets and replace commas with spaces
+    pSrc = pLine;
+    pDest = pLine;
+    while (*pSrc) {
+        // Skip brackets
+        if (*pSrc == '[' || *pSrc == ']') {
+            pSrc++;
+            continue;
+        }
+        if (*pSrc == ',') {
+            // Replace comma with space
+            *pDest++ = ' ';  
+        } else {
+            *pDest++ = *pSrc;
+        }
+        pSrc++;
+    }
+    *pDest = '\0';
+
+    // Iterate through and convert to lowercase (skipping labels and directives)
+    pSrc = pLine;
+    char* pTemp = pLine;
+    pDest = pLine;
+    while (*pSrc) {
+        // Look ahead with pTemp to see if there are any colons
+        pTemp = pSrc;
+        while (*pTemp && *pTemp != ' ' && *pTemp != '\0') {
+            if (*pTemp == ':') {
+                break;
+            }
+            pTemp++;
+        }
+        if (*pTemp == ':') {
+            // Skip this token
+            while (*pSrc && *pSrc != ' ' && *pSrc != '\0') {
+                *pDest = *pSrc;
+                pSrc++;
+                pDest++;
+            }
+            *pDest = *pSrc;
+            pSrc++;
+            pDest++;
+            continue;
+        }
+
+        // Look ahead with pTemp to see if there are any dots
+        pTemp = pSrc;
+        while (*pTemp && *pTemp != ' ' && *pTemp != '\0') {
+            if (*pTemp == '.') {
+                break;
+            }
+            pTemp++;
+        }
+        if (*pTemp == '.') {
+            // Skip this token
+            while (*pSrc && *pSrc != ' ' && *pSrc != '\0') {
+                *pDest = *pSrc;
+                pSrc++;
+                pDest++;
+            }
+            *pDest = *pSrc;
+            pSrc++;
+            pDest++;
+            continue;
+        }
+
+        // Convert to lowercase
+        if (*pSrc != ' ' && *pSrc != '\0') {
+            *pDest = tolower(*pSrc);
+        } else {
+            *pDest = *pSrc;
+        }
+        pSrc++;
+        pDest++;
+    }
+
+    return pLine;
+}
+
+char* pTokenToString(Token* pToken) {
+    if (pToken == NULL) {
+        return NULL;
+    }
+
+    char buffer[256];
+    sprintf(buffer, "Token: %s, Line: %d, Col: %d", pToken->pValue, pToken->nLine, pToken->nCol);
+    return strdup(buffer);
+}
+
+Token** Parse(char* pFile) {
     // Read file contents
     char* pFileContents = readFile(pFile);
     if (pFileContents == NULL) {
@@ -94,29 +203,63 @@ ASTNode** Parse(char* pFile) {
         return NULL;
     }
 
-    // Split file contents into lines and store in array
-    char* pLine = strtok(pFileContents, "\n");
-
-    // Count the number of lines (for approximating the size of the ASTNode array)
+    // Count the number of lines
     int nLines = 0;
-    while (pLine != NULL) {
-        nLines++;
-        pLine = strtok(NULL, "\n");
+    for (char* p = pFileContents; *p; p++) {
+        if (*p == '\n') nLines++;
     }
 
-    // Allocate memory for the ASTNode array (each line can have up to 1 label, 1 instruction and 3 operands)
-    ASTNode** pNodes = (ASTNode**)malloc(nLines * (sizeof(Label) + sizeof(Instruction) + 3 * sizeof(Operand)));
+    // Allocate memory for the Token array
+    Token** pNodes = (Token**)malloc((nLines + 1) * sizeof(Token*));
     if (pNodes == NULL) {
+        free(pFileContents);
         return NULL;
     }
 
-    // Parse each line
-    // pLine = strtok(pFileContents, "\n");
-    // int nLine = 0;
-    // int nCol = 0;
-    // while (pLine != NULL) {
-
-    // }
-
-    return NULL;
+    char* pLine = pFileContents;
+    int lineNum = 1;
+    int lineIndex = 0;
+    
+    while (*pLine) {
+        char* pEnd = strchr(pLine, '\n');
+        if (pEnd) *pEnd = '\0';
+        
+        processLine(pLine);
+        
+        // Tokenize line
+        int capacity = 10;
+        int tokenIndex = 0;
+        Token* tokens = (Token*)malloc(capacity * sizeof(Token));
+        
+        char* pToken = strtok(pLine, " ");
+        int colNum = 1;
+        
+        while (pToken) {
+            if (tokenIndex >= capacity) {
+                capacity *= 2;
+                tokens = (Token*)realloc(tokens, capacity * sizeof(Token));
+            }
+            
+            tokens[tokenIndex].pValue = strdup(pToken);
+            tokens[tokenIndex].nLine = lineNum;
+            tokens[tokenIndex].nCol = colNum;
+            tokenIndex++;
+            
+            colNum += strlen(pToken) + 1;
+            pToken = strtok(NULL, " ");
+        }
+        
+        // Null terminate the token array
+        tokens[tokenIndex].pValue = NULL;
+        pNodes[lineIndex++] = tokens;
+        
+        if (pEnd) pLine = pEnd + 1;
+        else break;
+        lineNum++;
+    }
+    
+    // Null terminate the line array
+    pNodes[lineIndex] = NULL;
+    free(pFileContents);
+    return pNodes;
 }
