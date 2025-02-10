@@ -5,7 +5,12 @@ set(CORE_HEADER_LIST
     "${Aarch64Emulator_SOURCE_DIR}/include/core/Error.h")
 
 set(ARM64_HEADER_LIST
-    "${Aarch64Emulator_SOURCE_DIR}/include/arm64/Parser.h")
+    "${Aarch64Emulator_SOURCE_DIR}/include/arm64/Parser.h"
+    "${Aarch64Emulator_SOURCE_DIR}/include/arm64/Optimizer.h")
+
+set(ARM64_SOURCE_LIST
+    "${Aarch64Emulator_SOURCE_DIR}/src/arm64/Parser.cpp"
+    "${Aarch64Emulator_SOURCE_DIR}/src/arm64/Optimizer.cpp")
 
 set(UTIL_HEADER_LIST
     "${Aarch64Emulator_SOURCE_DIR}/include/util/Logging.h")
@@ -25,7 +30,7 @@ add_library(core core/Machine.cpp core/Error.cpp ${CORE_HEADER_LIST})
 target_include_directories(core PUBLIC ../include)
 target_compile_features(core PUBLIC cxx_std_17)
 
-add_library(arm64 arm64/Parser.cpp ${ARM64_HEADER_LIST})
+add_library(arm64 ${ARM64_SOURCE_LIST} ${ARM64_HEADER_LIST})
 target_include_directories(arm64 PUBLIC ../include)
 target_compile_features(arm64 PUBLIC cxx_std_17)
 

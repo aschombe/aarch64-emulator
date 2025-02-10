@@ -28,7 +28,7 @@ char* readFile(const char* pFile) {
 }
 
 char* cleanFileContents(char* pFileContents) {
-    // Remove single line comments
+    // Remove single-line comments
     char* pCommentStart = strstr(pFileContents, "//");
     while (pCommentStart != NULL) {
         char* pCommentEnd = strstr(pCommentStart, "\n");
@@ -39,26 +39,40 @@ char* cleanFileContents(char* pFileContents) {
         pCommentStart = strstr(pCommentEnd, "//");
     }
 
-    // Remove multi-line comments
-    pCommentStart = strstr(pFileContents, "/*");
-    while (pCommentStart != NULL) {
-        char* pCommentEnd = strstr(pCommentStart, "*/");
-        if (pCommentEnd == NULL) {
-            pCommentEnd = pCommentStart + strlen(pCommentStart);
-        }
-        memset(pCommentStart, '\n', pCommentEnd - pCommentStart + 2);
-        pCommentStart = strstr(pCommentEnd, "/*");
-    }
-
-    // Remove empty lines
-    char* pDest = pFileContents;
+    // Remove multi-line comments with proper nesting
     char* pSrc = pFileContents;
+    char* pDest = pFileContents;
+    int nestedCount = 0;
+
     while (*pSrc) {
-        if (*pSrc == '\n') {
-            if (*(pSrc + 1) == '\n') {
-                pSrc++;
+        if (*pSrc == '/' && *(pSrc + 1) == '*') {
+            nestedCount++;
+            pSrc += 2; // Skip `/*`
+        } 
+        else if (*pSrc == '*' && *(pSrc + 1) == '/' && nestedCount > 0) {
+            nestedCount--;
+            pSrc += 2; // Skip `*/`
+            if (nestedCount == 0) {
                 continue;
             }
+        }
+
+        if (nestedCount == 0) {
+            *pDest = *pSrc;
+            pDest++;
+        }
+
+        pSrc++;
+    }
+    *pDest = '\0';
+
+    // Remove empty lines
+    pSrc = pFileContents;
+    pDest = pFileContents;
+    while (*pSrc) {
+        if (*pSrc == '\n' && *(pSrc + 1) == '\n') {
+            pSrc++;
+            continue;
         }
         *pDest = *pSrc;
         pDest++;
@@ -77,7 +91,7 @@ void strLwr(char* pStr) {
 
     while (*pStr) {
         if (isalpha((unsigned char)*pStr)) {
-            *pStr = tolower((unsigned char)*pStr);
+            *pStr = (char)tolower((unsigned char)*pStr);
         }
         pStr++;
     }
@@ -170,7 +184,7 @@ char* processLine(char* pLine) {
 
         // Convert to lowercase
         if (*pSrc != ' ' && *pSrc != '\0') {
-            *pDest = tolower(*pSrc);
+            *pDest = (char)tolower((unsigned char)*pSrc);
         } else {
             *pDest = *pSrc;
         }
@@ -246,7 +260,7 @@ Token** Parse(char* pFile) {
             tokens[tokenIndex].nCol = colNum;
             tokenIndex++;
             
-            colNum += strlen(pToken) + 1;
+            colNum += (int)strlen(pToken) + 1;
             pToken = strtok(NULL, " ");
         }
         
