@@ -1,4 +1,5 @@
 #include "arm64/Parser.h"
+#include "core/CoreTypes.h"
 
 char* readFile(const char* pFile) {
     FILE* pF = fopen(pFile, "r");

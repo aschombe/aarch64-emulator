@@ -21,7 +21,7 @@ public:
 
     CMachine() {
         m_aLayout = (LabelPair*) malloc(sizeof(LabelPair) * USHRT_MAX);
-        m_aMemory = (uint8_t*) malloc(sizeof(uint8_t) * MEM_SIZE);
+        m_aMemory = (U8*) malloc(sizeof(U8) * MEM_SIZE);
         m_sStdinContents = (char*) malloc(sizeof(char) * USHRT_MAX);
 
         pMachine = this;
@@ -52,10 +52,10 @@ public:
     bool WriteToNullTerminator(U64 address, U8* data);
 
     // 4 byte instruction, 8 byte aligned, mask is 0x00000000ffffffff
-    uint32_t ReadInstructionAt(uint64_t address);
+    U32 ReadInstructionAt(U64 address);
 
 private:
-    uint64_t m_uMemBottom = MEM_TOP - MEM_SIZE;
+    U64 m_uMemBottom = MEM_TOP - MEM_SIZE;
 
     LabelPair* m_pEntryLabel = NULL;
     U64        m_uNumLabels = 0;

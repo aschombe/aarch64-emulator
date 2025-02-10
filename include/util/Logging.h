@@ -11,14 +11,14 @@ typedef enum {
     EXTRA_STATUS = 2,
     STATUS       = 4,
     ERROR        = 8,
-} loglevel_t;
+} LogLevel;
 
 #ifndef LOG_MASK
 #define LOG_MASK = 0xf;
 #endif
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-const char* stringOfLogLevel(loglevel_t level);
+const char* stringOfLogLevel(LogLevel level);
 
 #define dologm(mask, ...) if ((mask & LOG_MASK) != 0) { \
     time_t t = time(NULL); \

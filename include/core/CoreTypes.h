@@ -21,11 +21,13 @@
 #define I32 int32_t 
 #define I64 int64_t
 
-typedef struct {
-    uint64_t uLabelAddress;
+#define SZ  size_t
 
-    uint8_t  uLabelSize;
-    char     sLabelName[256];
+typedef struct {
+    U64  uLabelAddress;
+
+    U8   uLabelSize;
+    char sLabelName[256];
 } LabelPair;
 
 #endif

@@ -1,6 +1,6 @@
 #include "util/Logging.h"
 
-const char* stringOfLogLevel(loglevel_t level) {
+const char* stringOfLogLevel(LogLevel level) {
     switch (level) {
         case DEBUG:        return "DEBUG";
         case EXTRA_STATUS: return "EXTRA";

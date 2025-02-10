@@ -21,7 +21,7 @@ U64 CMachine::ReadQuadwordAt(U64 address) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
     U64 uMappedAddress = this->MapMemoryAddress(address);
     U64 data = 0;
-    size_t i = 0;
+    SZ i = 0;
     
     if (uMappedAddress == (U64) -1) {
         if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
@@ -43,7 +43,7 @@ U32 CMachine::ReadWordAt(U64 address) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
     U64 uMappedAddress = this->MapMemoryAddress(address);
     U32 data = 0;
-    size_t i = 0;
+    SZ i = 0;
     
     if (uMappedAddress == (U64) -1) {
         if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
@@ -64,7 +64,7 @@ U16 CMachine::ReadShortAt(U64 address) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
     U64 uMappedAddress = this->MapMemoryAddress(address);
     U16 data = 0;
-    size_t i = 0;
+    SZ i = 0;
     
     if (uMappedAddress == (U64) -1) {
         if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
@@ -102,7 +102,7 @@ U8 CMachine::ReadByteAt(U64 address) {
 bool CMachine::WriteQuadwordAt(U64 address, U64* data) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
     U64 uMappedAddress = this->MapMemoryAddress(address);
-    size_t i = 0;
+    SZ i = 0;
     
     if (uMappedAddress == (U64) -1) {
         if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
@@ -122,7 +122,7 @@ bool CMachine::WriteQuadwordAt(U64 address, U64* data) {
 bool CMachine::WriteWordAt(U64 address, U32* data) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
     U64 uMappedAddress = this->MapMemoryAddress(address);
-    size_t i = 0;
+    SZ i = 0;
     
     if (uMappedAddress == (U64) -1) {
         if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
@@ -142,7 +142,7 @@ bool CMachine::WriteWordAt(U64 address, U32* data) {
 bool CMachine::WriteShortAt(U64 address, U16* data) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
     U64 uMappedAddress = this->MapMemoryAddress(address);
-    size_t i = 0;
+    SZ i = 0;
     
     if (uMappedAddress == (U64) -1) {
         if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
