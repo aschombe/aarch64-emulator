@@ -1,5 +1,4 @@
-#ifndef CORETYPES_H
-#define CORETYPES_H
+#pragma once
 
 #include <stdint.h>
 
@@ -29,5 +28,3 @@ typedef struct {
     U8   uLabelSize;
     char sLabelName[256];
 } LabelPair;
-
-#endif

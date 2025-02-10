@@ -7,8 +7,8 @@
 int main(int argc, char* argv[]) {
     CEmulatorErrorHandler err;
     CMachine mach;
-    uint64_t test = 0x12345678;
-    uint64_t readData = 0;
+    U64 test = 0x12345678;
+    U64 readData = 0;
 
     dolog("argc=%d, argv[0]=%s\n", argc, argv[0]);
 

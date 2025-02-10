@@ -1,5 +1,4 @@
-#ifndef LOGGING_H
-#define LOGGING_H
+#pragma once
 
 #include <stdio.h>
 #include <string.h>
@@ -29,5 +28,3 @@ const char* stringOfLogLevel(LogLevel level);
     printf(__VA_ARGS__); \
 }
 #define dolog(...) dologm(STATUS, __VA_ARGS__)
-
-#endif
