@@ -2,7 +2,7 @@
 
 
 Token** Optimize(Token** pTokens) {
-    
+    return NULL;
 }
 
 // Ends with a colon
