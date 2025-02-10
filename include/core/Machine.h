@@ -20,7 +20,7 @@ public:
     MachineOpts m_sMachineOpts;
 
     CMachine() {
-        m_aLayout = (label_pair_t*) malloc(sizeof(label_pair_t) * USHRT_MAX);
+        m_aLayout = (LabelPair*) malloc(sizeof(LabelPair) * USHRT_MAX);
         m_aMemory = (uint8_t*) malloc(sizeof(uint8_t) * MEM_SIZE);
         m_sStdinContents = (char*) malloc(sizeof(char) * USHRT_MAX);
 
@@ -30,23 +30,26 @@ public:
         free(m_aLayout);
         free(m_aMemory);
         free(m_sStdinContents);
-        
+
         pMachine = NULL;
     }
     static CMachine* GetCurrentMachine() { return pMachine; }
 
-    uint64_t GetMemBottom() { return m_uMemBottom; }
-    uint64_t MapMemoryAddress(uint64_t addr);
+    U64 GetMemBottom() { return m_uMemBottom; }
+    U64 MapMemoryAddress(uint64_t addr);
 
-    uint64_t ReadQuadwordAt(uint64_t address);
-    uint32_t ReadWordAt(uint64_t address);
-    uint16_t ReadShortAt(uint64_t address);
-    uint8_t ReadByteAt(uint64_t address);
+    U64 ReadQuadwordAt(U64 address);
+    U32 ReadWordAt(U64 address);
+    U16 ReadShortAt(U64 address);
+    U8 ReadByteAt(U64 address);
 
-    bool WriteQuadwordAt(uint64_t address, uint64_t* data);
-    bool WriteWordAt(uint64_t address, uint32_t* data);
-    bool WriteShortAt(uint64_t address, uint16_t* data);
-    bool WriteByteAt(uint64_t address, uint8_t* data);
+    bool WriteQuadwordAt(U64 address, U64* data);
+    bool WriteWordAt(U64 address, U32* data);
+    bool WriteShortAt(U64 address, U16* data);
+    bool WriteByteAt(U64 address, U8* data);
+
+    U8* ReadToNullTerminator(U64 address);
+    bool WriteToNullTerminator(U64 address, U8* data);
 
     // 4 byte instruction, 8 byte aligned, mask is 0x00000000ffffffff
     uint32_t ReadInstructionAt(uint64_t address);
@@ -54,10 +57,10 @@ public:
 private:
     uint64_t m_uMemBottom = MEM_TOP - MEM_SIZE;
 
-    label_pair_t* m_pEntryLabel = NULL;
-    uint64_t      m_uNumLabels = 0;
-    label_pair_t*  m_aLayout;
-    char* m_sStdinContents;
-    uint8_t*  m_aMemory;
-    uint64_t m_aRegisters[NUM_REGS];
+    LabelPair* m_pEntryLabel = NULL;
+    U64        m_uNumLabels = 0;
+    LabelPair* m_aLayout;
+    char*      m_sStdinContents;
+    U8*        m_aMemory;
+    U64        m_aRegisters[NUM_REGS];
 };

@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "core/CoreTypes.h"
+
 class CEmulatorErrorHandler;
 
 static CEmulatorErrorHandler* pErrorHandler;
@@ -14,27 +16,27 @@ typedef enum {
     SEGMENTATION_FAULT_ERR = 2,
     INVALID_INSN_FMT_ERR   = 4,
     INVALID_ADDRESS_ERR    = 8,
-} emulator_err_t;
+} EmulatorError;
 
-typedef uint32_t err_mask_t;
+typedef I32 ErrorMask;
 
 class CEmulatorErrorHandler {
 public:
     static CEmulatorErrorHandler* GetErrorHandler() { return pErrorHandler; }
 
     CEmulatorErrorHandler() { 
-        m_uCurrentError =  emulator_err_t::NONE;
+        m_uCurrentError =  EmulatorError::NONE;
         pErrorHandler = this;
     }
     ~CEmulatorErrorHandler() { pErrorHandler = NULL; }
 
-    err_mask_t GetAllErrors() { return m_uCurrentError; }
-    void ClearAllErrors() { m_uCurrentError = emulator_err_t::NONE; }
+    ErrorMask GetAllErrors() { return m_uCurrentError; }
+    void ClearAllErrors() { m_uCurrentError = EmulatorError::NONE; }
 
-    bool HasError(emulator_err_t err);
-    bool SetError(emulator_err_t err);
-    bool HandleError(emulator_err_t err);
+    bool HasError(EmulatorError err);
+    bool SetError(EmulatorError err);
+    bool HandleError(EmulatorError err);
 
 private:
-    uint32_t m_uCurrentError;
+    I32 m_uCurrentError;
 };

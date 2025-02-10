@@ -12,11 +12,20 @@
 #define MEM_SIZE       0xffff0000
 #define EXIT_MAGIC_NUM 0xfdeadl
 
+#define U8  uint8_t 
+#define U16 uint16_t 
+#define U32 uint32_t 
+#define U64 uint64_t 
+#define I8  int8_t 
+#define I16 int16_t 
+#define I32 int32_t 
+#define I64 int64_t
+
 typedef struct {
     uint64_t uLabelAddress;
 
     uint8_t  uLabelSize;
     char     sLabelName[256];
-} label_pair_t;
+} LabelPair;
 
 #endif

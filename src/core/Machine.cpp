@@ -4,28 +4,28 @@
 #include "core/Error.h"
 #include "util/Logging.h"
 
-uint64_t CMachine::MapMemoryAddress(uint64_t addr) {
+U64 CMachine::MapMemoryAddress(U64 addr) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
-    uint64_t uMappedAddr = 0;
+    U64 uMappedAddr = 0;
 
     uMappedAddr = addr - this->GetMemBottom();
     if ((this->GetMemBottom() > addr) || uMappedAddr >= MEM_SIZE) {
-        pErrorHandler->SetError(emulator_err_t::INVALID_ADDRESS_ERR);
+        pErrorHandler->SetError(EmulatorError::INVALID_ADDRESS_ERR);
         return -1;
     }
 
     return uMappedAddr;
 }
 
-uint64_t CMachine::ReadQuadwordAt(uint64_t address) {
+U64 CMachine::ReadQuadwordAt(U64 address) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
-    uint64_t uMappedAddress = this->MapMemoryAddress(address);
-    uint64_t data = 0;
+    U64 uMappedAddress = this->MapMemoryAddress(address);
+    U64 data = 0;
     size_t i = 0;
     
-    if (uMappedAddress == (uint64_t) -1) {
-        if (pErrorHandler->HasError(emulator_err_t::INVALID_ADDRESS_ERR)) {
-            pErrorHandler->HandleError(emulator_err_t::INVALID_ADDRESS_ERR);
+    if (uMappedAddress == (U64) -1) {
+        if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
+            pErrorHandler->HandleError(EmulatorError::INVALID_ADDRESS_ERR);
             dologm(ERROR, "address %lu could not be mapped!\n", address);
         }
 
@@ -39,15 +39,15 @@ uint64_t CMachine::ReadQuadwordAt(uint64_t address) {
     return data;
 }
 
-uint32_t CMachine::ReadWordAt(uint64_t address) {
+U32 CMachine::ReadWordAt(U64 address) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
-    uint64_t uMappedAddress = this->MapMemoryAddress(address);
-    uint32_t data = 0;
+    U64 uMappedAddress = this->MapMemoryAddress(address);
+    U32 data = 0;
     size_t i = 0;
     
-    if (uMappedAddress == (uint64_t) -1) {
-        if (pErrorHandler->HasError(emulator_err_t::INVALID_ADDRESS_ERR)) {
-            pErrorHandler->HandleError(emulator_err_t::INVALID_ADDRESS_ERR);
+    if (uMappedAddress == (U64) -1) {
+        if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
+            pErrorHandler->HandleError(EmulatorError::INVALID_ADDRESS_ERR);
             dologm(ERROR, "address %lu could not be mapped!\n", address);
         }
         return -1;
@@ -60,15 +60,15 @@ uint32_t CMachine::ReadWordAt(uint64_t address) {
     return data;
 }
 
-uint16_t CMachine::ReadShortAt(uint64_t address) {
+U16 CMachine::ReadShortAt(U64 address) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
-    uint64_t uMappedAddress = this->MapMemoryAddress(address);
-    uint16_t data = 0;
+    U64 uMappedAddress = this->MapMemoryAddress(address);
+    U16 data = 0;
     size_t i = 0;
     
-    if (uMappedAddress == (uint64_t) -1) {
-        if (pErrorHandler->HasError(emulator_err_t::INVALID_ADDRESS_ERR)) {
-            pErrorHandler->HandleError(emulator_err_t::INVALID_ADDRESS_ERR);
+    if (uMappedAddress == (U64) -1) {
+        if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
+            pErrorHandler->HandleError(EmulatorError::INVALID_ADDRESS_ERR);
             dologm(ERROR, "address %lu could not be mapped!\n", address);
         }
         return -1;
@@ -81,14 +81,14 @@ uint16_t CMachine::ReadShortAt(uint64_t address) {
     return data;
 }
 
-uint8_t CMachine::ReadByteAt(uint64_t address) {
+U8 CMachine::ReadByteAt(U64 address) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
-    uint64_t uMappedAddress = this->MapMemoryAddress(address);
-    uint8_t data = 0;
+    U64 uMappedAddress = this->MapMemoryAddress(address);
+    U8 data = 0;
     
-    if (uMappedAddress == (uint64_t) -1) {
-        if (pErrorHandler->HasError(emulator_err_t::INVALID_ADDRESS_ERR)) {
-            pErrorHandler->HandleError(emulator_err_t::INVALID_ADDRESS_ERR);
+    if (uMappedAddress == (U64) -1) {
+        if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
+            pErrorHandler->HandleError(EmulatorError::INVALID_ADDRESS_ERR);
             dologm(ERROR, "address %lu could not be mapped!\n", address);
         }
         return -1;
@@ -99,79 +99,84 @@ uint8_t CMachine::ReadByteAt(uint64_t address) {
     return data;
 }
 
-bool CMachine::WriteQuadwordAt(uint64_t address, uint64_t* data) {
+bool CMachine::WriteQuadwordAt(U64 address, U64* data) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
-    uint64_t uMappedAddress = this->MapMemoryAddress(address);
+    U64 uMappedAddress = this->MapMemoryAddress(address);
     size_t i = 0;
     
-    if (uMappedAddress == (uint64_t) -1) {
-        if (pErrorHandler->HasError(emulator_err_t::INVALID_ADDRESS_ERR)) {
-            pErrorHandler->HandleError(emulator_err_t::INVALID_ADDRESS_ERR);
+    if (uMappedAddress == (U64) -1) {
+        if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
+            pErrorHandler->HandleError(EmulatorError::INVALID_ADDRESS_ERR);
             dologm(ERROR, "address %lu could not be mapped!\n", address);
         }
         return false;
     }
 
     for (i = 0; i < 8; i++) {
-        m_aMemory[uMappedAddress + i] = (uint8_t) (*data >> i*8) & 0xff;
+        m_aMemory[uMappedAddress + i] = (U8) (*data >> i*8) & 0xff;
     }
 
     return true;
 }
 
-bool CMachine::WriteWordAt(uint64_t address, uint32_t* data) {
+bool CMachine::WriteWordAt(U64 address, U32* data) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
-    uint64_t uMappedAddress = this->MapMemoryAddress(address);
+    U64 uMappedAddress = this->MapMemoryAddress(address);
     size_t i = 0;
     
-    if (uMappedAddress == (uint64_t) -1) {
-        if (pErrorHandler->HasError(emulator_err_t::INVALID_ADDRESS_ERR)) {
-            pErrorHandler->HandleError(emulator_err_t::INVALID_ADDRESS_ERR);
+    if (uMappedAddress == (U64) -1) {
+        if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
+            pErrorHandler->HandleError(EmulatorError::INVALID_ADDRESS_ERR);
             dologm(ERROR, "address %lu could not be mapped!\n", address);
         }
         return false;
     }
 
     for (i = 0; i < 4; i++) {
-        m_aMemory[uMappedAddress + i] = (uint8_t) (*data >> i*8) & 0xff;
+        m_aMemory[uMappedAddress + i] = (U8) (*data >> i*8) & 0xff;
     }
 
     return true;
 }
 
-bool CMachine::WriteShortAt(uint64_t address, uint16_t* data) {
+bool CMachine::WriteShortAt(U64 address, U16* data) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
-    uint64_t uMappedAddress = this->MapMemoryAddress(address);
+    U64 uMappedAddress = this->MapMemoryAddress(address);
     size_t i = 0;
     
-    if (uMappedAddress == (uint64_t) -1) {
-        if (pErrorHandler->HasError(emulator_err_t::INVALID_ADDRESS_ERR)) {
-            pErrorHandler->HandleError(emulator_err_t::INVALID_ADDRESS_ERR);
+    if (uMappedAddress == (U64) -1) {
+        if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
+            pErrorHandler->HandleError(EmulatorError::INVALID_ADDRESS_ERR);
             dologm(ERROR, "address %lu could not be mapped!\n", address);
         }
         return false;
     }
 
     for (i = 0; i < 2; i++) {
-        m_aMemory[uMappedAddress + i] = (uint8_t) (*data >> i*8) & 0xff;
+        m_aMemory[uMappedAddress + i] = (U8) (*data >> i*8) & 0xff;
     }
 
     return true;
 }
 
-bool CMachine::WriteByteAt(uint64_t address, uint8_t* data) {
+bool CMachine::WriteByteAt(U64 address, U8* data) {
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
-    uint64_t uMappedAddress = this->MapMemoryAddress(address);
+    U64 uMappedAddress = this->MapMemoryAddress(address);
     
-    if (uMappedAddress == (uint64_t) -1) {
-        if (pErrorHandler->HasError(emulator_err_t::INVALID_ADDRESS_ERR)) {
-            pErrorHandler->HandleError(emulator_err_t::INVALID_ADDRESS_ERR);
+    if (uMappedAddress == (U64) -1) {
+        if (pErrorHandler->HasError(EmulatorError::INVALID_ADDRESS_ERR)) {
+            pErrorHandler->HandleError(EmulatorError::INVALID_ADDRESS_ERR);
             dologm(ERROR, "address %lu could not be mapped!\n", address);
         }
         return false;
     }
 
-    m_aMemory[uMappedAddress] = (uint8_t) *data & 0xff;
+    m_aMemory[uMappedAddress] = (U8) *data & 0xff;
 
     return true;
+}
+
+U32 CMachine::ReadInstructionAt(U64 address) {
+    // TODO: Implement
+    return -1;
 }

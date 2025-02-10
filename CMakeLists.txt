@@ -15,7 +15,7 @@ endif()
 # general flags, feel free to remove these if you see fit but I think these are good
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wconversion -Wdeprecated -Werror=missing-declarations -Werror=redundant-decls")
 # change these for specific configurations
-set(CMAKE_CXX_FLAGS_DEBUG "-g -Wpedantic -pedantic-errors -DLOG_MASK=0xf")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -Wpedantic -pedantic-errors -DLOG_MASK=0xf -fsanitize=address")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -DLOG_MASK=0xc")
 
 add_subdirectory(src)
