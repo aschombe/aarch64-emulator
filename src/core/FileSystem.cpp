@@ -29,7 +29,7 @@ CFileSystem::~CFileSystem() {
 }
 
 U16 CFileSystem::Open(char* filename, int flags, bool syncEnabled) {
-    int nErrno;
+    int nErrno = 0; // set to 0 to avoid compiler warnings
     int nFd;
     struct stat sFStats;
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
@@ -37,7 +37,7 @@ U16 CFileSystem::Open(char* filename, int flags, bool syncEnabled) {
     // check if the file exists if we don't want to create it
     if ((flags & O_CREAT) != 0 && (errno = stat(filename, &sFStats)) != 0) {
         pErrorHandler->SetError(EmulatorError::NO_ENTRY_FOUND_ERR);
-        return (U16) nErrno;
+        return nErrno < 0 ? (U16) nErrno : (U16) -1;
     }
 
     nFd = open(filename, flags);
