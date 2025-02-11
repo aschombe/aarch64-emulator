@@ -5,6 +5,7 @@
 #include <limits.h>
 
 #include "core/CoreTypes.h"
+#include "core/FileSystem.h"
 
 class CMachine;
 
@@ -31,12 +32,18 @@ public:
         free(m_aMemory);
         free(m_sStdinContents);
 
+        m_aLayout = NULL;
+        m_aMemory = NULL;
+        m_sStdinContents = NULL;
+
         pMachine = NULL;
     }
     static CMachine* GetCurrentMachine() { return pMachine; }
 
+    CFileSystem* GetMountedFileSystem() { return &m_cFileSystem; }
+
     U64 GetMemBottom() { return m_uMemBottom; }
-    U64 MapMemoryAddress(uint64_t addr);
+    U64 MapMemoryAddress(U64 addr);
 
     U64 ReadQuadwordAt(U64 address);
     U32 ReadWordAt(U64 address);
@@ -63,4 +70,6 @@ private:
     char*      m_sStdinContents;
     U8*        m_aMemory;
     U64        m_aRegisters[NUM_REGS];
+
+    CFileSystem m_cFileSystem;
 };

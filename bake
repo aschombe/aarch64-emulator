@@ -61,6 +61,7 @@ if [[ $1 == "help" ]]; then
 fi
 
 set -x
+rm build/compile_commands.json
 /usr/bin/cmake -DCMAKE_BUILD_TYPE:STRING=$BUILD_STR -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE ${@:2} -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/arm-linux-gnueabihf-gcc --no-warn-unused-cli -S./ -B./build -G "Unix Makefiles"
 (set +x; echo "entering build directory...")
 cd ./build

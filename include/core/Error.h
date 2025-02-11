@@ -16,6 +16,9 @@ typedef enum {
     SEGMENTATION_FAULT_ERR = 2,
     INVALID_INSN_FMT_ERR   = 4,
     INVALID_ADDRESS_ERR    = 8,
+    NO_ENTRY_FOUND_ERR     = 16,
+    FD_DOESNT_EXIST_ERR    = 32,
+    NOT_ENOUGH_SPACE_ERR   = 64,
 } EmulatorError;
 
 typedef I32 ErrorMask;
