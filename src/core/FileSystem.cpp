@@ -78,25 +78,66 @@ U16 CFileSystem::Close(U16 fd) {
 }
 
 U32 CFileSystem::Read(U16 fd, U8* data, U32 count) {
-    int nErrno;
+    U32 nCopied = 0;
     CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
     FDescriptor sFDesc = m_pFileDescriptors[fd];
 
-#ifndef FS_TESTING_ENABLED
-    if (!m_pFileDescriptors[fd].bIsOpen) {
+    if (!sFDesc.bIsOpen) {
         pErrorHandler->SetError(EmulatorError::FD_DOESNT_EXIST_ERR);
-        return 0;
+        return -1;
     }
-#else
-    dologm(DEBUG, "sizeof  buffer %d\n", sizeof(data));
-    dologm(DEBUG, "sizeof *buffer %d\n", sizeof(*data));
-    dologm(DEBUG, "malloc_usable  %d\n", malloc_usable_size(data)); // crashes
-#endif
 
-    return 0;
+    while (nCopied < count) {
+        data[nCopied++] = sFDesc.uData[sFDesc.uSeekPos++];
+    }
+
+    return nCopied;
 }
 
 U32 CFileSystem::Write(U16 fd, U8* data, U32 count) {
-    // TODO: Implement
-    return -1;
+    U32 nCopied = 0;
+    CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
+    FDescriptor sFDesc = m_pFileDescriptors[fd];
+
+    if (!sFDesc.bIsOpen) {
+        pErrorHandler->SetError(EmulatorError::FD_DOESNT_EXIST_ERR);
+        return -1;
+    }
+
+    while (nCopied < count) {
+        sFDesc.uData[sFDesc.uSeekPos++] = data[nCopied++];
+    }
+
+    return nCopied;
+}
+
+U32 CFileSystem::Seek(U16 fd, U16 offset, FSeekMode mode) {
+    CEmulatorErrorHandler* pErrorHandler = CEmulatorErrorHandler::GetErrorHandler();
+    FDescriptor sFDesc = m_pFileDescriptors[fd];
+
+    if (!sFDesc.bIsOpen) {
+        pErrorHandler->SetError(EmulatorError::FD_DOESNT_EXIST_ERR);
+        return -1;
+    }
+
+    switch (mode) {
+        case FSeekMode::FSEEK_CUR:
+            sFDesc.uSeekPos += offset;
+            break;
+        case FSeekMode::FSEEK_SET:
+            sFDesc.uSeekPos = offset;
+            break;
+        case FSeekMode::FSEEK_END:
+            if (offset > 0) {
+                pErrorHandler->SetError(EmulatorError::INVALID_LOCATION_ERR);
+                return -1;
+            }
+            sFDesc.uSeekPos = sFDesc.uLength + offset;
+            break;
+        default:
+            pErrorHandler->SetError(EmulatorError::INVALID_LOCATION_ERR);
+            return -1;
+    }
+
+    return sFDesc.uSeekPos;
 }

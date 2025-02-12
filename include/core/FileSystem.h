@@ -16,6 +16,12 @@ typedef struct {
     bool  bSyncEnabled;
 } FDescMap;
 
+typedef enum {
+    FSEEK_SET,
+    FSEEK_CUR,
+    FSEEK_END
+} FSeekMode;
+
 typedef struct {
     U16 uFdNumber;
     U16 uLength;
@@ -43,6 +49,8 @@ public:
     U16 Close(U16 fd);
     U32 Read(U16 fd, U8* data, U32 count);
     U32 Write(U16 fd, U8* data, U32 count);
+
+    U32 Seek(U16 fd, U16 offset, FSeekMode mode);
 private:
     U16 m_uNextFdNum = BASE_FD_NUM;
     U8  m_uMaxFileCount = MAX_FILE_COUNT;

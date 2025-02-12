@@ -19,6 +19,7 @@ typedef enum {
     NO_ENTRY_FOUND_ERR     = 16,
     FD_DOESNT_EXIST_ERR    = 32,
     NOT_ENOUGH_SPACE_ERR   = 64,
+    INVALID_LOCATION_ERR   = 128
 } EmulatorError;
 
 typedef I32 ErrorMask;
