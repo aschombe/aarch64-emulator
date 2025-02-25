@@ -28,14 +28,22 @@ char* cleanFileContents(char* pFileContents) {
     int nestedCount = 0;
 
     while (*pSrc) {
+        // Handle block comments (/* ... */)
         if (*pSrc == '/' && *(pSrc + 1) == '*') {
             nestedCount++;
             pSrc += 2;
-        } else if (*pSrc == '*' && *(pSrc + 1) == '/' && nestedCount > 0) {
+        } 
+        else if (*pSrc == '*' && *(pSrc + 1) == '/' && nestedCount > 0) {
             nestedCount--;
             pSrc += 2;
             continue;
         }
+        // Handle single-line comments (// ...)
+        else if (*pSrc == '/' && *(pSrc + 1) == '/') {
+            while (*pSrc && *pSrc != '\n') pSrc++;  // Skip until end of line
+            continue;
+        }
+        
         if (nestedCount == 0) *pDest++ = *pSrc;
         pSrc++;
     }
@@ -43,6 +51,7 @@ char* cleanFileContents(char* pFileContents) {
 
     return pFileContents;
 }
+
 
 void strLwr(char* pStr) {
     while (*pStr) {
