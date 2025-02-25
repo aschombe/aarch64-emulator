@@ -9,7 +9,7 @@
 // Decodes an array of tokens into an array of symbols
 Symbol** TypeDecode(Token** pTokens) {
     size_t numTokens = 0;
-    while (pTokens[numTokens] != nullptr) numTokens++; // Count tokens
+    while (pTokens[numTokens] != NULL) numTokens++; // Count tokens
 
     Symbol** pSymbols = (Symbol**)malloc(sizeof(Symbol*) * (numTokens + 1)); // Allocate memory
     size_t symIndex = 0;
@@ -45,9 +45,9 @@ Symbol** TypeDecode(Token** pTokens) {
             if (pTokens[i]->pValue[0] == '#') {
                 if (pTokens[i]->pValue[1] == '0') {
                     if (pTokens[i]->pValue[2] == 'x') {
-                        pSymbols[symIndex]->imm.value = (int)strtol(pTokens[i]->pValue + 3, nullptr, 16);
+                        pSymbols[symIndex]->imm.value = (int)strtol(pTokens[i]->pValue + 3, NULL, 16);
                     } else if (pTokens[i]->pValue[2] == 'b') {
-                        pSymbols[symIndex]->imm.value = (int)strtol(pTokens[i]->pValue + 3, nullptr, 2);
+                        pSymbols[symIndex]->imm.value = (int)strtol(pTokens[i]->pValue + 3, NULL, 2);
                     } else {
                         pSymbols[symIndex]->imm.value = atoi(pTokens[i]->pValue + 2);
                     }
@@ -85,7 +85,7 @@ Symbol** TypeDecode(Token** pTokens) {
         symIndex++;
     }
 
-    pSymbols[symIndex] = nullptr; // Null-terminate array
+    pSymbols[symIndex] = NULL; // Null terminate
     return pSymbols;
 }
 
@@ -189,7 +189,7 @@ bool isDirective(Token* pToken) {
 
 // Prints a symbol
 void printSymbol(Symbol* pSymbol) {
-    char* instrStr = nullptr; // Declare outside the switch
+    char* instrStr = NULL;
 
     switch (pSymbol->type) {
     case TokenType::REGISTER:
@@ -197,7 +197,7 @@ void printSymbol(Symbol* pSymbol) {
         break;
     case TokenType::INSTRUCTION:
         instrStr = getInstrStr(pSymbol->instr.instr); // Assign inside case
-        if (instrStr != nullptr) {
+        if (instrStr != NULL) {
             printf("INSTRUCTION %s %d %d\n", instrStr, pSymbol->nLine, pSymbol->nCol);
         } else {
             printf("INSTRUCTION UNKNOWN(%d) %d %d\n", (int)pSymbol->instr.instr, pSymbol->nLine, pSymbol->nCol);

@@ -11,7 +11,8 @@ const InstructionMap instr_table[] = {
     {"lsr", Instr::LSR}, {"lsrs", Instr::LSRS}, {"mov", Instr::MOV}, {"mul", Instr::MUL}, {"muls", Instr::MULS},
     {"not", Instr::NOT}, {"orr", Instr::ORR}, {"orrs", Instr::ORRS}, {"ret", Instr::RET}, {"sdiv", Instr::SDIV},
     {"sdivs", Instr::SDIVS}, {"str", Instr::STR}, {"strb", Instr::STRB}, {"sub", Instr::SUB}, {"subs", Instr::SUBS},
-    {"svc", Instr::SVC}, {"udiv", Instr::UDIV}, {"udivs", Instr::UDIVS}
+    {"svc", Instr::SVC}, {"udiv", Instr::UDIV}, {"udivs", Instr::UDIVS},
+    {NULL, Instr::INVALID}
 };
 
 const int INSTR_TABLE_SIZE = sizeof(instr_table) / sizeof(instr_table[0]);
@@ -31,5 +32,5 @@ char* getInstrStr(Instr instr) {
             return (char*)instr_table[i].name;
         }
     }
-    return nullptr;
+    return NULL;
 }
