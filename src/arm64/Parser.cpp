@@ -1,45 +1,28 @@
 #include "arm64/Parser.h"
-#include "core/CoreTypes.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 
 char* readFile(const char* pFile) {
     FILE* pF = fopen(pFile, "r");
-    if (pF == NULL) {
-        return NULL;
-    }
+    if (!pF) return NULL;
 
     fseek(pF, 0, SEEK_END);
     long lSize = ftell(pF);
     rewind(pF);
 
-    char* pStr = (char*)malloc(lSize + 1);
-    if (pStr == NULL) {
-        return NULL;
-    }
+    char* pStr = (char*)malloc((size_t)lSize + 1);
+    if (!pStr) return NULL;
 
-    size_t result = fread(pStr, 1, lSize, pF);
-    if (result != (size_t)lSize) {
-        return NULL;
-    }
-
+    fread(pStr, 1, (size_t) lSize, pF);
     fclose(pF);
     pStr[lSize] = '\0';
-
     return pStr;
 }
 
 char* cleanFileContents(char* pFileContents) {
-    // Remove single-line comments
-    char* pCommentStart = strstr(pFileContents, "//");
-    while (pCommentStart != NULL) {
-        char* pCommentEnd = strstr(pCommentStart, "\n");
-        if (pCommentEnd == NULL) {
-            pCommentEnd = pCommentStart + strlen(pCommentStart);
-        }
-        memset(pCommentStart, '\n', pCommentEnd - pCommentStart);
-        pCommentStart = strstr(pCommentEnd, "//");
-    }
-
-    // Remove multi-line comments with proper nesting
     char* pSrc = pFileContents;
     char* pDest = pFileContents;
     int nestedCount = 0;
@@ -47,35 +30,13 @@ char* cleanFileContents(char* pFileContents) {
     while (*pSrc) {
         if (*pSrc == '/' && *(pSrc + 1) == '*') {
             nestedCount++;
-            pSrc += 2; // Skip `/*`
-        } 
-        else if (*pSrc == '*' && *(pSrc + 1) == '/' && nestedCount > 0) {
+            pSrc += 2;
+        } else if (*pSrc == '*' && *(pSrc + 1) == '/' && nestedCount > 0) {
             nestedCount--;
-            pSrc += 2; // Skip `*/`
-            if (nestedCount == 0) {
-                continue;
-            }
-        }
-
-        if (nestedCount == 0) {
-            *pDest = *pSrc;
-            pDest++;
-        }
-
-        pSrc++;
-    }
-    *pDest = '\0';
-
-    // Remove empty lines
-    pSrc = pFileContents;
-    pDest = pFileContents;
-    while (*pSrc) {
-        if (*pSrc == '\n' && *(pSrc + 1) == '\n') {
-            pSrc++;
+            pSrc += 2;
             continue;
         }
-        *pDest = *pSrc;
-        pDest++;
+        if (nestedCount == 0) *pDest++ = *pSrc;
         pSrc++;
     }
     *pDest = '\0';
@@ -83,12 +44,7 @@ char* cleanFileContents(char* pFileContents) {
     return pFileContents;
 }
 
-// Converts a string to lowercase in-place (only for letters, skips numbers, punctuation, etc.)
 void strLwr(char* pStr) {
-    if (pStr == NULL) {
-        return;
-    }
-
     while (*pStr) {
         if (isalpha((unsigned char)*pStr)) {
             *pStr = (char)tolower((unsigned char)*pStr);
@@ -98,183 +54,127 @@ void strLwr(char* pStr) {
 }
 
 char* processLine(char* pLine) {
-    if (!pLine || !*pLine) return pLine;
-
-    // Removes leading and trailing spaces (from around commas and brackets)
     char* pSrc = pLine;
     char* pDest = pLine;
-    while (*pSrc) {
-        if (*pSrc == ' ' && (*(pSrc + 1) == ',' || *(pSrc + 1) == '[' || *(pSrc + 1) == ']')) {
-            pSrc++;
-            continue;
-        }
-        if ((pDest > pLine && (*(pDest - 1) == ',' || *(pDest - 1) == '[' || *(pDest - 1) == ']')) && *pSrc == ' ') {
-            pSrc++;
-            continue;
-        }
-        *pDest++ = *pSrc++;
-    }
-    *pDest = '\0';
 
-    // Remove brackets and replace commas with spaces
-    pSrc = pLine;
-    pDest = pLine;
     while (*pSrc) {
-        // Skip brackets
         if (*pSrc == '[' || *pSrc == ']') {
             pSrc++;
             continue;
         }
         if (*pSrc == ',') {
-            // Replace comma with space
-            *pDest++ = ' ';  
+            *pDest++ = ' ';
         } else {
             *pDest++ = *pSrc;
         }
         pSrc++;
     }
     *pDest = '\0';
-
-    // Iterate through and convert to lowercase (skipping labels and directives)
-    pSrc = pLine;
-    char* pTemp = pLine;
-    pDest = pLine;
-    while (*pSrc) {
-        // Look ahead with pTemp to see if there are any colons
-        pTemp = pSrc;
-        while (*pTemp && *pTemp != ' ' && *pTemp != '\0') {
-            if (*pTemp == ':') {
-                break;
-            }
-            pTemp++;
-        }
-        if (*pTemp == ':') {
-            // Skip this token
-            while (*pSrc && *pSrc != ' ' && *pSrc != '\0') {
-                *pDest = *pSrc;
-                pSrc++;
-                pDest++;
-            }
-            *pDest = *pSrc;
-            pSrc++;
-            pDest++;
-            continue;
-        }
-
-        // Look ahead with pTemp to see if there are any dots
-        pTemp = pSrc;
-        while (*pTemp && *pTemp != ' ' && *pTemp != '\0') {
-            if (*pTemp == '.') {
-                break;
-            }
-            pTemp++;
-        }
-        if (*pTemp == '.') {
-            // Skip this token
-            while (*pSrc && *pSrc != ' ' && *pSrc != '\0') {
-                *pDest = *pSrc;
-                pSrc++;
-                pDest++;
-            }
-            *pDest = *pSrc;
-            pSrc++;
-            pDest++;
-            continue;
-        }
-
-        // Convert to lowercase
-        if (*pSrc != ' ' && *pSrc != '\0') {
-            *pDest = (char)tolower((unsigned char)*pSrc);
-        } else {
-            *pDest = *pSrc;
-        }
-        pSrc++;
-        pDest++;
-    }
-
+    strLwr(pLine);
     return pLine;
 }
 
-char* pTokenToString(Token* pToken) {
-    if (pToken == NULL) {
-        return NULL;
+char* preprocessFile(const char* pFile) {
+    char* pFileContents = readFile(pFile);
+    if (!pFileContents) return NULL;
+
+    pFileContents = cleanFileContents(pFileContents);
+    if (!pFileContents) return NULL;
+
+    char* pProcessed = (char*)malloc(strlen(pFileContents) * 2);
+    if (!pProcessed) return NULL;
+
+    pProcessed[0] = '\0';
+    char* pLine = strtok(pFileContents, "\n");
+    while (pLine) {
+        processLine(pLine);
+        strcat(pProcessed, pLine);
+        strcat(pProcessed, "\n");
+        pLine = strtok(NULL, "\n");
     }
+    free(pFileContents);
+    return pProcessed;
+}
+
+Token** Parse(char* pFile) {
+    char* pFileContents = preprocessFile(pFile);
+    if (!pFileContents) return NULL;
+
+    int capacity = 100;
+    int tokenIndex = 0;
+    Token** pTokens = (Token**)malloc((unsigned long)capacity * sizeof(Token*));
+    if (!pTokens) return NULL;
+
+    int lineNum = 1, colNum = 1;
+    char* pSrc = pFileContents;
+
+    while (*pSrc) {
+        // Skip whitespace but track column properly
+        while (*pSrc == ' ' || *pSrc == '\t') {
+            colNum++;
+            pSrc++;
+        }
+
+        // Handle newlines properly
+        if (*pSrc == '\n') {
+            lineNum++;
+            colNum = 1;
+            pSrc++;
+            continue;
+        }
+
+        // Start of a token
+        char* start = pSrc;
+        int startCol = colNum;
+
+        // Identify token boundaries
+        while (*pSrc && *pSrc != ' ' && *pSrc != '\t' && *pSrc != '\n') {
+            colNum++;
+            pSrc++;
+        }
+
+        // Allocate and store the token
+        int length = (int) (pSrc - start);
+        if (length > 0) {
+            if (tokenIndex >= capacity) {
+                capacity *= 2;
+                pTokens = (Token**)realloc(pTokens, (unsigned int)capacity * sizeof(Token*));
+            }
+
+            Token* newToken = (Token*)malloc(sizeof(Token));
+            newToken->pValue = strndup(start, (unsigned long)length);
+            newToken->nLine = lineNum;
+            newToken->nCol = startCol;
+            pTokens[tokenIndex++] = newToken;
+        }
+    }
+
+    pTokens[tokenIndex] = NULL;
+    free(pFileContents);
+    return pTokens;
+}
+
+
+void freeTokens(Token** pNodes) {
+    if (!pNodes) return;
+
+    for (int i = 0; pNodes[i] != NULL; i++) {
+        free(pNodes[i]->pValue);
+        free(pNodes[i]);
+    }
+    free(pNodes);
+}
+
+void printToken(Token* pToken) {
+    if (!pToken) return;
+    printf("Token: %s, Line: %d, Col: %d\n", pToken->pValue, pToken->nLine, pToken->nCol);
+}
+
+char* pTokenToString(Token* pToken) {
+    if (!pToken) return NULL;
 
     char buffer[256];
     sprintf(buffer, "Token: %s, Line: %d, Col: %d", pToken->pValue, pToken->nLine, pToken->nCol);
     return strdup(buffer);
 }
 
-Token** Parse(char* pFile) {
-    // Read file contents
-    char* pFileContents = readFile(pFile);
-    if (pFileContents == NULL) {
-        return NULL;
-    }
-
-    // Clean file contents
-    pFileContents = cleanFileContents(pFileContents);
-    if (pFileContents == NULL) {
-        return NULL;
-    }
-
-    // Count the number of lines
-    int nLines = 0;
-    for (char* p = pFileContents; *p; p++) {
-        if (*p == '\n') nLines++;
-    }
-
-    // Allocate memory for the Token array
-    Token** pNodes = (Token**)malloc((nLines + 1) * sizeof(Token*));
-    if (pNodes == NULL) {
-        free(pFileContents);
-        return NULL;
-    }
-
-    char* pLine = pFileContents;
-    int lineNum = 1;
-    int lineIndex = 0;
-    
-    while (*pLine) {
-        char* pEnd = strchr(pLine, '\n');
-        if (pEnd) *pEnd = '\0';
-        
-        processLine(pLine);
-        
-        // Tokenize line
-        int capacity = 10;
-        int tokenIndex = 0;
-        Token* tokens = (Token*)malloc(capacity * sizeof(Token));
-        
-        char* pToken = strtok(pLine, " ");
-        int colNum = 1;
-        
-        while (pToken) {
-            if (tokenIndex >= capacity) {
-                capacity *= 2;
-                tokens = (Token*)realloc(tokens, capacity * sizeof(Token));
-            }
-            
-            tokens[tokenIndex].pValue = strdup(pToken);
-            tokens[tokenIndex].nLine = lineNum;
-            tokens[tokenIndex].nCol = colNum;
-            tokenIndex++;
-            
-            colNum += (int)strlen(pToken) + 1;
-            pToken = strtok(NULL, " ");
-        }
-        
-        // Null terminate the token array
-        tokens[tokenIndex].pValue = NULL;
-        pNodes[lineIndex++] = tokens;
-        
-        if (pEnd) pLine = pEnd + 1;
-        else break;
-        lineNum++;
-    }
-    
-    // Null terminate the line array
-    pNodes[lineIndex] = NULL;
-    free(pFileContents);
-    return pNodes;
-}

@@ -12,17 +12,21 @@ set(CORE_SOURCE_LIST
 
 set(ARM64_HEADER_LIST
     "${Aarch64Emulator_SOURCE_DIR}/include/arm64/Parser.h"
-    "${Aarch64Emulator_SOURCE_DIR}/include/arm64/Optimizer.h")
+    "${Aarch64Emulator_SOURCE_DIR}/include/arm64/Optimizer.h"
+    "${Aarch64Emulator_SOURCE_DIR}/include/arm64/TypeDecoder.h")
 
 set(ARM64_SOURCE_LIST
     "${Aarch64Emulator_SOURCE_DIR}/src/arm64/Parser.cpp"
-    "${Aarch64Emulator_SOURCE_DIR}/src/arm64/Optimizer.cpp")
+    "${Aarch64Emulator_SOURCE_DIR}/src/arm64/Optimizer.cpp"
+    "${Aarch64Emulator_SOURCE_DIR}/src/arm64/TypeDecoder.cpp")
 
 set(UTIL_HEADER_LIST
-    "${Aarch64Emulator_SOURCE_DIR}/include/util/Logging.h")
+    "${Aarch64Emulator_SOURCE_DIR}/include/util/Logging.h"
+    "${Aarch64Emulator_SOURCE_DIR}/include/util/InstructionMap.h")
 
 set(UTIL_SOURCE_LIST
-    "${Aarch64Emulator_SOURCE_DIR}/src/util/Logging.cpp")
+    "${Aarch64Emulator_SOURCE_DIR}/src/util/Logging.cpp"
+    "${Aarch64Emulator_SOURCE_DIR}/src/util/InstructionMap.cpp")
 
 set(HEADER_LIST
     ${CORE_HEADER_LIST}

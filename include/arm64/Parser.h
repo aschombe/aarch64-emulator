@@ -1,10 +1,5 @@
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-
 typedef struct Token {
     char* pValue;
     int nLine;
@@ -22,3 +17,9 @@ char* readFile(const char* pFile);
 char* cleanFileContents(char* pFileContents);
 
 void strLwr(char* pStr);
+
+void freeTokens(Token** pNodes);
+
+void printToken(Token* pToken);
+
+char* preprocessFile(const char* pFile);
