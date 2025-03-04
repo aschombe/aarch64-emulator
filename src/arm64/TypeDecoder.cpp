@@ -11,11 +11,25 @@ Symbol** TypeDecode(Token** pTokens) {
     size_t numTokens = 0;
     while (pTokens[numTokens] != NULL) numTokens++; // Count tokens
 
-    Symbol** pSymbols = (Symbol**)malloc(sizeof(Symbol*) * (numTokens + 1)); // Allocate memory
+    Symbol** pSymbols = (Symbol**)malloc(sizeof(Symbol*) * (numTokens + 1));
     size_t symIndex = 0;
 
     for (size_t i = 0; i < numTokens; i++) {
         pSymbols[symIndex] = (Symbol*)malloc(sizeof(Symbol));
+
+        // if the previous symbol was a .global directive, then this token is a label
+        if (symIndex > 0 && pSymbols[symIndex - 1]->type == TokenType::DIRECTIVE) {
+          if (strcmp((const char*)pSymbols[symIndex - 1]->directive.directive, ".global") == 0) {
+            pSymbols[symIndex]->type = TokenType::LABEL;
+            pSymbols[symIndex]->label.label = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
+            strcpy((char*)pSymbols[symIndex]->label.label, pTokens[i]->pValue);
+            pSymbols[symIndex]->nLine = pTokens[i]->nLine;
+            pSymbols[symIndex]->nCol = pTokens[i]->nCol;
+            symIndex++;
+            continue;
+          }
+        }
+
 
         if (isLabel(pTokens[i])) {
             pSymbols[symIndex]->type = TokenType::LABEL;
@@ -69,14 +83,22 @@ Symbol** TypeDecode(Token** pTokens) {
             pSymbols[symIndex]->type = TokenType::DIRECTIVE;
             pSymbols[symIndex]->directive.directive = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
             strcpy((char*)pSymbols[symIndex]->directive.directive, pTokens[i]->pValue);
+            
+            // if the directive is .global, then consume the next token as the label
+            // if (strcmp(pTokens[i]->pValue, ".global") == 0) {
+            //     i++;
+            //     pSymbols[symIndex]->type = TokenType::LABEL;
+            //     pSymbols[symIndex]->label.label = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
+            //     strcpy((char*)pSymbols[symIndex]->label.label, pTokens[i]->pValue);
+            // }
         } else {
             pSymbols[symIndex]->type = TokenType::INSTRUCTION;
             pSymbols[symIndex]->instr.instr = Instr::INVALID;
             pSymbols[symIndex]->instr.instr = getInstr(pTokens[i]->pValue);
-
-
+  
             if (pSymbols[symIndex]->instr.instr == Instr::INVALID) {
-                printf("Invalid instruction: %s\n", pTokens[i]->pValue);
+                printf("ERROR: Invalid instruction %s at line %d col %d\n", pTokens[i]->pValue, pTokens[i]->nLine, pTokens[i]->nCol);
+                return NULL;
             }
         }
 
@@ -85,7 +107,7 @@ Symbol** TypeDecode(Token** pTokens) {
         symIndex++;
     }
 
-    pSymbols[symIndex] = NULL; // Null terminate
+    pSymbols[symIndex] = NULL;
     return pSymbols;
 }
 
@@ -182,12 +204,10 @@ bool isImmediate(Token* pToken) {
     return false;
 }
 
-// Starts with a dot
 bool isDirective(Token* pToken) {
     return pToken->pValue[0] == '.';
 }
 
-// Prints a symbol
 void printSymbol(Symbol* pSymbol) {
     char* instrStr = NULL;
 
@@ -215,7 +235,6 @@ void printSymbol(Symbol* pSymbol) {
     }
 }
 
-// Frees a symbol
 void freeSymbols(Symbol** pSymbols) {
     for (int i = 0; pSymbols[i] != NULL; i++) {
         switch (pSymbols[i]->type) {
