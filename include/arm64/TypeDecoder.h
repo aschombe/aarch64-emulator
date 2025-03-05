@@ -29,7 +29,7 @@ enum class Instr {
   INVALID,
 };
 
-enum class TokenType {
+enum class SymbolType {
   REGISTER,
   INSTRUCTION,
   IMMEDIATE,
@@ -67,7 +67,7 @@ struct Directive {
 };
 
 struct Symbol {
-  TokenType type;
+  SymbolType type;
   union {
     Register reg;
     Instruction instr;

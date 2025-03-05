@@ -18,9 +18,9 @@ Symbol** TypeDecode(Token** pTokens) {
         pSymbols[symIndex] = (Symbol*)malloc(sizeof(Symbol));
 
         // if the previous symbol was a .global directive, then this token is a label
-        if (symIndex > 0 && pSymbols[symIndex - 1]->type == TokenType::DIRECTIVE) {
+        if (symIndex > 0 && pSymbols[symIndex - 1]->type == SymbolType::DIRECTIVE) {
           if (strcmp((const char*)pSymbols[symIndex - 1]->directive.directive, ".global") == 0) {
-            pSymbols[symIndex]->type = TokenType::LABEL;
+            pSymbols[symIndex]->type = SymbolType::LABEL;
             pSymbols[symIndex]->label.label = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
             strcpy((char*)pSymbols[symIndex]->label.label, pTokens[i]->pValue);
             pSymbols[symIndex]->nLine = pTokens[i]->nLine;
@@ -32,11 +32,11 @@ Symbol** TypeDecode(Token** pTokens) {
 
 
         if (isLabel(pTokens[i])) {
-            pSymbols[symIndex]->type = TokenType::LABEL;
+            pSymbols[symIndex]->type = SymbolType::LABEL;
             pSymbols[symIndex]->label.label = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
             strcpy((char*)pSymbols[symIndex]->label.label, pTokens[i]->pValue);
         } else if (isRegister(pTokens[i])) {
-            pSymbols[symIndex]->type = TokenType::REGISTER;
+            pSymbols[symIndex]->type = SymbolType::REGISTER;
             pSymbols[symIndex]->reg.reg = Reg::X0;
             if (pTokens[i]->pValue[0] == 'w') {
                 pSymbols[symIndex]->reg.reg = (Reg)((int)Reg::W0 + atoi(pTokens[i]->pValue + 1));
@@ -54,7 +54,7 @@ Symbol** TypeDecode(Token** pTokens) {
                 pSymbols[symIndex]->reg.reg = Reg::NZCV;
             }
         } else if (isImmediate(pTokens[i])) {
-            pSymbols[symIndex]->type = TokenType::IMMEDIATE;
+            pSymbols[symIndex]->type = SymbolType::IMMEDIATE;
             pSymbols[symIndex]->imm.value = 0;
             if (pTokens[i]->pValue[0] == '#') {
                 if (pTokens[i]->pValue[1] == '0') {
@@ -80,19 +80,19 @@ Symbol** TypeDecode(Token** pTokens) {
                 }
             }
         } else if (isDirective(pTokens[i])) {
-            pSymbols[symIndex]->type = TokenType::DIRECTIVE;
+            pSymbols[symIndex]->type = SymbolType::DIRECTIVE;
             pSymbols[symIndex]->directive.directive = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
             strcpy((char*)pSymbols[symIndex]->directive.directive, pTokens[i]->pValue);
             
             // if the directive is .global, then consume the next token as the label
             // if (strcmp(pTokens[i]->pValue, ".global") == 0) {
             //     i++;
-            //     pSymbols[symIndex]->type = TokenType::LABEL;
+            //     pSymbols[symIndex]->type = SymbolType::LABEL;
             //     pSymbols[symIndex]->label.label = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
             //     strcpy((char*)pSymbols[symIndex]->label.label, pTokens[i]->pValue);
             // }
         } else {
-            pSymbols[symIndex]->type = TokenType::INSTRUCTION;
+            pSymbols[symIndex]->type = SymbolType::INSTRUCTION;
             pSymbols[symIndex]->instr.instr = Instr::INVALID;
             pSymbols[symIndex]->instr.instr = getInstr(pTokens[i]->pValue);
   
@@ -212,10 +212,10 @@ void printSymbol(Symbol* pSymbol) {
     char* instrStr = NULL;
 
     switch (pSymbol->type) {
-    case TokenType::REGISTER:
+    case SymbolType::REGISTER:
         printf("REGISTER %d %d %d\n", (int)pSymbol->reg.reg, pSymbol->nLine, pSymbol->nCol);
         break;
-    case TokenType::INSTRUCTION:
+    case SymbolType::INSTRUCTION:
         instrStr = getInstrStr(pSymbol->instr.instr); // Assign inside case
         if (instrStr != NULL) {
             printf("INSTRUCTION %s %d %d\n", instrStr, pSymbol->nLine, pSymbol->nCol);
@@ -223,13 +223,13 @@ void printSymbol(Symbol* pSymbol) {
             printf("INSTRUCTION UNKNOWN(%d) %d %d\n", (int)pSymbol->instr.instr, pSymbol->nLine, pSymbol->nCol);
         }
         break;
-    case TokenType::IMMEDIATE:
+    case SymbolType::IMMEDIATE:
         printf("IMMEDIATE %d %d %d\n", pSymbol->imm.value, pSymbol->nLine, pSymbol->nCol);
         break;
-    case TokenType::LABEL:
+    case SymbolType::LABEL:
         printf("LABEL %s %d %d\n", pSymbol->label.label, pSymbol->nLine, pSymbol->nCol);
         break;
-    case TokenType::DIRECTIVE:
+    case SymbolType::DIRECTIVE:
         printf("DIRECTIVE %s %d %d\n", pSymbol->directive.directive, pSymbol->nLine, pSymbol->nCol);
         break;
     }
@@ -238,16 +238,16 @@ void printSymbol(Symbol* pSymbol) {
 void freeSymbols(Symbol** pSymbols) {
     for (int i = 0; pSymbols[i] != NULL; i++) {
         switch (pSymbols[i]->type) {
-        case TokenType::REGISTER:
+        case SymbolType::REGISTER:
             break;
-        case TokenType::INSTRUCTION:
+        case SymbolType::INSTRUCTION:
             break;
-        case TokenType::IMMEDIATE:
+        case SymbolType::IMMEDIATE:
             break;
-        case TokenType::LABEL:
+        case SymbolType::LABEL:
             free(pSymbols[i]->label.label);
             break;
-        case TokenType::DIRECTIVE:
+        case SymbolType::DIRECTIVE:
             free(pSymbols[i]->directive.directive);
             break;
         }
