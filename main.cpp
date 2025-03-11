@@ -1,38 +1,95 @@
 #include <stdio.h>
+#include <string.h>
+#include <getopt.h>
+#include <stdlib.h>
 
-#include "core/Machine.h"
-#include "core/Error.h"
-#include "util/Logging.h"
+#include "arm64/Parser.h"
+#include "arm64/TypeDecoder.h"
+#include "arm64/CFG.h"
 
 int main(int argc, char* argv[]) {
-    CEmulatorErrorHandler err;
-    CMachine mach;
-    U64 test = 0x12345678;
-    U64 readData = 0;
+    char* help_message = (char*)malloc(256);
+    sprintf(help_message, "Usage: %s <filename> [-h] [-v]\n"
+                           "Flags:\n"
+                           "\t-h: Help\n"
+                           "\t-v: Version\n", argv[0]);
 
-#ifdef FS_TESTING_ENABLED
-    U8  buf[256];
-    U8* buf2 = (U8*) malloc(256);
-#endif
+    // =============== Parse arguments ===============
 
-    dolog("argc=%d, argv[0]=%s\n", argc, argv[0]);
+    if (argc < 2) {
+        printf("%s", help_message);
+        free(help_message);
+        return 1;
+    }
 
-    mach.WriteQuadwordAt(MEM_TOP - 24, &test);
-    dologm(DEBUG, "wrote    0x%016lx\n", test);
-    readData = mach.ReadQuadwordAt(MEM_TOP - 24);
-    dologm(DEBUG, "got back 0x%016lx\n", readData);
+    char* file = NULL;
 
-#ifdef FS_TESTING_ENABLED
-    mach.GetMountedFileSystem()->Read(0, &buf[0], 32); // this line will crash, buf is not owned
-    mach.GetMountedFileSystem()->Read(0, buf2, 32);
-#endif
-    // keep this call, will help us identify unhandled/uncleared errors
-    // will primarily be handled in the emulator
-    dologm(ERROR, "error handler final state 0x%016x\n", err.GetAllErrors());
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-h") == 0) {
+            printf("%s", help_message);
+            free(help_message);
+            return 0;
+        } else if (strcmp(argv[i], "-v") == 0) {
+            printf("Version: 0.0.1\n");
+            free(help_message);
+            return 0;
+        } else {
+            file = argv[i];
+        }
+    }
+  
+    free(help_message);
 
-#ifdef FS_TESTING_ENABLED
-    free(buf2);
-#endif
+    if (!file) {
+        printf("No file provided\n");
+        return 1;
+    }
+
+    if (strlen(file) < 2 || file[strlen(file) - 2] != '.' || file[strlen(file) - 1] != 's') {
+        printf("Please provide a valid .s file\n");
+        return 1;
+    }
+
+    // =============== Parse file ===============
+
+    Token** tokens = Parse(file);
+    if (!tokens) {
+        printf("Failed to parse file\n");
+        freeTokens(tokens);
+        return 1;
+    }
+  
+    // printf("Tokens:\n");
+    // printTokens(tokens);
+
+    printf("\n\n");
+
+    // =============== Decode types ===============
+
+    Symbol** symbols = TypeDecode(tokens);
+    freeTokens(tokens);
+    if (!symbols) {
+        printf("Failed to decode types\n");
+        freeSymbols(symbols);
+        return 1;
+    }
+
+    // printf("Symbols:\n");
+    // printSymbols(symbols);
+
+    printf("\n\n");
+    
+    // =============== Build CFG ===============
+
+    CFG* cfg = buildCFG(symbols);
+    // freeSymbols(symbols);
+    if (!cfg) {
+        printf("Failed to build CFG\n");
+        return 1;
+    }
+
+    printf("CFG:\n");
+    printCFG(cfg);
 
     return 0;
 }

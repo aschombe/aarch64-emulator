@@ -18,10 +18,12 @@ const InstructionMap instr_table[] = {
 const int INSTR_TABLE_SIZE = sizeof(instr_table) / sizeof(instr_table[0]);
 
 Instr getInstr(const char* str) {
-    for (int i = 0; i < INSTR_TABLE_SIZE; i++) {
+    int i = 0;
+    while (instr_table[i].name != NULL) {
         if (strcmp(str, instr_table[i].name) == 0) {
             return instr_table[i].instr;
         }
+        i++;
     }
     return Instr::INVALID;
 }

@@ -17,20 +17,6 @@ Symbol** TypeDecode(Token** pTokens) {
     for (size_t i = 0; i < numTokens; i++) {
         pSymbols[symIndex] = (Symbol*)malloc(sizeof(Symbol));
 
-        // if the previous symbol was a .global directive, then this token is a label
-        if (symIndex > 0 && pSymbols[symIndex - 1]->type == SymbolType::DIRECTIVE) {
-          if (strcmp((const char*)pSymbols[symIndex - 1]->directive.directive, ".global") == 0) {
-            pSymbols[symIndex]->type = SymbolType::LABEL;
-            pSymbols[symIndex]->label.label = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
-            strcpy((char*)pSymbols[symIndex]->label.label, pTokens[i]->pValue);
-            pSymbols[symIndex]->nLine = pTokens[i]->nLine;
-            pSymbols[symIndex]->nCol = pTokens[i]->nCol;
-            symIndex++;
-            continue;
-          }
-        }
-
-
         if (isLabel(pTokens[i])) {
             pSymbols[symIndex]->type = SymbolType::LABEL;
             pSymbols[symIndex]->label.label = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
@@ -80,25 +66,37 @@ Symbol** TypeDecode(Token** pTokens) {
                 }
             }
         } else if (isDirective(pTokens[i])) {
+            // Accepted directives: text,data,bss,extern,global
             pSymbols[symIndex]->type = SymbolType::DIRECTIVE;
             pSymbols[symIndex]->directive.directive = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
-            strcpy((char*)pSymbols[symIndex]->directive.directive, pTokens[i]->pValue);
-            
-            // if the directive is .global, then consume the next token as the label
-            // if (strcmp(pTokens[i]->pValue, ".global") == 0) {
-            //     i++;
-            //     pSymbols[symIndex]->type = SymbolType::LABEL;
-            //     pSymbols[symIndex]->label.label = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
-            //     strcpy((char*)pSymbols[symIndex]->label.label, pTokens[i]->pValue);
-            // }
+
+
+            if (strcmp(pTokens[i]->pValue, ".text") == 0) {
+                strcpy((char*)pSymbols[symIndex]->directive.directive, pTokens[i]->pValue);
+            } else if (strcmp(pTokens[i]->pValue, ".data") == 0) {
+                strcpy((char*)pSymbols[symIndex]->directive.directive, pTokens[i]->pValue);
+            } else if (strcmp(pTokens[i]->pValue, ".bss") == 0) {
+                strcpy((char*)pSymbols[symIndex]->directive.directive, pTokens[i]->pValue);
+            } else if (strcmp(pTokens[i]->pValue, ".extern") == 0) {
+                strcpy((char*)pSymbols[symIndex]->directive.directive, pTokens[i]->pValue);
+            } else if (strcmp(pTokens[i]->pValue, ".global") == 0) {
+                strcpy((char*)pSymbols[symIndex]->directive.directive, pTokens[i]->pValue);
+            } else {
+                printf("ERROR: Invalid directive %s at line %d col %d\n", pTokens[i]->pValue, pTokens[i]->nLine, pTokens[i]->nCol);
+                return NULL;
+            }
+
         } else {
             pSymbols[symIndex]->type = SymbolType::INSTRUCTION;
             pSymbols[symIndex]->instr.instr = Instr::INVALID;
-            pSymbols[symIndex]->instr.instr = getInstr(pTokens[i]->pValue);
-  
-            if (pSymbols[symIndex]->instr.instr == Instr::INVALID) {
-                printf("ERROR: Invalid instruction %s at line %d col %d\n", pTokens[i]->pValue, pTokens[i]->nLine, pTokens[i]->nCol);
-                return NULL;
+
+            Instr instr = getInstr(pTokens[i]->pValue);
+            if (instr == Instr::INVALID) {
+                pSymbols[symIndex]->type = SymbolType::LABEL;
+                pSymbols[symIndex]->label.label = (U8*)malloc(strlen(pTokens[i]->pValue) + 1);
+                strcpy((char*)pSymbols[symIndex]->label.label, pTokens[i]->pValue);
+            } else {
+                pSymbols[symIndex]->instr.instr = instr;
             }
         }
 
@@ -208,6 +206,34 @@ bool isDirective(Token* pToken) {
     return pToken->pValue[0] == '.';
 }
 
+bool isBranch(Symbol* pSymbol) {
+    if (pSymbol->type != SymbolType::INSTRUCTION) {
+        return false;
+    }
+
+    switch (pSymbol->instr.instr) {
+      case Instr::B:
+      case Instr::BL:
+      case Instr::CBZ:
+      case Instr::CBNZ:
+      case Instr::BEQ:
+      case Instr::BNE:
+      case Instr::BLT:
+      case Instr::BLE:
+      case Instr::BGT:
+      case Instr::BGE:
+        return true;
+      default:
+        return false;
+    }
+}
+
+void printSymbols(Symbol** pSymbols) {
+    for (size_t i = 0; pSymbols[i] != NULL; i++) {
+        printSymbol(pSymbols[i]);
+    }
+}
+
 void printSymbol(Symbol* pSymbol) {
     char* instrStr = NULL;
 
@@ -236,24 +262,26 @@ void printSymbol(Symbol* pSymbol) {
 }
 
 void freeSymbols(Symbol** pSymbols) {
-    for (int i = 0; pSymbols[i] != NULL; i++) {
-        switch (pSymbols[i]->type) {
-        case SymbolType::REGISTER:
-            break;
-        case SymbolType::INSTRUCTION:
-            break;
-        case SymbolType::IMMEDIATE:
-            break;
-        case SymbolType::LABEL:
-            free(pSymbols[i]->label.label);
-            break;
-        case SymbolType::DIRECTIVE:
-            free(pSymbols[i]->directive.directive);
-            break;
-        }
-
+    for (size_t i = 0; pSymbols[i] != NULL; i++) {
+        freeSymbol(pSymbols[i]);
         free(pSymbols[i]);
-    }
-
+    }  
     free(pSymbols);
+}
+
+void freeSymbol(Symbol* pSymbol) {
+    switch (pSymbol->type) {
+    case SymbolType::REGISTER:
+        break;
+    case SymbolType::INSTRUCTION:
+        break;
+    case SymbolType::IMMEDIATE:
+        break;
+    case SymbolType::LABEL:
+        free(pSymbol->label.label);
+        break;
+    case SymbolType::DIRECTIVE:
+        free(pSymbol->directive.directive);
+        break;
+    }
 }

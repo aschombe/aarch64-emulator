@@ -89,6 +89,12 @@ bool isImmediate(Token* pToken);
 
 bool isDirective(Token* pToken);
 
+bool isBranch(Symbol* pSymbol);
+
+void printSymbols(Symbol** pSymbols);
+
 void printSymbol(Symbol* pSymbol);
 
 void freeSymbols(Symbol** pSymbols);
+
+void freeSymbol(Symbol* pSymbol);

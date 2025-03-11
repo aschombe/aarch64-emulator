@@ -20,6 +20,8 @@ void strLwr(char* pStr);
 
 void freeTokens(Token** pNodes);
 
+void printTokens(Token** pTokens);
+
 void printToken(Token* pToken);
 
 char* preprocessFile(const char* pFile);

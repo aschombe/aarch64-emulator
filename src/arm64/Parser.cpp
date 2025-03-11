@@ -174,6 +174,14 @@ void freeTokens(Token** pNodes) {
     free(pNodes);
 }
 
+void printTokens(Token** pTokens) {
+    if (!pTokens) return;
+
+    for (int i = 0; pTokens[i] != NULL; i++) {
+        printToken(pTokens[i]);
+    }
+}
+
 void printToken(Token* pToken) {
     if (!pToken) return;
     printf("Token: %s, Line: %d, Col: %d\n", pToken->pValue, pToken->nLine, pToken->nCol);
