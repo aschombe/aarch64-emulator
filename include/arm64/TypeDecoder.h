@@ -79,7 +79,7 @@ struct Symbol {
   int nCol;
 };
 
-Symbol** TypeDecode(Token** pTokens);
+Symbol** typeDecode(Token** pTokens);
 
 bool isLabel(Token* pToken);
 

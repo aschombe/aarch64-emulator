@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
 
     // =============== Decode types ===============
 
-    Symbol** symbols = TypeDecode(tokens);
+    Symbol** symbols = typeDecode(tokens);
     freeTokens(tokens);
     if (!symbols) {
         printf("Failed to decode types\n");
@@ -81,15 +81,15 @@ int main(int argc, char* argv[]) {
     
     // =============== Build CFG ===============
 
-    CFG* cfg = buildCFG(symbols);
+    // CFG* cfg = buildCFG(symbols);
     // freeSymbols(symbols);
-    if (!cfg) {
-        printf("Failed to build CFG\n");
-        return 1;
-    }
-
-    printf("CFG:\n");
-    printCFG(cfg);
+    // if (!cfg) {
+    //     printf("Failed to build CFG\n");
+    //     return 1;
+    // }
+    //
+    // printf("CFG:\n");
+    // printCFG(cfg);
 
     return 0;
 }

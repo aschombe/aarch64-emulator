@@ -7,7 +7,7 @@
 #include <ctype.h>
 
 // Decodes an array of tokens into an array of symbols
-Symbol** TypeDecode(Token** pTokens) {
+Symbol** typeDecode(Token** pTokens) {
     size_t numTokens = 0;
     while (pTokens[numTokens] != NULL) numTokens++; // Count tokens
 
