@@ -1,35 +1,35 @@
 #pragma once
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "core/CoreTypes.h"
 
 class CEmulatorErrorHandler;
 
-static CEmulatorErrorHandler* pErrorHandler;
+static CEmulatorErrorHandler *pErrorHandler;
 
 // must be defined in powers of 2
 typedef enum {
-    NONE                   = 0,
-    NO_MACHINE_ERR         = 1,
+    NONE = 0,
+    NO_MACHINE_ERR = 1,
     SEGMENTATION_FAULT_ERR = 2,
-    INVALID_INSN_FMT_ERR   = 4,
-    INVALID_ADDRESS_ERR    = 8,
-    NO_ENTRY_FOUND_ERR     = 16,
-    FD_DOESNT_EXIST_ERR    = 32,
-    NOT_ENOUGH_SPACE_ERR   = 64,
-    INVALID_LOCATION_ERR   = 128
+    INVALID_INSN_FMT_ERR = 4,
+    INVALID_ADDRESS_ERR = 8,
+    NO_ENTRY_FOUND_ERR = 16,
+    FD_DOESNT_EXIST_ERR = 32,
+    NOT_ENOUGH_SPACE_ERR = 64,
+    INVALID_LOCATION_ERR = 128
 } EmulatorError;
 
 typedef I32 ErrorMask;
 
 class CEmulatorErrorHandler {
-public:
-    static CEmulatorErrorHandler* GetErrorHandler() { return pErrorHandler; }
+  public:
+    static CEmulatorErrorHandler *GetErrorHandler() { return pErrorHandler; }
 
-    CEmulatorErrorHandler() { 
-        m_uCurrentError =  EmulatorError::NONE;
+    CEmulatorErrorHandler() {
+        m_uCurrentError = EmulatorError::NONE;
         pErrorHandler = this;
     }
     ~CEmulatorErrorHandler() { pErrorHandler = NULL; }
@@ -41,6 +41,6 @@ public:
     bool SetError(EmulatorError err);
     bool HandleError(EmulatorError err);
 
-private:
+  private:
     I32 m_uCurrentError;
 };
