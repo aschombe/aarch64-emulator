@@ -7,6 +7,7 @@
 #include "arm64/LineBuilder.h"
 #include "arm64/Parser.h"
 #include "arm64/TypeDecoder.h"
+#include "include/util/Logging.h"
 
 int main(int argc, char *argv[]) {
     char *help_message = (char *)malloc(256);
@@ -44,13 +45,15 @@ int main(int argc, char *argv[]) {
     free(help_message);
 
     if (!file) {
-        printf("No file provided\n");
+        /*printf("No file provided\n");*/
+        dologm(ERROR, "No file provided\n");
         return 1;
     }
 
     if (strlen(file) < 2 || file[strlen(file) - 2] != '.' ||
         file[strlen(file) - 1] != 's') {
-        printf("Please provide a valid .s file\n");
+        /*printf("Please provide a valid .s file\n");*/
+        dologm(ERROR, "Please provide a valid .s file\n");
         return 1;
     }
 
@@ -58,7 +61,8 @@ int main(int argc, char *argv[]) {
 
     Token **tokens = Parse(file);
     if (!tokens) {
-        printf("Failed to parse file\n");
+        /*printf("Failed to parse file\n");*/
+        dologm(ERROR, "Failed to parse file: %s\n", file);
         freeTokens(tokens);
         return 1;
     }
@@ -68,7 +72,8 @@ int main(int argc, char *argv[]) {
     Symbol **symbols = typeDecode(tokens);
     freeTokens(tokens);
     if (!symbols) {
-        printf("Failed to decode types\n");
+        /*printf("Failed to decode types\n");*/
+        dologm(ERROR, "Failed to decode types\n");
         freeSymbols(symbols);
         return 1;
     }
@@ -78,28 +83,28 @@ int main(int argc, char *argv[]) {
     Line **lines = buildLines(symbols);
     freeSymbols(symbols);
     if (!lines) {
-        printf("Failed to build lines\n");
+        /*printf("Failed to build lines\n");*/
+        dologm(ERROR, "Failed to build lines\n");
         freeLines(lines);
         return 1;
     }
 
-    printLines(lines);
-
-    freeLines(lines);
-
     // =============== Build CFG ===============
 
-    /*CFG *cfg = buildCFG(symbols);*/
-    /*freeSymbols(symbols);*/
-    /*if (!cfg) {*/
-    /*  printf("Failed to build CFG\n");*/
-    /*  return 1;*/
-    /*}*/
-    /**/
-    /*printf("CFG:\n");*/
-    /*printCFG(cfg);*/
-    /**/
-    /*freeCFG(cfg);*/
+    CFG *cfg = buildCFG(lines);
+    if (!cfg) {
+        /*printf("Failed to build CFG\n");*/
+        dologm(ERROR, "Failed to build CFG\n");
+        freeCFG(cfg);
+        return 1;
+    }
+
+    printf("CFG:\n");
+    printCFG(cfg);
+    printf("\n");
+
+    freeCFG(cfg);
+    freeLines(lines);
 
     return 0;
 }
