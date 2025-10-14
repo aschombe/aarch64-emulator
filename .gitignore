@@ -33,3 +33,5 @@
 
 build/
 aarch64eml
+.cache/
+examples/
