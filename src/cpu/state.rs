@@ -6,7 +6,6 @@ use crate::plugin::manager::PluginManager;
 use crate::syscall;
 use crate::types::{EmuError, EmuResult, Word};
 
-/// Struct representing a fully interpreted program ready for execution.
 pub struct InterpretedProgram {
     pub instructions: Vec<InstructionIR>,
     pub label_to_ip: SymbolTable,
@@ -16,22 +15,19 @@ pub struct InterpretedProgram {
     pub source_lines: Vec<String>,
 }
 
-/// Represents the core state of the AArch64 Interpreter.
 pub struct CpuState {
     pub x_registers: [Word; 31],
     pub pstate: Word,
     pub memory: Memory,
-    pub plugin_manager: PluginManager,
 
     pub program: InterpretedProgram,
     pub ip: usize,
 }
 
-// PSTATE Flag Masks
-const N_FLAG: Word = 1 << 31; // Negative
-const Z_FLAG: Word = 1 << 30; // Zero
-const C_FLAG: Word = 1 << 29; // Carry/Borrow
-const V_FLAG: Word = 1 << 28; // Overflow
+pub const N_FLAG: Word = 1 << 31; // Negative
+pub const Z_FLAG: Word = 1 << 30; // Zero
+pub const C_FLAG: Word = 1 << 29; // Carry/Borrow
+pub const V_FLAG: Word = 1 << 28; // Overflow
 
 impl CpuState {
     fn op_add_logic(val_n: Word, val_m: Word) -> (Word, bool, bool) {
@@ -63,6 +59,7 @@ impl CpuState {
         (res, borrow, overflow)
     }
 
+    // --- NON-FLAG ARITHMETIC (Simple wrappers) ---
     fn op_mul(val_n: Word, val_m: Word) -> (Word, bool, bool) {
         (val_n.wrapping_mul(val_m), false, false)
     }
@@ -93,13 +90,13 @@ impl CpuState {
         (res as Word, false, false)
     }
 
+    // --- Setup and Utilities ---
+
     pub fn new(program: InterpretedProgram) -> Self {
-        let plugin_manager = PluginManager::new();
         CpuState {
             x_registers: [0; 31],
             pstate: 0,
             memory: Memory::new(),
-            plugin_manager,
             ip: program.entry_ip,
             program,
         }
@@ -263,7 +260,6 @@ impl CpuState {
                 // CMP is SUBS XZR, Rn, Rm.
                 let (result, borrow, overflow) = Self::op_sub_logic(val_n, val_m);
 
-                // Update flags (is_sub=true)
                 self.update_pstate_nzcv(result, borrow, overflow, true);
 
                 Ok(false)
@@ -282,12 +278,12 @@ impl CpuState {
 
         match condition {
             Condition::Al => true,
-            Condition::Eq => z,              // Equal: Z = 1
-            Condition::Ne => !z,             // Not Equal: Z = 0
-            Condition::Gt => !z && (n == v), // Greater Than (Signed): Z=0 and N=V
-            Condition::Ge => n == v,         // Greater Than or Equal (Signed): N=V
-            Condition::Lt => n != v,         // Less Than (Signed): N!=V
-            Condition::Le => z || (n != v),  // Less Than or Equal (Signed): Z=1 or N!=V
+            Condition::Eq => z,
+            Condition::Ne => !z,
+            Condition::Gt => !z && (n == v),
+            Condition::Ge => n == v,
+            Condition::Lt => n != v,
+            Condition::Le => z || (n != v),
         }
     }
 
@@ -398,37 +394,13 @@ impl CpuState {
     }
 
     pub fn execute_svc(&mut self, _operands: &[Operand]) -> EmuResult<bool> {
-        let syscall_num = self.get_reg(8);
-
-        // if self
-        //     .plugin_manager
-        //     .pre_syscall_execution(self, syscall_num)?
-        // {
-        //     return Ok(false);
-        // }
-
-        let halt = match syscall_num {
-            93 => {
-                let exit_code = self.get_reg(0);
-                println!(
-                    "\n[SYSCALL] System Exit ({}) received. Emulator halting.",
-                    exit_code
-                );
-                Ok(true)
-            }
-            _ => syscall::handle_syscall(self),
-        }?;
-
-        // self.plugin_manager
-        //     .post_syscall_execution(self, syscall_num)?;
-
+        let halt = syscall::handle_syscall(self)?;
         Ok(halt)
     }
 
     /// Runs the instruction cycle until a halt condition is met. (Full Speed Execution)
     pub fn run(&mut self) -> EmuResult<()> {
         let max_instructions = self.program.instructions.len();
-        // self.plugin_manager.on_plugin_load(); // Initialize plugins
 
         while self.ip < max_instructions {
             if self.ip > max_instructions * 1000 {
@@ -446,25 +418,13 @@ impl CpuState {
                 })?
                 .clone();
 
-            // 1. PRE-EXECUTION HOOK
-            // if self.plugin_manager.pre_execution_event(self)? {
-            //     self.ip += 1;
-            //     continue;
-            // }
-
-            // 2. Native Instruction Execution
             let halt = self.execute_instruction_ir(&ir_insn)?;
 
-            // 3. POST-EXECUTION HOOK
-            // self.plugin_manager.post_execution_event(self)?;
-            //
-            // if halt {
-            //     self.plugin_manager.on_plugin_unload(); // Clean up plugins on exit
-            //     return Ok(());
-            // }
+            if halt {
+                return Ok(());
+            }
             self.ip += 1;
         }
-        // self.plugin_manager.on_plugin_unload();
         Ok(())
     }
 

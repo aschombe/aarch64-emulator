@@ -5,6 +5,7 @@ use std::sync::atomic::Ordering;
 
 // AArch64 Linux Syscall Numbers
 const SYS_WRITE: Word = 64;
+const SYS_EXIT: Word = 93;
 
 /// Executes the system call defined by register X8 in the CPU state.
 ///
@@ -17,43 +18,64 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
 
     match syscall_num {
         SYS_WRITE => {
-            // Write (64) signature: (int fd, const char *buf, size_t count)
+            // write(fd, buf, count)
             let fd = state.get_reg(0);
-            let buf_addr = state.get_reg(1); // Pointer to the data buffer
-            let count = state.get_reg(2) as usize; // Length of the message
+            let buf_addr = state.get_reg(1);
+            let count = state.get_reg(2) as usize;
 
             if count == 0 {
                 state.set_reg(0, 0);
                 return Ok(false);
             }
 
+            // Only handle stdout (1) and stderr (2)
             if fd == 1 || fd == 2 {
-                // 1. Read the required number of bytes from simulated memory
                 match state.memory.read_bytes(buf_addr, count) {
                     Ok(bytes) => {
-                        // 2. Convert the byte slice to a host string (handling invalid UTF-8 gracefully)
-                        let output = String::from_utf8_lossy(bytes);
+                        let is_ascii_text = bytes.iter().all(|&b| {
+                            b.is_ascii_graphic() || b.is_ascii_whitespace() || b == b'\n'
+                        });
 
-                        // 3. Output the string to the host console (stdout/stderr)
-                        print!("{}", output);
-
-                        // Note: Verbose logging for the string printing is now handled by the regular 'print' call.
+                        if is_ascii_text {
+                            // Pretty-print ASCII output
+                            let text = String::from_utf8_lossy(bytes);
+                            print!("[SYSCALL WRITE] {}", text);
+                        } else if count == 8 {
+                            // If exactly 8 bytes, interpret as u64
+                            let val = u64::from_le_bytes(bytes.try_into().unwrap());
+                            println!("[SYSCALL WRITE] {}", val);
+                        } else {
+                            // Fallback: hex dump
+                            print!("[SYSCALL WRITE - RAW BYTES]");
+                            for b in bytes {
+                                print!(" {:02X}", b);
+                            }
+                            println!();
+                        }
                     }
                     Err(e) => {
-                        eprintln!("[SYSCALL_ERROR] SYS_WRITE failed to read memory: {:?}", e);
-                        state.set_reg(0, !0 as u64); // Set X0 to -1 (error)
+                        eprintln!("[SYSCALL ERROR] SYS_WRITE failed to read memory: {:?}", e);
+                        state.set_reg(0, !0u64);
                         return Err(e);
                     }
                 }
             } else {
                 if VERBOSE_ENABLED.load(Ordering::Relaxed) {
-                    eprintln!("[SYSCALL_WARNING] Write call to unsupported FD: {}", fd);
+                    eprintln!("[SYSCALL WARNING] Write call to unsupported FD: {}", fd);
                 }
             }
 
-            // AArch64 convention: return value (bytes written) goes into X0
+            // Return bytes written in X0
             state.set_reg(0, count as u64);
             Ok(false)
+        }
+        SYS_EXIT => {
+            let exit_code = state.get_reg(0) as i32;
+            if VERBOSE_ENABLED.load(Ordering::Relaxed) {
+                println!("[SYSCALL EXIT] Exiting with code: {}", exit_code);
+            }
+
+            Ok(true)
         }
 
         _ => Err(EmuError::InternalError(format!(
