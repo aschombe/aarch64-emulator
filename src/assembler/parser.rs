@@ -243,7 +243,7 @@ impl AsmParser {
         Ok(bytes)
     }
 
-    /// Parses data definition directives (.quad, .string, .ascii, .asciiz, .skip, .int).
+    /// Parses data definition directives (.quad, .string, .ascii, .asciiz, .skip, .int, .word).
     fn parse_data_definition(
         &self,
         line_content: &str,
@@ -315,19 +315,17 @@ impl AsmParser {
                 Ok(Data::ByteArr(vec![0u8; size]))
             }
 
-            ".int" => {
-                // Join everything after directive into one string without removing spaces inside numbers
+            ".word" | ".int" => {
                 let values_str = parts[1..].join(" ");
                 let values: Result<Vec<i32>, _> = values_str
                     .split(',')
                     .filter(|s| !s.is_empty())
                     .map(|s| s.trim().parse::<i32>())
                     .collect();
-
                 match values {
                     Ok(v) => Ok(Data::IntArr(v)),
                     Err(_) => Err(EmuError::InternalError(format!(
-                        "Invalid .int values on line {}: {}",
+                        "Invalid .word/.int values on line {}: {}",
                         original_line_number, line_content
                     ))),
                 }
@@ -462,6 +460,19 @@ impl AsmParser {
             "STR" => OpCode::STR,
             "STRB" => OpCode::STRB,
             "BL" => OpCode::BL,
+            "B" => OpCode::B(Condition::Al),
+            "B.EQ" => OpCode::B(Condition::Eq),
+            "BEQ" => OpCode::B(Condition::Eq),
+            "B.NE" => OpCode::B(Condition::Ne),
+            "BNE" => OpCode::B(Condition::Ne),
+            "B.LT" => OpCode::B(Condition::Lt),
+            "BLT" => OpCode::B(Condition::Lt),
+            "B.LE" => OpCode::B(Condition::Le),
+            "BLE" => OpCode::B(Condition::Le),
+            "B.GT" => OpCode::B(Condition::Gt),
+            "BGT" => OpCode::B(Condition::Gt),
+            "B.GE" => OpCode::B(Condition::Ge),
+            "BGE" => OpCode::B(Condition::Ge),
             "RET" => OpCode::RET,
             "CMP" => OpCode::CMP,
             "CBZ" => OpCode::CBZ,

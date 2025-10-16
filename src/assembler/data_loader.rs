@@ -40,6 +40,14 @@ pub fn load_data_into_cpu(cpu: &mut CpuState, data_blocks: &[AssemblyBlock]) -> 
                             cpu.memory.write_bytes(base_addr + offset, &[*b])?;
                             offset += 1;
                         }
+                        Data::IntArr(vals) => {
+                            for v in vals {
+                                let val = *v as u32;
+                                cpu.memory
+                                    .write_bytes(base_addr + offset, &val.to_le_bytes())?;
+                                offset += 4;
+                            }
+                        }
                         _ => {}
                     }
                 }
