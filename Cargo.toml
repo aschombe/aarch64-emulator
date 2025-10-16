@@ -1,0 +1,18 @@
+[package]
+name = "aarch64-emulator"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+byteorder = "1.5.0"
+clap = { version = "4.5.49", features = ["derive"] }
+elf = "0.8.0"
+fs = "0.0.5"
+libloading = "0.8.9"
+log = "0.4.28"
+mlua = { version = "0.11.4", features = ["lua54"] }
+time = "0.3.44"
+
+[[bin]]
+name = "aarch64-emulator"
+path = "src/main.rs"
