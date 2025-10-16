@@ -50,9 +50,22 @@ impl Memory {
         Ok(())
     }
 
+    /// Writes a single byte to the specified virtual address
+    pub fn write_byte(&mut self, addr: Word, byte: u8) -> EmuResult<()> {
+        let slice = self.get_slice_mut(addr, 1)?;
+        slice[0] = byte;
+        Ok(())
+    }
+
     /// Reads a slice of bytes from the specified virtual address
     pub fn read_bytes(&self, addr: Word, len: usize) -> EmuResult<&[u8]> {
         self.get_slice(addr, len)
+    }
+
+    /// Reads a single byte from the specified virtual address
+    pub fn read_byte(&self, addr: Word) -> EmuResult<u8> {
+        let slice = self.get_slice(addr, 1)?;
+        Ok(slice[0])
     }
 
     /// Reads a 64-bit Word (8 bytes) from memory at the specified address (Little-Endian)

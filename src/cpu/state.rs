@@ -336,6 +336,23 @@ impl CpuState {
         }
     }
 
+    fn execute_ldrb(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+        match operands {
+            [dest_op, Operand::Offset(offset)] => {
+                let rt_id = self.resolve_operand_dest(dest_op)?;
+                let effective_addr = self.resolve_offset_address(offset)?;
+
+                let byte_value = self.memory.read_byte(effective_addr)?;
+                self.set_reg(rt_id, byte_value as Word);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(format!(
+                "Invalid LDRB operands: {:?}",
+                operands
+            ))),
+        }
+    }
+
     fn execute_str(&mut self, operands: &[Operand]) -> EmuResult<bool> {
         match operands {
             [source_op, Operand::Offset(offset)] => {
@@ -347,6 +364,22 @@ impl CpuState {
             }
             _ => Err(EmuError::InternalError(format!(
                 "Invalid STR operands: {:?}",
+                operands
+            ))),
+        }
+    }
+
+    fn execute_strb(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+        match operands {
+            [source_op, Operand::Offset(offset)] => {
+                let rt_val = self.resolve_operand_source(source_op)? as u8;
+                let effective_addr = self.resolve_offset_address(offset)?;
+
+                self.memory.write_byte(effective_addr, rt_val)?;
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(format!(
+                "Invalid STRB operands: {:?}",
                 operands
             ))),
         }
@@ -373,6 +406,28 @@ impl CpuState {
                 self.ip = target_ip.checked_sub(1).unwrap_or(0);
                 Ok(false)
             }
+            [Operand::Reg(reg), Operand::Imm(Immediate::Lbl(label))] => {
+                let reg_val = self.get_reg(reg.to_id());
+                let condition_met = match opcode {
+                    OpCode::CBZ => reg_val == 0,
+                    OpCode::CBNZ => reg_val != 0,
+                    _ => {
+                        return Err(EmuError::InternalError(format!(
+                            "Invalid opcode for conditional branch with register: {:?}",
+                            opcode
+                        )));
+                    }
+                };
+
+                if condition_met {
+                    let target_ip = *self.program.label_to_ip.get(label).ok_or_else(|| {
+                        EmuError::InternalError(format!("Undefined label: {}", label))
+                    })? as usize;
+                    self.ip = target_ip.checked_sub(1).unwrap_or(0);
+                }
+                Ok(false)
+            }
+
             _ => Err(EmuError::InternalError(format!(
                 "Invalid branch operands: {:?}",
                 operands
@@ -455,11 +510,15 @@ impl CpuState {
             OpCode::MOV => self.execute_mov(&ir_insn.operands),
             OpCode::ADR => self.execute_adr(&ir_insn.operands),
             OpCode::LDR => self.execute_ldr(&ir_insn.operands),
+            OpCode::LDRB => self.execute_ldrb(&ir_insn.operands),
             OpCode::STR => self.execute_str(&ir_insn.operands),
+            OpCode::STRB => self.execute_strb(&ir_insn.operands),
 
             OpCode::CMP => self.execute_cmp(&ir_insn.operands),
             OpCode::B(cnd) => self.execute_branch(OpCode::B(cnd), &ir_insn.operands),
             OpCode::BL => self.execute_branch(OpCode::BL, &ir_insn.operands),
+            OpCode::CBZ => self.execute_branch(OpCode::CBZ, &ir_insn.operands),
+            OpCode::CBNZ => self.execute_branch(OpCode::CBNZ, &ir_insn.operands),
             OpCode::RET => self.execute_ret(),
 
             OpCode::SVC => self.execute_svc(&ir_insn.operands),
