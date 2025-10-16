@@ -259,10 +259,10 @@ impl AsmParser {
             )));
         }
 
-        let values_str = parts[1..].join("").replace(" ", "");
-
         match directive.as_str() {
             ".quad" => {
+                // Join everything after directive into one string without removing spaces inside numbers
+                let values_str = parts[1..].join(" ");
                 let values: Result<Vec<i64>, _> = values_str
                     .split(',')
                     .filter(|s| !s.is_empty())
@@ -278,14 +278,21 @@ impl AsmParser {
                 }
             }
 
-            // Handle string directives (.string, .asciiz)
-            ".string" | ".ascii" => {
-                let bytes = self.parse_string_literal(&values_str)?;
-                Ok(Data::ByteArr(bytes))
-            }
-            ".asciiz" => {
-                let mut bytes = self.parse_string_literal(&values_str)?;
-                bytes.push(0);
+            // Handle string directives (.string, .asciiz) by extracting the literal substring starting at first quote
+            ".string" | ".ascii" | ".asciiz" => {
+                // Find index of first quote to get exact literal including spaces
+                let quote_pos = line_content.find('"').ok_or_else(|| {
+                    EmuError::InternalError(format!(
+                        "Missing opening quote on line {}",
+                        original_line_number
+                    ))
+                })?;
+                let literal = &line_content[quote_pos..]; // from first quote to end
+
+                let mut bytes = self.parse_string_literal(literal)?;
+                if directive == ".asciiz" {
+                    bytes.push(0); // null terminator for .asciiz
+                }
                 Ok(Data::ByteArr(bytes))
             }
 
@@ -407,6 +414,7 @@ impl AsmParser {
             "SDIVS" => OpCode::SDIVS,
             "AND" => OpCode::AND,
             "ORR" => OpCode::ORR,
+            "EOR" => OpCode::EOR,
             "NOT" => OpCode::NOT,
             "LSL" => OpCode::LSL,
             "LSR" => OpCode::LSR,
