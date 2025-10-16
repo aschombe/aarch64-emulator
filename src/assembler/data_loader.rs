@@ -8,40 +8,49 @@ pub fn load_data_into_cpu(cpu: &mut CpuState, data_blocks: &[AssemblyBlock]) -> 
             EmuError::InternalError(format!("Missing address for label '{}'", block.label))
         })?;
 
-        if let AssemblyContent::Data(items) = &block.content {
-            let mut offset: Word = 0;
+        match &block.content {
+            AssemblyContent::Data(items) => {
+                let mut offset: Word = 0;
 
-            for item in items {
-                match item {
-                    Data::QuadArr(vals) => {
-                        for v in vals {
+                for item in items {
+                    match item {
+                        Data::QuadArr(vals) => {
+                            for v in vals {
+                                cpu.memory
+                                    .write_bytes(base_addr + offset, &v.to_le_bytes())?;
+                                offset += 8;
+                            }
+                        }
+                        Data::Quad(v) => {
                             cpu.memory
                                 .write_bytes(base_addr + offset, &v.to_le_bytes())?;
                             offset += 8;
                         }
+                        Data::Word(v) => {
+                            let val = *v as u32;
+                            cpu.memory
+                                .write_bytes(base_addr + offset, &val.to_le_bytes())?;
+                            offset += 4;
+                        }
+                        Data::ByteArr(bytes) => {
+                            cpu.memory.write_bytes(base_addr + offset, bytes)?;
+                            offset += bytes.len() as u64;
+                        }
+                        Data::Byte(b) => {
+                            cpu.memory.write_bytes(base_addr + offset, &[*b])?;
+                            offset += 1;
+                        }
+                        _ => {}
                     }
-                    Data::Quad(v) => {
-                        cpu.memory
-                            .write_bytes(base_addr + offset, &v.to_le_bytes())?;
-                        offset += 8;
-                    }
-                    Data::Word(v) => {
-                        let val = *v as u32;
-                        cpu.memory
-                            .write_bytes(base_addr + offset, &val.to_le_bytes())?;
-                        offset += 4;
-                    }
-                    Data::ByteArr(bytes) => {
-                        cpu.memory.write_bytes(base_addr + offset, bytes)?;
-                        offset += bytes.len() as u64;
-                    }
-                    Data::Byte(b) => {
-                        cpu.memory.write_bytes(base_addr + offset, &[*b])?;
-                        offset += 1;
-                    }
-                    _ => {}
                 }
             }
+            AssemblyContent::Bss(size) => {
+                // Do not copy bytes for .bss (uninitialized),
+                // optionally zero memory if your simulator requires:
+                cpu.memory
+                    .write_bytes(base_addr, &vec![0u8; *size as usize])?;
+            }
+            _ => {}
         }
     }
 

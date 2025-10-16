@@ -2,7 +2,7 @@ use crate::assembler::asm_types::{
     AssemblyBlock, AssemblyContent, Condition, Data, Immediate, InstructionIR, Offset, OpCode,
     Operand, Reg,
 };
-use crate::types::{EmuError, EmuResult};
+use crate::types::{EmuError, EmuResult, Word};
 
 fn is_register(s: &str) -> bool {
     let s = s.to_lowercase();
@@ -243,7 +243,7 @@ impl AsmParser {
         Ok(bytes)
     }
 
-    /// Parses data definition directives (.quad, .string, .asciiz)
+    /// Parses data definition directives (.quad, .string, .ascii, .asciiz, .skip, .int).
     fn parse_data_definition(
         &self,
         line_content: &str,
@@ -294,6 +294,43 @@ impl AsmParser {
                     bytes.push(0); // null terminator for .asciiz
                 }
                 Ok(Data::ByteArr(bytes))
+            }
+
+            ".skip" => {
+                if parts.len() < 2 {
+                    return Err(EmuError::InternalError(format!(
+                        ".skip directive requires a size argument on line {}.",
+                        original_line_number
+                    )));
+                }
+                // Parse size and optional fill byte (default 0)
+                let size = parts[1].parse::<usize>().map_err(|_| {
+                    EmuError::InternalError(format!(
+                        "Invalid .skip size argument on line {}: {}",
+                        original_line_number, parts[1]
+                    ))
+                })?;
+
+                // For now, just zero-fill the skip space as a byte array
+                Ok(Data::ByteArr(vec![0u8; size]))
+            }
+
+            ".int" => {
+                // Join everything after directive into one string without removing spaces inside numbers
+                let values_str = parts[1..].join(" ");
+                let values: Result<Vec<i32>, _> = values_str
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.trim().parse::<i32>())
+                    .collect();
+
+                match values {
+                    Ok(v) => Ok(Data::IntArr(v)),
+                    Err(_) => Err(EmuError::InternalError(format!(
+                        "Invalid .int values on line {}: {}",
+                        original_line_number, line_content
+                    ))),
+                }
             }
 
             _ => Err(EmuError::InternalError(format!(
@@ -485,6 +522,8 @@ impl AsmParser {
                     current_section = "data";
                 } else if line_content.starts_with(".text") {
                     current_section = "text";
+                } else if line_content.starts_with(".bss") {
+                    current_section = "bss";
                 }
 
                 if line_content.starts_with(".global") {
@@ -520,6 +559,7 @@ impl AsmParser {
                     content: match current_section {
                         "text" => AssemblyContent::Text(Vec::new()),
                         "data" => AssemblyContent::Data(Vec::new()),
+                        "bss" => AssemblyContent::Bss(0),
                         _ => {
                             return Err(EmuError::InternalError(format!(
                                 "Label '{}' defined outside .text or .data section.",
@@ -561,6 +601,27 @@ impl AsmParser {
                                 Err(e) => return Err(e),
                             }
                         }
+                        AssemblyContent::Bss(size) => {
+                            let parts: Vec<&str> = rest_of_line.split_whitespace().collect();
+                            if parts.is_empty() {
+                                continue;
+                            }
+
+                            if parts[0].to_lowercase() == ".skip" && parts.len() >= 2 {
+                                let skip_size = parts[1].parse::<Word>().map_err(|_| {
+                                    EmuError::InternalError(format!(
+                                        "Invalid .skip size on line {}: {}",
+                                        original_line_number, parts[1]
+                                    ))
+                                })?;
+                                *size = skip_size;
+                            } else {
+                                return Err(EmuError::InternalError(format!(
+                                    "Invalid .bss directive on line {}: {}",
+                                    original_line_number, rest_of_line
+                                )));
+                            }
+                        }
                     }
                 }
             } else {
@@ -591,6 +652,27 @@ impl AsmParser {
                         match self.parse_data_definition(line_content, original_line_number) {
                             Ok(data) => data_defs.push(data),
                             Err(e) => return Err(e),
+                        }
+                    }
+                    AssemblyContent::Bss(size) => {
+                        let parts: Vec<&str> = line_content.split_whitespace().collect();
+                        if parts.is_empty() {
+                            continue;
+                        }
+
+                        if parts[0].to_lowercase() == ".skip" && parts.len() >= 2 {
+                            let skip_size = parts[1].parse::<u64>().map_err(|_| {
+                                EmuError::InternalError(format!(
+                                    "Invalid .skip size on line {}: {}",
+                                    original_line_number, parts[1]
+                                ))
+                            })?;
+                            *size = skip_size;
+                        } else {
+                            return Err(EmuError::InternalError(format!(
+                                "Invalid .bss directive on line {}: {}",
+                                original_line_number, line_content
+                            )));
                         }
                     }
                 }

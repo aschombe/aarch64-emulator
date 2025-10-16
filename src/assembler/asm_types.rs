@@ -205,6 +205,7 @@ pub enum Data {
     WordArr(Vec<Wword>),
     Byte(u8),
     ByteArr(Vec<u8>),
+    IntArr(Vec<i32>),
 }
 
 /// Enum representing the content of an assembly block, which can be either text (instructions) or
@@ -213,6 +214,7 @@ pub enum Data {
 pub enum AssemblyContent {
     Text(Vec<InstructionIR>),
     Data(Vec<Data>),
+    Bss(Word),
 }
 
 /// Struct representing an assembly block, which includes a label, an entry flag, and the content
