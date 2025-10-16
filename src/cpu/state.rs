@@ -2,7 +2,6 @@ use crate::assembler::asm_types::{
     Condition, Immediate, InstructionIR, Offset, OpCode, Operand, SymbolTable,
 };
 use crate::memory::Memory;
-use crate::plugin::manager::PluginManager;
 use crate::syscall;
 use crate::types::{EmuError, EmuResult, Word};
 

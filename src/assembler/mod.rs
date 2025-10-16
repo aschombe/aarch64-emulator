@@ -1,4 +1,5 @@
 pub mod asm_types;
+pub mod data_loader;
 pub mod parser;
 
 use crate::cpu::InterpretedProgram;
@@ -77,7 +78,7 @@ fn get_data_size(data_item: &Data) -> Word {
 /// Flattens blocks, calculates Instruction Pointer (IP) indices, and extracts source map data.
 fn flatten_and_resolve(
     ir_blocks: &Vec<AssemblyBlock>,
-    ir_to_line_map: &Vec<(InstructionIR, usize)>, // This map is the result of the parser
+    ir_to_line_map: &Vec<(InstructionIR, usize)>,
 ) -> EmuResult<(
     Vec<InstructionIR>,
     SymbolTable,
@@ -88,13 +89,16 @@ fn flatten_and_resolve(
     let mut instructions = Vec::new();
     let mut data_blocks = Vec::new();
     let mut label_to_ip = SymbolTable::new();
-    let mut ip_to_line_map = Vec::new(); // Maps IP to original source line numbers
-    let mut current_ip = 0;
+    let mut ip_to_line_map = Vec::new();
+    let mut current_ip = 0usize;
     let mut current_data_addr: Word = DATA_SECTION_START;
-    let mut entry_ip = 0;
+    let mut entry_ip = 0usize;
 
-    // Pass 1, calculate IPs and data addresses
-    for block in ir_blocks.iter() {
+    // ---------- PASS 1: DATA blocks ----------
+    for block in ir_blocks
+        .iter()
+        .filter(|b| matches!(&b.content, AssemblyContent::Data(_)))
+    {
         if label_to_ip.contains_key(&block.label) {
             return Err(EmuError::InternalError(format!(
                 "Duplicate label definition: {}",
@@ -102,36 +106,55 @@ fn flatten_and_resolve(
             )));
         }
 
-        match &block.content {
-            AssemblyContent::Text(block_instructions) => {
-                label_to_ip.insert(block.label.clone(), current_ip as Word);
-                if block.label == "_start" {
-                    entry_ip = current_ip;
-                }
+        // Assign base address
+        label_to_ip.insert(block.label.clone(), current_data_addr);
 
-                current_ip += block_instructions.len();
-            }
-            AssemblyContent::Data(data_items) => {
-                label_to_ip.insert(block.label.clone(), current_data_addr);
+        // Compute size
+        let block_size: Word = match &block.content {
+            AssemblyContent::Data(data_items) => data_items
+                .iter()
+                .map(|d| match d {
+                    Data::QuadArr(v) => (v.len() as Word) * 8,
+                    Data::Quad(_) => 8,
+                    Data::Word(_) => 4,
+                    Data::ByteArr(v) => v.len() as Word,
+                    Data::Byte(_) => 1,
+                    _ => 0,
+                })
+                .sum(),
+            _ => 0,
+        };
 
-                let block_size: Word = data_items
-                    .iter()
-                    .map(|data_item| match data_item {
-                        Data::QuadArr(arr) => arr.len() as Word * 8,
-                        _ => get_data_size(data_item),
-                    })
-                    .sum();
+        current_data_addr += block_size;
+        data_blocks.push(block.clone());
+    }
 
-                current_data_addr += block_size;
-                data_blocks.push(block.clone());
-            }
+    // ---------- PASS 2: TEXT blocks ----------
+    for block in ir_blocks
+        .iter()
+        .filter(|b| matches!(&b.content, AssemblyContent::Text(_)))
+    {
+        if label_to_ip.contains_key(&block.label) {
+            return Err(EmuError::InternalError(format!(
+                "Duplicate label definition: {}",
+                block.label
+            )));
+        }
+
+        label_to_ip.insert(block.label.clone(), current_ip as Word);
+
+        if block.label == "_start" {
+            entry_ip = current_ip;
+        }
+
+        if let AssemblyContent::Text(block_instructions) = &block.content {
+            current_ip += block_instructions.len();
         }
     }
 
-    // Pass 2, flatten instructions and build source map
-    for instruction_with_line in ir_to_line_map {
-        let (instruction, line_num) = instruction_with_line;
-        instructions.push(instruction.clone());
+    // ---------- PASS 3: instruction flattening ----------
+    for (ir, line_num) in ir_to_line_map {
+        instructions.push(ir.clone());
         ip_to_line_map.push(*line_num);
     }
 
@@ -143,3 +166,72 @@ fn flatten_and_resolve(
         ip_to_line_map,
     ))
 }
+
+// fn flatten_and_resolve(
+//     ir_blocks: &Vec<AssemblyBlock>,
+//     ir_to_line_map: &Vec<(InstructionIR, usize)>, // This map is the result of the parser
+// ) -> EmuResult<(
+//     Vec<InstructionIR>,
+//     SymbolTable,
+//     usize,
+//     Vec<AssemblyBlock>,
+//     Vec<usize>,
+// )> {
+//     let mut instructions = Vec::new();
+//     let mut data_blocks = Vec::new();
+//     let mut label_to_ip = SymbolTable::new();
+//     let mut ip_to_line_map = Vec::new(); // Maps IP to original source line numbers
+//     let mut current_ip = 0;
+//     let mut current_data_addr: Word = DATA_SECTION_START;
+//     let mut entry_ip = 0;
+//
+//     // Pass 1, calculate IPs and data addresses
+//     for block in ir_blocks.iter() {
+//         if label_to_ip.contains_key(&block.label) {
+//             return Err(EmuError::InternalError(format!(
+//                 "Duplicate label definition: {}",
+//                 block.label
+//             )));
+//         }
+//
+//         match &block.content {
+//             AssemblyContent::Text(block_instructions) => {
+//                 label_to_ip.insert(block.label.clone(), current_ip as Word);
+//                 if block.label == "_start" {
+//                     entry_ip = current_ip;
+//                 }
+//
+//                 current_ip += block_instructions.len();
+//             }
+//             AssemblyContent::Data(data_items) => {
+//                 label_to_ip.insert(block.label.clone(), current_data_addr);
+//
+//                 let block_size: Word = data_items
+//                     .iter()
+//                     .map(|data_item| match data_item {
+//                         Data::QuadArr(arr) => arr.len() as Word * 8,
+//                         _ => get_data_size(data_item),
+//                     })
+//                     .sum();
+//
+//                 current_data_addr += block_size;
+//                 data_blocks.push(block.clone());
+//             }
+//         }
+//     }
+//
+//     // Pass 2, flatten instructions and build source map
+//     for instruction_with_line in ir_to_line_map {
+//         let (instruction, line_num) = instruction_with_line;
+//         instructions.push(instruction.clone());
+//         ip_to_line_map.push(*line_num);
+//     }
+//
+//     Ok((
+//         instructions,
+//         label_to_ip,
+//         entry_ip,
+//         data_blocks,
+//         ip_to_line_map,
+//     ))
+// }

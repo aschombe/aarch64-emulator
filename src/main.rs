@@ -7,9 +7,9 @@ mod syscall;
 mod types;
 
 use crate::assembler::asm_types::{AssemblyBlock, AssemblyContent, Data, SymbolTable};
-use crate::assembler::assemble_multiple_files;
+use crate::assembler::{assemble_multiple_files, data_loader::load_data_into_cpu};
 use crate::cpu::CpuState;
-use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED, Word};
+use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED};
 use clap::Parser;
 use std::sync::atomic::Ordering;
 
@@ -46,49 +46,7 @@ impl EmuConfig {
     }
 }
 
-fn get_bytes_from_data_item(data_item: &Data) -> Vec<u8> {
-    match data_item {
-        Data::Quad(val) => val.to_le_bytes().to_vec(),
-        Data::Word(val) => val.to_le_bytes().to_vec(),
-        Data::Byte(val) => vec![*val],
-        Data::QuadArr(arr) => arr.iter().flat_map(|&v| v.to_le_bytes().to_vec()).collect(),
-        _ => Vec::new(),
-    }
-}
-
-fn load_data_sections(
-    cpu: &mut CpuState,
-    data_blocks: &[AssemblyBlock],
-    symbol_table: &SymbolTable,
-) -> EmuResult<()> {
-    if VERBOSE_ENABLED.load(Ordering::Relaxed) {
-        println!("[DEBUG] Starting data load phase.");
-    }
-    for block in data_blocks {
-        if let AssemblyContent::Data(data_items) = &block.content {
-            let mut current_addr = *symbol_table.get(&block.label).ok_or_else(|| {
-                EmuError::InternalError(format!("Data label {} address not found.", block.label))
-            })?;
-            if VERBOSE_ENABLED.load(Ordering::Relaxed) {
-                println!(
-                    "[DEBUG] Loading data block '{}' at 0x{:X}",
-                    block.label, current_addr
-                );
-            }
-            for data_item in data_items {
-                let bytes_to_write = get_bytes_from_data_item(data_item);
-                if !bytes_to_write.is_empty() {
-                    cpu.memory.write_bytes(current_addr, &bytes_to_write)?;
-                    current_addr += bytes_to_write.len() as Word;
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
 fn main() -> Result<(), EmuError> {
-    // 1. Parse Arguments using clap
     let config = EmuConfig::parse();
     config.validate()?;
 
@@ -103,7 +61,6 @@ fn main() -> Result<(), EmuError> {
     }
 
     let (program, data_blocks) = if !config.assembly_files.is_empty() {
-        // --- Assembly Source File Execution (Assembler) ---
         assemble_multiple_files(&config.assembly_files)?
     } else {
         return Err(EmuError::InternalError(
@@ -111,21 +68,17 @@ fn main() -> Result<(), EmuError> {
         ));
     };
 
-    // 3. Initialize the Interpreter
-    let symbol_table = program.label_to_ip.clone();
     let mut cpu = CpuState::new(program);
 
-    // 4. Load dynamic plugins based on CLI arguments
+    // Load data sections into memory
+    load_data_into_cpu(&mut cpu, &data_blocks)?;
+
     // for plugin_path in &config.plugins {
     //     cpu.plugin_manager.load_lua_plugin(plugin_path)?;
     // }
 
-    // 5. Load data into CPU memory
-    load_data_sections(&mut cpu, &data_blocks, &symbol_table)?;
-
     println!("\n--- Starting Execution ---");
 
-    // 6. Run based on mode (Debugger or Full Speed)
     let result = if config.debug {
         debugger::run_debugger(&mut cpu)
     } else {
