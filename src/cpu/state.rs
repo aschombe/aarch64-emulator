@@ -47,9 +47,9 @@ impl CpuState {
             plugin_manager,
         };
 
-        let sp_base = STACK_START;
-        cpu.x_registers[29] = sp_base; // SP (X29)
-        cpu.x_registers[30] = 0; // LR (X30)
+        // let sp_base = STACK_START;
+        // cpu.x_registers[29] = sp_base; // SP (X29)
+        // cpu.x_registers[30] = 0; // LR (X30)
         cpu
     }
 

@@ -29,8 +29,8 @@ impl Memory {
 
     /// Helper to get the byte slice for a given address and length, checking bounds
     fn get_slice_mut(&mut self, addr: Word, len: usize) -> EmuResult<&mut [u8]> {
-        self.check_bounds(addr, len)?;
-        self.check_stack_bounds(addr, len)?;
+        // self.check_bounds(addr, len)?;
+        // self.check_stack_bounds(addr, len)?;
         let start_index = addr as usize;
         let end_index = start_index
             .checked_add(len)
@@ -40,8 +40,8 @@ impl Memory {
 
     /// Helper to get an immutable byte slice, checking bounds
     fn get_slice(&self, addr: Word, len: usize) -> EmuResult<&[u8]> {
-        self.check_bounds(addr, len)?;
-        self.check_stack_bounds(addr, len)?;
+        // self.check_bounds(addr, len)?;
+        // self.check_stack_bounds(addr, len)?;
         let start_index = addr as usize;
         let end_index = start_index
             .checked_add(len)
