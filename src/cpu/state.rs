@@ -2,9 +2,13 @@ use crate::assembler::asm_types::{
     Condition, Immediate, InstructionIR, Offset, OpCode, Operand, SymbolTable,
 };
 use crate::memory::Memory;
+use crate::plugin::PluginManager;
 use crate::syscall;
 use crate::types::{EmuError, EmuResult, STACK_START, Word};
+use std::cell::RefCell;
+use std::rc::Rc;
 
+#[derive(Clone)]
 pub struct InterpretedProgram {
     pub instructions: Vec<InstructionIR>,
     pub label_to_ip: SymbolTable,
@@ -14,6 +18,7 @@ pub struct InterpretedProgram {
     pub source_lines: Vec<String>,
 }
 
+#[derive(Clone)]
 pub struct CpuState {
     pub x_registers: [Word; 31],
     pub pstate: Word,
@@ -21,6 +26,8 @@ pub struct CpuState {
 
     pub program: InterpretedProgram,
     pub ip: usize,
+
+    pub plugin_manager: Rc<RefCell<PluginManager>>,
 }
 
 pub const N_FLAG: Word = 1 << 31; // Negative
@@ -29,13 +36,15 @@ pub const C_FLAG: Word = 1 << 29; // Carry/Borrow
 pub const V_FLAG: Word = 1 << 28; // Overflow
 
 impl CpuState {
-    pub fn new(program: InterpretedProgram) -> Self {
+    pub fn new(program: InterpretedProgram, plugin_manager: Rc<RefCell<PluginManager>>) -> Self {
+        // let plugin_manager = Rc::new(RefCell::new(PluginManager::new()));
         let mut cpu = CpuState {
             x_registers: [0; 31],
             pstate: 0,
             memory: Memory::new(),
             ip: program.entry_ip,
             program,
+            plugin_manager,
         };
 
         let sp_base = STACK_START;
@@ -462,7 +471,26 @@ impl CpuState {
     }
 
     pub fn execute_svc(&mut self, _operands: &[Operand]) -> EmuResult<bool> {
+        // Call pre-syscall hooks
+        let sys_call_num = self.x_registers[8];
+
+        {
+            let mut pm = self.plugin_manager.borrow_mut();
+            let skip_syscall =
+                pm.pre_syscall_execution(&self.x_registers, self.memory.clone(), sys_call_num)?;
+            if skip_syscall {
+                return Ok(false);
+            }
+        }
+
         let halt = syscall::handle_syscall(self)?;
+
+        // Call post-syscall hooks
+        {
+            let mut pm = self.plugin_manager.borrow_mut();
+            pm.post_syscall_execution(&self.x_registers, self.memory.clone(), sys_call_num)?;
+        }
+
         Ok(halt)
     }
 
@@ -471,6 +499,16 @@ impl CpuState {
         let max_instructions = self.program.instructions.len();
 
         while self.ip < max_instructions {
+            // Call pre-execution hooks
+            {
+                let mut pm = self.plugin_manager.borrow_mut();
+                let should_skip = pm.pre_execution_event(&self.x_registers, self.memory.clone())?;
+                if should_skip {
+                    self.ip += 1;
+                    continue;
+                }
+            }
+
             if self.ip > max_instructions * 1000 {
                 return Err(EmuError::InternalError(
                     "Execution limit reached. Possible infinite loop.".to_string(),
@@ -487,6 +525,12 @@ impl CpuState {
                 .clone();
 
             let halt = self.execute_instruction_ir(&ir_insn)?;
+
+            // Call post-execution hooks
+            {
+                let mut pm = self.plugin_manager.borrow_mut();
+                pm.post_execution_event(&self.x_registers, self.memory.clone())?;
+            }
 
             if halt {
                 return Ok(());

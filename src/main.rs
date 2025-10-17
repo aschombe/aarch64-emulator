@@ -8,8 +8,11 @@ mod types;
 
 use crate::assembler::{assemble_multiple_files, data_loader::load_data_into_cpu};
 use crate::cpu::CpuState;
+use crate::plugin::PluginManager;
 use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED};
 use clap::Parser;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
 /// Command-line argument structure for the AArch64 interpreter.
@@ -27,9 +30,10 @@ struct EmuConfig {
     /// Enables the GDB-like interactive debugging mode (step-by-step).
     #[clap(short, long)]
     debug: bool,
-    // Comma-separated list of dynamic plugins to load (.so, .dll, .dylib files).
-    // #[clap(long, value_delimiter = ',')]
-    // plugins: Vec<String>,
+
+    /// Comma-separated list of dynamic plugins to load (.so, .dll, .dylib files).
+    #[clap(long, value_delimiter = ',')]
+    plugins: Vec<String>,
 }
 
 impl EmuConfig {
@@ -67,14 +71,31 @@ fn main() -> Result<(), EmuError> {
         ));
     };
 
-    let mut cpu = CpuState::new(program);
+    // Create PluginManager with any static plugins (empty vec here)
+    let plugin_manager = Rc::new(RefCell::new(PluginManager::new(Vec::new())));
 
-    // Load data sections into memory
+    // Create CPU passing the plugin_manager Rc
+    let mut cpu = CpuState::new(program, Rc::clone(&plugin_manager));
+
+    // Initialize Lua in plugin manager with CPU state reference
+    plugin_manager
+        .borrow_mut()
+        .init_lua(Rc::new(RefCell::new(cpu.clone())))
+        .expect("Failed to initialize Lua context.");
+
+    // Load assembled data into CPU memory
     load_data_into_cpu(&mut cpu, &data_blocks)?;
 
-    // for plugin_path in &config.plugins {
-    //     cpu.plugin_manager.load_lua_plugin(plugin_path)?;
-    // }
+    // Load lua plugins dynamically from paths
+    for plugin_path in &config.plugins {
+        plugin_manager
+            .borrow_mut()
+            .load_lua_plugin(plugin_path)
+            .expect("Failed to load Lua plugin");
+    }
+
+    // Call plugin lifecycle load event
+    plugin_manager.borrow_mut().on_plugin_load()?;
 
     println!("\n--- Starting Execution ---");
 

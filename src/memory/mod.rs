@@ -1,6 +1,7 @@
 use crate::types::{EmuError, EmuResult, MEMORY_SIZE, STACK_START, STACK_TOP, Word};
 use byteorder::{ByteOrder, LittleEndian};
 
+#[derive(Clone, Debug)]
 pub struct Memory {
     pub ram: Vec<u8>,
 }
