@@ -32,10 +32,6 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
             if fd == 1 || fd == 2 {
                 match state.memory.read_bytes(buf_addr, count) {
                     Ok(bytes) => {
-                        // let is_ascii_text = bytes.iter().all(|&b| {
-                        //     b.is_ascii_graphic() || b.is_ascii_whitespace() || b == b'\n'
-                        // });
-
                         let is_ascii_text = bytes.iter().all(|&b| b.is_ascii());
 
                         if is_ascii_text {

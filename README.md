@@ -1,7 +1,7 @@
 # Aarch64 Emulator in Rust
 
 ## Todo:
-- [ ] SYS_WRITE not printing numbers
+- [ ] SYS_WRITE not printing numbers for dotprod
 - [ ] Every assembly program causes stack smashing
 - [ ] Fix .word/.int implementation and fix display32 example (segfaults)?
 - [ ] DOCUMENTATION!!!
