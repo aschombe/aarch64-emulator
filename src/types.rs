@@ -12,7 +12,7 @@ pub const STACK_START: u64 = STACK_TOP - STACK_SIZE; // bottom of the stack (gro
 
 // Type aliases
 pub type Word = u64; // 64-bit data/address word
-pub type Instruction = u32; // 32-bit instruction word
+// pub type Instruction = u32; // 32-bit instruction word
 
 // Custom error type for the emulator
 #[derive(Debug, Clone)]
@@ -23,16 +23,16 @@ pub enum EmuError {
     StackSmashDetected(Word),
     /// Division by zero detected
     DivisionByZero,
-    /// An instruction IR was invalid or unimplemented
-    InvalidInstructionIR(String),
+    ///// An instruction IR was invalid or unimplemented
+    // InvalidInstructionIR(String),
     /// Syscall requested is not implemented
-    UnimplementedSyscall(Word),
+    UnimplementedSyscall(String),
     /// General internal failure
     InternalError(String),
     /// I/O failure (e.g., file not found, memory mapping error)
     IoError(String),
-    /// Plugin-related error
-    PluginError(String),
+    ///// Plugin-related error
+    // PluginError(String),
 }
 
 // User-friendly error messages
@@ -46,11 +46,11 @@ impl fmt::Display for EmuError {
                 write!(f, "Stack Smash Detected at 0x{:X}", addr)
             }
             EmuError::DivisionByZero => write!(f, "Division by zero"),
-            EmuError::InvalidInstructionIR(msg) => write!(f, "Invalid Instruction IR: {}", msg),
+            // EmuError::InvalidInstructionIR(msg) => write!(f, "Invalid Instruction IR: {}", msg),
             EmuError::UnimplementedSyscall(num) => write!(f, "Unimplemented Syscall: {}", num),
             EmuError::InternalError(msg) => write!(f, "Internal Error: {}", msg),
             EmuError::IoError(msg) => write!(f, "I/O Error: {}", msg),
-            EmuError::PluginError(msg) => write!(f, "Plugin Error: {}", msg),
+            // EmuError::PluginError(msg) => write!(f, "Plugin Error: {}", msg),
         }
     }
 }

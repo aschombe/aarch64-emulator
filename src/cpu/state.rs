@@ -3,7 +3,7 @@ use crate::assembler::asm_types::{
 };
 use crate::memory::Memory;
 use crate::syscall;
-use crate::types::{EmuError, EmuResult, MEMORY_SIZE, STACK_SIZE, STACK_START, STACK_TOP, Word};
+use crate::types::{EmuError, EmuResult, STACK_START, Word};
 
 pub struct InterpretedProgram {
     pub instructions: Vec<InstructionIR>,
@@ -129,32 +129,32 @@ impl CpuState {
         println!("----------------------");
     }
 
-    pub fn dump_state_interactive(&self, last_insn: Option<&InstructionIR>) {
-        let pc_addr = self
-            .program
-            .label_to_ip
-            .get("_start")
-            .unwrap_or(&0)
-            .checked_add(self.ip as u64 * 4)
-            .unwrap_or(0);
-
-        println!("\n=========================================================");
-        if let Some(insn) = last_insn {
-            println!("= INSTRUCTION EXECUTED: {:?}", insn);
-        } else {
-            println!("= EMULATOR START");
-        }
-        println!("=========================================================");
-
-        println!("IP: {:04} | PC: 0x{:08X}", self.ip, pc_addr);
-        self.dump_state_full();
-
-        if let Some(ir_insn) = self.program.instructions.get(self.ip) {
-            println!("--> NEXT INSTRUCTION (IP {}): {:?}", self.ip, ir_insn);
-        } else {
-            println!("--> PROGRAM END REACHED.");
-        }
-    }
+    // pub fn dump_state_interactive(&self, last_insn: Option<&InstructionIR>) {
+    //     let pc_addr = self
+    //         .program
+    //         .label_to_ip
+    //         .get("_start")
+    //         .unwrap_or(&0)
+    //         .checked_add(self.ip as u64 * 4)
+    //         .unwrap_or(0);
+    //
+    //     println!("\n=========================================================");
+    //     if let Some(insn) = last_insn {
+    //         println!("= INSTRUCTION EXECUTED: {:?}", insn);
+    //     } else {
+    //         println!("= EMULATOR START");
+    //     }
+    //     println!("=========================================================");
+    //
+    //     println!("IP: {:04} | PC: 0x{:08X}", self.ip, pc_addr);
+    //     self.dump_state_full();
+    //
+    //     if let Some(ir_insn) = self.program.instructions.get(self.ip) {
+    //         println!("--> NEXT INSTRUCTION (IP {}): {:?}", self.ip, ir_insn);
+    //     } else {
+    //         println!("--> PROGRAM END REACHED.");
+    //     }
+    // }
 
     fn update_pstate_nzcv(
         &mut self,
@@ -239,6 +239,15 @@ impl CpuState {
                 let rd_id = self.resolve_operand_dest(dest_op)?;
                 let val_n = self.resolve_operand_source(source1_op)?;
                 let val_m = self.resolve_operand_source(source2_op)?;
+
+                // If its udiv or sdiv, check for division by zero
+                if (op_func as usize) == (Self::op_udiv as usize)
+                    || (op_func as usize) == (Self::op_sdiv as usize)
+                {
+                    if val_m == 0 {
+                        return Err(EmuError::DivisionByZero);
+                    }
+                }
 
                 let (result, carry_or_borrow, overflow) = op_func(val_n, val_m);
                 self.set_reg(rd_id, result);
@@ -503,6 +512,8 @@ impl CpuState {
             }
             OpCode::MUL => self.execute_binary_op(&ir_insn.operands, Self::op_mul, false, false),
             OpCode::MULS => self.execute_binary_op(&ir_insn.operands, Self::op_mul, true, false),
+            OpCode::UDIV => self.execute_binary_op(&ir_insn.operands, Self::op_udiv, false, false),
+            OpCode::SDIV => self.execute_binary_op(&ir_insn.operands, Self::op_sdiv, false, false),
 
             OpCode::AND => self.execute_binary_op(&ir_insn.operands, Self::op_and, false, false),
             OpCode::ORR => self.execute_binary_op(&ir_insn.operands, Self::op_orr, false, false),
@@ -528,7 +539,7 @@ impl CpuState {
 
             OpCode::SVC => self.execute_svc(&ir_insn.operands),
 
-            _ => Err(EmuError::InternalError(format!(
+            _ => Err(EmuError::UnimplementedSyscall(format!(
                 "Unimplemented OpCode: {:?}",
                 ir_insn.opcode
             ))),

@@ -6,7 +6,6 @@ mod plugin;
 mod syscall;
 mod types;
 
-use crate::assembler::asm_types::{AssemblyBlock, AssemblyContent, Data, SymbolTable};
 use crate::assembler::{assemble_multiple_files, data_loader::load_data_into_cpu};
 use crate::cpu::CpuState;
 use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED};
