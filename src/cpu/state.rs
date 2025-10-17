@@ -27,7 +27,7 @@ pub struct CpuState {
     pub program: InterpretedProgram,
     pub ip: usize,
 
-    pub plugin_manager: Rc<RefCell<PluginManager>>,
+    pub plugin_manager: Option<Rc<RefCell<PluginManager>>>,
 }
 
 pub const N_FLAG: Word = 1 << 31; // Negative
@@ -36,9 +36,11 @@ pub const C_FLAG: Word = 1 << 29; // Carry/Borrow
 pub const V_FLAG: Word = 1 << 28; // Overflow
 
 impl CpuState {
-    pub fn new(program: InterpretedProgram, plugin_manager: Rc<RefCell<PluginManager>>) -> Self {
-        // let plugin_manager = Rc::new(RefCell::new(PluginManager::new()));
-        let mut cpu = CpuState {
+    pub fn new(
+        program: InterpretedProgram,
+        plugin_manager: Option<Rc<RefCell<PluginManager>>>,
+    ) -> Self {
+        let cpu = CpuState {
             x_registers: [0; 31],
             pstate: 0,
             memory: Memory::new(),
@@ -474,8 +476,8 @@ impl CpuState {
         // Call pre-syscall hooks
         let sys_call_num = self.x_registers[8];
 
-        {
-            let mut pm = self.plugin_manager.borrow_mut();
+        if let Some(pm_rc) = &self.plugin_manager {
+            let mut pm = pm_rc.borrow_mut();
             let skip_syscall =
                 pm.pre_syscall_execution(&self.x_registers, self.memory.clone(), sys_call_num)?;
             if skip_syscall {
@@ -486,8 +488,8 @@ impl CpuState {
         let halt = syscall::handle_syscall(self)?;
 
         // Call post-syscall hooks
-        {
-            let mut pm = self.plugin_manager.borrow_mut();
+        if let Some(pm_rc) = &self.plugin_manager {
+            let mut pm = pm_rc.borrow_mut();
             pm.post_syscall_execution(&self.x_registers, self.memory.clone(), sys_call_num)?;
         }
 
@@ -500,8 +502,8 @@ impl CpuState {
 
         while self.ip < max_instructions {
             // Call pre-execution hooks
-            {
-                let mut pm = self.plugin_manager.borrow_mut();
+            if let Some(pm_rc) = &self.plugin_manager {
+                let mut pm = pm_rc.borrow_mut();
                 let should_skip = pm.pre_execution_event(&self.x_registers, self.memory.clone())?;
                 if should_skip {
                     self.ip += 1;
@@ -527,8 +529,8 @@ impl CpuState {
             let halt = self.execute_instruction_ir(&ir_insn)?;
 
             // Call post-execution hooks
-            {
-                let mut pm = self.plugin_manager.borrow_mut();
+            if let Some(pm_rc) = &self.plugin_manager {
+                let mut pm = pm_rc.borrow_mut();
                 pm.post_execution_event(&self.x_registers, self.memory.clone())?;
             }
 

@@ -31,7 +31,7 @@ struct EmuConfig {
     #[clap(short, long)]
     debug: bool,
 
-    /// Comma-separated list of dynamic plugins to load (.so, .dll, .dylib files).
+    /// Comma-separated list of Lua plugin file paths to load.
     #[clap(long, value_delimiter = ',')]
     plugins: Vec<String>,
 }
@@ -71,31 +71,36 @@ fn main() -> Result<(), EmuError> {
         ));
     };
 
-    // Create PluginManager with any static plugins (empty vec here)
-    let plugin_manager = Rc::new(RefCell::new(PluginManager::new(Vec::new())));
+    let mut cpu: CpuState;
+    if !config.plugins.is_empty() {
+        let plugin_manager = Rc::new(RefCell::new(PluginManager::new(Vec::new())));
+        cpu = CpuState::new(program, Some(Rc::clone(&plugin_manager)));
 
-    // Create CPU passing the plugin_manager Rc
-    let mut cpu = CpuState::new(program, Rc::clone(&plugin_manager));
+        // Load assembled data into CPU memory
+        load_data_into_cpu(&mut cpu, &data_blocks)?;
 
-    // Initialize Lua in plugin manager with CPU state reference
-    plugin_manager
-        .borrow_mut()
-        .init_lua(Rc::new(RefCell::new(cpu.clone())))
-        .expect("Failed to initialize Lua context.");
-
-    // Load assembled data into CPU memory
-    load_data_into_cpu(&mut cpu, &data_blocks)?;
-
-    // Load lua plugins dynamically from paths
-    for plugin_path in &config.plugins {
+        // Initialize lua if plugin manager present
         plugin_manager
             .borrow_mut()
-            .load_lua_plugin(plugin_path)
-            .expect("Failed to load Lua plugin");
-    }
+            .init_lua(Rc::new(RefCell::new(cpu.clone())))
+            .expect("Failed to initialize Lua context.");
 
-    // Call plugin lifecycle load event
-    plugin_manager.borrow_mut().on_plugin_load()?;
+        // Load Lua plugins
+        for plugin_path in &config.plugins {
+            plugin_manager
+                .borrow_mut()
+                .load_lua_plugin(plugin_path)
+                .expect("Failed to load Lua plugin");
+        }
+
+        // Call on_plugin_load if present
+        plugin_manager.borrow_mut().on_plugin_load()?;
+    } else {
+        cpu = CpuState::new(program, None);
+
+        // Load assembled data into CPU memory
+        load_data_into_cpu(&mut cpu, &data_blocks)?;
+    };
 
     println!("\n--- Starting Execution ---");
 
@@ -104,6 +109,11 @@ fn main() -> Result<(), EmuError> {
     } else {
         cpu.run()
     };
+
+    // Call on_plugin_unload if present
+    if let Some(plugin_manager) = &cpu.plugin_manager {
+        plugin_manager.borrow_mut().on_plugin_unload()?;
+    }
 
     match result {
         Ok(_) => {
