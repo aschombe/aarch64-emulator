@@ -3,7 +3,7 @@ use crate::assembler::asm_types::{
 };
 use crate::memory::Memory;
 use crate::syscall;
-use crate::types::{EmuError, EmuResult, Word};
+use crate::types::{EmuError, EmuResult, MEMORY_SIZE, STACK_SIZE, STACK_START, STACK_TOP, Word};
 
 pub struct InterpretedProgram {
     pub instructions: Vec<InstructionIR>,
@@ -29,6 +29,21 @@ pub const C_FLAG: Word = 1 << 29; // Carry/Borrow
 pub const V_FLAG: Word = 1 << 28; // Overflow
 
 impl CpuState {
+    pub fn new(program: InterpretedProgram) -> Self {
+        let mut cpu = CpuState {
+            x_registers: [0; 31],
+            pstate: 0,
+            memory: Memory::new(),
+            ip: program.entry_ip,
+            program,
+        };
+
+        let sp_base = STACK_START;
+        cpu.x_registers[29] = sp_base; // SP (X29)
+        cpu.x_registers[30] = 0; // LR (X30)
+        cpu
+    }
+
     fn op_add_logic(val_n: Word, val_m: Word) -> (Word, bool, bool) {
         let (res, carry) = val_n.overflowing_add(val_m);
 
@@ -90,16 +105,6 @@ impl CpuState {
     }
 
     // --- Setup and Utilities ---
-
-    pub fn new(program: InterpretedProgram) -> Self {
-        CpuState {
-            x_registers: [0; 31],
-            pstate: 0,
-            memory: Memory::new(),
-            ip: program.entry_ip,
-            program,
-        }
-    }
 
     pub fn get_reg(&self, id: usize) -> Word {
         if id == 31 { 0 } else { self.x_registers[id] }

@@ -1,7 +1,5 @@
-use crate::types::{EmuError, EmuResult, Word};
+use crate::types::{EmuError, EmuResult, MEMORY_SIZE, STACK_START, STACK_TOP, Word};
 use byteorder::{ByteOrder, LittleEndian};
-
-const MEMORY_SIZE: usize = 0x4000_0000; // 1 GB RAM (2^30 bytes)
 
 pub struct Memory {
     pub ram: Vec<u8>,
@@ -10,35 +8,43 @@ pub struct Memory {
 impl Memory {
     pub fn new() -> Self {
         Memory {
-            ram: vec![0; MEMORY_SIZE],
+            ram: vec![0; MEMORY_SIZE as usize],
         }
+    }
+
+    fn check_bounds(&self, addr: u64, size: usize) -> EmuResult<()> {
+        if addr + size as u64 > MEMORY_SIZE {
+            return Err(EmuError::MemoryAccessViolation(addr));
+        }
+        Ok(())
+    }
+
+    fn check_stack_bounds(&self, addr: u64, size: usize) -> EmuResult<()> {
+        if addr < STACK_START || addr + size as u64 > STACK_TOP {
+            return Err(EmuError::StackSmashDetected(addr));
+        }
+        Ok(())
     }
 
     /// Helper to get the byte slice for a given address and length, checking bounds
     fn get_slice_mut(&mut self, addr: Word, len: usize) -> EmuResult<&mut [u8]> {
+        self.check_bounds(addr, len)?;
+        self.check_stack_bounds(addr, len)?;
         let start_index = addr as usize;
         let end_index = start_index
             .checked_add(len)
             .ok_or_else(|| EmuError::MemoryAccessViolation(addr))?;
-
-        if end_index > MEMORY_SIZE {
-            return Err(EmuError::MemoryAccessViolation(addr + len as Word));
-        }
-
         Ok(&mut self.ram[start_index..end_index])
     }
 
     /// Helper to get an immutable byte slice, checking bounds
     fn get_slice(&self, addr: Word, len: usize) -> EmuResult<&[u8]> {
+        self.check_bounds(addr, len)?;
+        self.check_stack_bounds(addr, len)?;
         let start_index = addr as usize;
         let end_index = start_index
             .checked_add(len)
             .ok_or_else(|| EmuError::MemoryAccessViolation(addr))?;
-
-        if end_index > MEMORY_SIZE {
-            return Err(EmuError::MemoryAccessViolation(addr + len as Word));
-        }
-
         Ok(&self.ram[start_index..end_index])
     }
 

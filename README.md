@@ -4,7 +4,6 @@
 - [ ] Fix .word/.int implementation and fix display32 example (segfaults)?
 - [ ] DOCUMENTATION!!!
 - [ ] Make debugger a TUI instead of text stream
-- [ ] bins example is printing without spaces?
 - [ ] Add more syscalls
 - [ ] Add more instructions
 - [ ] Add support for multi-core processors?
