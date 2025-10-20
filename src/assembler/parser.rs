@@ -46,7 +46,10 @@ fn parse_reg(s: &str) -> EmuResult<Reg> {
         "X26" => Ok(Reg::X26),
         "X27" => Ok(Reg::X27),
         "X28" => Ok(Reg::X28),
-        "SP" => Ok(Reg::SP),
+        "X29" => Ok(Reg::X29),
+        "X30" => Ok(Reg::LR),
+        "LR" => Ok(Reg::LR),
+        "X31" => Ok(Reg::XZR),
         "XZR" => Ok(Reg::XZR),
         "W0" => Ok(Reg::W0),
         "W1" => Ok(Reg::W1),
@@ -81,10 +84,7 @@ fn parse_reg(s: &str) -> EmuResult<Reg> {
         "W30" => Ok(Reg::W30),
         "W31" => Ok(Reg::W31),
         "WZR" => Ok(Reg::W31),
-        "X30" => Ok(Reg::LR),
-        "LR" => Ok(Reg::LR),
-        "X31" => Ok(Reg::XZR),
-        "X29" => Ok(Reg::SP),
+        "SP" => Ok(Reg::SP),
 
         _ => Err(EmuError::InternalError(format!(
             "Invalid register name: {}",

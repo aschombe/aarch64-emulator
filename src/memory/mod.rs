@@ -1,16 +1,73 @@
-use crate::types::{EmuError, EmuResult, MEMORY_SIZE, STACK_START, STACK_TOP, Word};
+// use crate::types::{EmuError, EmuResult, MEMORY_SIZE, STACK_START, STACK_TOP, Word};
+use crate::types::{
+    DATA_BASE, DATA_SIZE, EmuError, EmuResult, HEAP_BASE, HEAP_SIZE, MEMORY_SIZE, RODATA_BASE,
+    RODATA_SIZE, STACK_SIZE, STACK_START, STACK_TOP, TEXT_BASE, TEXT_SIZE, Word,
+};
 use byteorder::{ByteOrder, LittleEndian};
+
+#[derive(Clone, Debug)]
+pub struct MemoryRegion {
+    pub name: &'static str,
+    pub base: u64,
+    pub size: u64,
+}
 
 #[derive(Clone, Debug)]
 pub struct Memory {
     pub ram: Vec<u8>,
+    pub regions: Vec<MemoryRegion>,
 }
 
 impl Memory {
     pub fn new() -> Self {
-        Memory {
+        let mut mem = Memory {
             ram: vec![0; MEMORY_SIZE as usize],
+            regions: vec![],
+        };
+
+        // Define memory regions
+        mem.regions.push(MemoryRegion {
+            name: "text",
+            base: TEXT_BASE,
+            size: TEXT_SIZE,
+        });
+        mem.regions.push(MemoryRegion {
+            name: "rodata",
+            base: RODATA_BASE,
+            size: RODATA_SIZE,
+        });
+        mem.regions.push(MemoryRegion {
+            name: "data",
+            base: DATA_BASE,
+            size: DATA_SIZE,
+        });
+        mem.regions.push(MemoryRegion {
+            name: "heap",
+            base: HEAP_BASE,
+            size: HEAP_SIZE,
+        });
+        mem.regions.push(MemoryRegion {
+            name: "stack",
+            base: STACK_START,
+            size: STACK_SIZE,
+        });
+
+        mem
+    }
+
+    /// Given an address range, find the region name it belongs to if any
+    pub fn find_region(&self, base_addr: u64, size: u64) -> Option<&'static str> {
+        for region in &self.regions {
+            if base_addr >= region.base && (base_addr + size) <= (region.base + region.size) {
+                return Some(region.name);
+            }
         }
+        None
+    }
+
+    /// Add a dynamic region linked by name
+    pub fn add_dynamic_region(&mut self, name: &'static str, base: u64, size: u64) {
+        self.regions.push(MemoryRegion { name, base, size });
     }
 
     fn check_bounds(&self, addr: u64, size: usize) -> EmuResult<()> {
@@ -24,15 +81,43 @@ impl Memory {
         Ok(())
     }
 
-    fn check_stack_bounds(&self, addr: u64, size: usize) -> EmuResult<()> {
-        if addr < STACK_START
-            || addr
-                .checked_add(size as u64)
-                .map_or(true, |end| end > STACK_TOP)
-        {
-            return Err(EmuError::StackSmashDetected(addr));
-        }
-        Ok(())
+    // fn check_stack_bounds(&self, addr: u64, size: usize) -> EmuResult<()> {
+    //     if addr < STACK_START
+    //         || addr
+    //             .checked_add(size as u64)
+    //             .map_or(true, |end| end > STACK_TOP)
+    //     {
+    //         return Err(EmuError::StackSmashDetected(addr));
+    //     }
+    //     Ok(())
+    // }
+
+    pub fn data_section(&self) -> Option<&[u8]> {
+        self.get_region_slice("data")
+    }
+
+    pub fn rodata_section(&self) -> Option<&[u8]> {
+        self.get_region_slice("rodata")
+    }
+
+    pub fn text_section(&self) -> Option<&[u8]> {
+        self.get_region_slice("text")
+    }
+
+    pub fn stack_section(&self) -> Option<&[u8]> {
+        self.get_region_slice("stack")
+    }
+
+    pub fn heap_section(&self) -> Option<&[u8]> {
+        self.get_region_slice("heap")
+    }
+
+    fn get_region_slice(&self, name: &str) -> Option<&[u8]> {
+        self.regions.iter().find(|r| r.name == name).and_then(|r| {
+            let start = r.base as usize;
+            let end = start + r.size as usize;
+            self.ram.get(start..end)
+        })
     }
 
     /// Helper to get the byte slice for a given address and length, checking bounds

@@ -48,6 +48,8 @@ pub enum Reg {
     X26,
     X27,
     X28,
+    X29,
+    X30,
     SP,
     LR,
     XZR,
@@ -118,9 +120,10 @@ impl Reg {
             Reg::X26 | Reg::W26 => 26,
             Reg::X27 | Reg::W27 => 27,
             Reg::X28 | Reg::W28 => 28,
-            Reg::SP | Reg::W29 => 29,
-            Reg::LR | Reg::W30 => 30,
+            Reg::X29 | Reg::W29 => 29,
+            Reg::X30 | Reg::W30 | Reg::LR => 30,
             Reg::XZR | Reg::W31 => 31,
+            Reg::SP => 32, // Stack Pointer does not have a physical register index
         }
     }
 }

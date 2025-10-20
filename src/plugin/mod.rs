@@ -21,19 +21,19 @@ pub trait Plugin: Send + Sync {
     }
 
     /// Called before an instruction is fetched and executed.
-    fn pre_execution_event(&mut self, _cpu_regs: &[Word; 31], _memory: &Memory) -> EmuResult<bool> {
+    fn pre_execution_event(&mut self, _cpu_regs: &[Word; 32], _memory: &Memory) -> EmuResult<bool> {
         Ok(false)
     }
 
     /// Called after a successful instruction execution.
-    fn post_execution_event(&mut self, _cpu_regs: &[Word; 31], _memory: &Memory) -> EmuResult<()> {
+    fn post_execution_event(&mut self, _cpu_regs: &[Word; 32], _memory: &Memory) -> EmuResult<()> {
         Ok(())
     }
 
     /// Called before a system call is executed.
     fn pre_syscall_execution(
         &mut self,
-        _cpu_regs: &[Word; 31],
+        _cpu_regs: &[Word; 32],
         _memory: &Memory,
         _sys_call_num: Word,
     ) -> EmuResult<bool> {
@@ -43,7 +43,7 @@ pub trait Plugin: Send + Sync {
     /// Called after a system call has been executed.
     fn post_syscall_execution(
         &mut self,
-        _cpu_regs: &[Word; 31],
+        _cpu_regs: &[Word; 32],
         _memory: &Memory,
         _sys_call_num: Word,
     ) -> EmuResult<()> {

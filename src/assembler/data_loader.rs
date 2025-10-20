@@ -8,10 +8,9 @@ pub fn load_data_into_cpu(cpu: &mut CpuState, data_blocks: &[AssemblyBlock]) -> 
             EmuError::InternalError(format!("Missing address for label '{}'", block.label))
         })?;
 
+        let mut offset: Word = 0;
         match &block.content {
             AssemblyContent::Data(items) => {
-                let mut offset: Word = 0;
-
                 for item in items {
                     match item {
                         Data::QuadArr(vals) => {
@@ -51,16 +50,26 @@ pub fn load_data_into_cpu(cpu: &mut CpuState, data_blocks: &[AssemblyBlock]) -> 
                         _ => {}
                     }
                 }
+                // Determine which static region this block belongs to
+                let region_name = cpu
+                    .memory
+                    .find_region(base_addr, offset)
+                    .unwrap_or("unknown");
+                // Register dynamic region with same name or block label
+                cpu.memory
+                    .add_dynamic_region(region_name, base_addr, offset);
             }
             AssemblyContent::Bss(size) => {
-                // Do not copy bytes for .bss (uninitialized),
-                // optionally zero memory if your simulator requires:
                 cpu.memory
                     .write_bytes(base_addr, &vec![0u8; *size as usize])?;
+                let region_name = cpu
+                    .memory
+                    .find_region(base_addr, *size)
+                    .unwrap_or("unknown");
+                cpu.memory.add_dynamic_region(region_name, base_addr, *size);
             }
             _ => {}
         }
     }
-
     Ok(())
 }

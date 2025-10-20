@@ -96,7 +96,7 @@ impl PluginManager {
     /// Executes a single Lua hook function across all plugins.
     pub fn execute_lua_hook(
         &mut self,
-        _cpu_regs: &[Word; 31],
+        _cpu_regs: &[Word; 32],
         _memory: memory::Memory,
         hook_name: &str,
     ) -> EmuResult<bool> {
@@ -143,7 +143,7 @@ impl PluginManager {
 
     pub fn pre_execution_event(
         &mut self,
-        cpu_regs: &[Word; 31],
+        cpu_regs: &[Word; 32],
         memory: memory::Memory,
     ) -> EmuResult<bool> {
         let mut should_skip =
@@ -159,7 +159,7 @@ impl PluginManager {
 
     pub fn post_execution_event(
         &mut self,
-        cpu_regs: &[Word; 31],
+        cpu_regs: &[Word; 32],
         memory: memory::Memory,
     ) -> EmuResult<()> {
         self.execute_lua_hook(cpu_regs, memory.clone(), "post_execution_event")?;
@@ -171,7 +171,7 @@ impl PluginManager {
 
     pub fn pre_syscall_execution(
         &mut self,
-        cpu_regs: &[Word; 31],
+        cpu_regs: &[Word; 32],
         memory: memory::Memory,
         sys_call_num: Word,
     ) -> EmuResult<bool> {
@@ -187,7 +187,7 @@ impl PluginManager {
 
     pub fn post_syscall_execution(
         &mut self,
-        cpu_regs: &[Word; 31],
+        cpu_regs: &[Word; 32],
         memory: memory::Memory,
         sys_call_num: Word,
     ) -> EmuResult<()> {

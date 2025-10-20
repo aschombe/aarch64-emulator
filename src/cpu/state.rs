@@ -20,7 +20,8 @@ pub struct InterpretedProgram {
 
 #[derive(Clone)]
 pub struct CpuState {
-    pub x_registers: [Word; 31],
+    pub registers: [Word; 32],
+    pub sp: Word,
     pub pstate: Word,
     pub memory: Memory,
 
@@ -41,7 +42,8 @@ impl CpuState {
         plugin_manager: Option<Rc<RefCell<PluginManager>>>,
     ) -> Self {
         let mut cpu = CpuState {
-            x_registers: [0; 31],
+            registers: [0; 32],
+            sp: 0,
             pstate: 0,
             memory: Memory::new(),
             ip: program.entry_ip,
@@ -49,8 +51,8 @@ impl CpuState {
             plugin_manager,
         };
 
-        cpu.x_registers[29] = STACK_TOP;
-        cpu.x_registers[30] = 0;
+        cpu.sp = STACK_TOP;
+        cpu.registers[30] = 0;
 
         cpu
     }
@@ -118,12 +120,23 @@ impl CpuState {
     // --- Setup and Utilities ---
 
     pub fn get_reg(&self, id: usize) -> Word {
-        if id == 31 { 0 } else { self.x_registers[id] }
+        // if id == 32 { 0 } else { self.registers[id] }
+        if id == 31 {
+            0
+        } else if id == 32 {
+            self.sp
+        } else {
+            self.registers[id]
+        }
     }
 
     pub fn set_reg(&mut self, id: usize, value: Word) {
-        if id != 31 {
-            self.x_registers[id] = value;
+        if id == 31 {
+            // XZR - do nothing
+        } else if id == 32 {
+            self.sp = value;
+        } else {
+            self.registers[id] = value;
         }
     }
 
@@ -133,10 +146,10 @@ impl CpuState {
             if i % 4 == 0 {
                 print!("\n");
             }
-            print!("X{:02}: 0x{:016X} | ", i, self.x_registers[i]);
+            print!("X{:02}: 0x{:016X} | ", i, self.registers[i]);
         }
-        println!("\nLR (X30): 0x{:016X}", self.x_registers[30]);
-        println!("SP (X29): 0x{:016X}", self.x_registers[29]);
+        println!("\nLR (X30): 0x{:016X}", self.registers[30]);
+        println!("SP: 0x{:016X}", self.sp);
         println!("----------------------");
     }
 
@@ -474,12 +487,12 @@ impl CpuState {
 
     pub fn execute_svc(&mut self, _operands: &[Operand]) -> EmuResult<bool> {
         // Call pre-syscall hooks
-        let sys_call_num = self.x_registers[8];
+        let sys_call_num = self.registers[8];
 
         if let Some(pm_rc) = &self.plugin_manager {
             let mut pm = pm_rc.borrow_mut();
             let skip_syscall =
-                pm.pre_syscall_execution(&self.x_registers, self.memory.clone(), sys_call_num)?;
+                pm.pre_syscall_execution(&self.registers, self.memory.clone(), sys_call_num)?;
             if skip_syscall {
                 return Ok(false);
             }
@@ -490,7 +503,7 @@ impl CpuState {
         // Call post-syscall hooks
         if let Some(pm_rc) = &self.plugin_manager {
             let mut pm = pm_rc.borrow_mut();
-            pm.post_syscall_execution(&self.x_registers, self.memory.clone(), sys_call_num)?;
+            pm.post_syscall_execution(&self.registers, self.memory.clone(), sys_call_num)?;
         }
 
         Ok(halt)
@@ -504,7 +517,7 @@ impl CpuState {
             // Call pre-execution hooks
             if let Some(pm_rc) = &self.plugin_manager {
                 let mut pm = pm_rc.borrow_mut();
-                let should_skip = pm.pre_execution_event(&self.x_registers, self.memory.clone())?;
+                let should_skip = pm.pre_execution_event(&self.registers, self.memory.clone())?;
                 if should_skip {
                     self.ip += 1;
                     continue;
@@ -531,7 +544,7 @@ impl CpuState {
             // Call post-execution hooks
             if let Some(pm_rc) = &self.plugin_manager {
                 let mut pm = pm_rc.borrow_mut();
-                pm.post_execution_event(&self.x_registers, self.memory.clone())?;
+                pm.post_execution_event(&self.registers, self.memory.clone())?;
             }
 
             if halt {
