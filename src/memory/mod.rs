@@ -1,7 +1,7 @@
 // use crate::types::{EmuError, EmuResult, MEMORY_SIZE, STACK_START, STACK_TOP, Word};
 use crate::types::{
     DATA_BASE, DATA_SIZE, EmuError, EmuResult, HEAP_BASE, HEAP_SIZE, MEMORY_SIZE, RODATA_BASE,
-    RODATA_SIZE, STACK_SIZE, STACK_START, STACK_TOP, TEXT_BASE, TEXT_SIZE, Word,
+    RODATA_SIZE, STACK_SIZE, STACK_START, TEXT_BASE, TEXT_SIZE, Word,
 };
 use byteorder::{ByteOrder, LittleEndian};
 

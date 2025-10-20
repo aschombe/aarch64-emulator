@@ -1,8 +1,9 @@
 # Aarch64 Emulator in Rust
 
 ## Todo:
-- [ ] Make debugger a TUI instead of text stream
-- [ ] Debug the parsers IP to instruction mapping for correctness
+- [ ] Fix TUI debugger:
+    - [ ] The instruction indicator delays by one cycle after skipping whitespace
+    - [ ] The instruction highlighter (for scrolling) is 2 instructions behind the instruction indicator
 - [ ] Every assembly program causes stack smashing
     - [ ] Change stack checking
 - [ ] DOCUMENTATION!!!

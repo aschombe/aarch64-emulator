@@ -57,6 +57,44 @@ impl CpuState {
         cpu
     }
 
+    pub fn step_instruction(&mut self) -> EmuResult<()> {
+        if self.halted() {
+            return Err(EmuError::InternalError("CPU already halted".to_string()));
+        }
+
+        let ir_insn = self
+            .program
+            .instructions
+            .get(self.ip)
+            .ok_or_else(|| EmuError::InternalError("IP out of range".to_string()))?
+            .clone();
+
+        let halt = self.execute_instruction_ir(&ir_insn)?;
+
+        if halt {
+            self.pstate |= V_FLAG; // Mark as halted
+        } else {
+            self.ip += 1;
+        }
+
+        Ok(())
+    }
+
+    pub fn current_instruction(&self) -> EmuResult<InstructionIR> {
+        self.program
+            .instructions
+            .get(self.ip)
+            .cloned()
+            .ok_or_else(|| {
+                EmuError::InternalError(format!("Instruction pointer out of bounds: {}", self.ip))
+            })
+    }
+
+    pub fn halted(&self) -> bool {
+        // Here we check for V_FLAG or other halt indication
+        self.pstate & V_FLAG != 0
+    }
+
     fn op_add_logic(val_n: Word, val_m: Word) -> (Word, bool, bool) {
         let (res, carry) = val_n.overflowing_add(val_m);
 
