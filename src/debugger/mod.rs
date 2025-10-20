@@ -9,7 +9,7 @@ use crate::types::{EmuError, EmuResult, Word};
 enum LastCommand {
     Step,
     Continue,
-    None,
+    _None,
 }
 
 struct DebuggerState {
@@ -219,7 +219,7 @@ pub fn run_debugger(cpu: &mut CpuState) -> Result<(), EmuError> {
                 match dbg.last_command {
                     LastCommand::Step => "s".to_string(),
                     LastCommand::Continue => "c".to_string(),
-                    LastCommand::None => "s".to_string(),
+                    LastCommand::_None => "s".to_string(),
                 }
             } else {
                 // Prompt user
@@ -234,7 +234,7 @@ pub fn run_debugger(cpu: &mut CpuState) -> Result<(), EmuError> {
                     match dbg.last_command {
                         LastCommand::Step => "s".to_string(),
                         LastCommand::Continue => "c".to_string(),
-                        LastCommand::None => "s".to_string(),
+                        LastCommand::_None => "s".to_string(),
                     }
                 } else {
                     input_command.to_string()

@@ -14,14 +14,22 @@ impl Memory {
     }
 
     fn check_bounds(&self, addr: u64, size: usize) -> EmuResult<()> {
-        if addr + size as u64 > MEMORY_SIZE {
+        if addr
+            .checked_add(size as u64)
+            .filter(|&end| end <= MEMORY_SIZE)
+            .is_none()
+        {
             return Err(EmuError::MemoryAccessViolation(addr));
         }
         Ok(())
     }
 
     fn check_stack_bounds(&self, addr: u64, size: usize) -> EmuResult<()> {
-        if addr < STACK_START || addr + size as u64 > STACK_TOP {
+        if addr < STACK_START
+            || addr
+                .checked_add(size as u64)
+                .map_or(true, |end| end > STACK_TOP)
+        {
             return Err(EmuError::StackSmashDetected(addr));
         }
         Ok(())
@@ -29,7 +37,7 @@ impl Memory {
 
     /// Helper to get the byte slice for a given address and length, checking bounds
     fn get_slice_mut(&mut self, addr: Word, len: usize) -> EmuResult<&mut [u8]> {
-        // self.check_bounds(addr, len)?;
+        self.check_bounds(addr, len)?;
         // self.check_stack_bounds(addr, len)?;
         let start_index = addr as usize;
         let end_index = start_index
@@ -40,7 +48,7 @@ impl Memory {
 
     /// Helper to get an immutable byte slice, checking bounds
     fn get_slice(&self, addr: Word, len: usize) -> EmuResult<&[u8]> {
-        // self.check_bounds(addr, len)?;
+        self.check_bounds(addr, len)?;
         // self.check_stack_bounds(addr, len)?;
         let start_index = addr as usize;
         let end_index = start_index
@@ -71,8 +79,8 @@ impl Memory {
 
     /// Reads a single byte from the specified virtual address
     pub fn read_byte(&self, addr: Word) -> EmuResult<u8> {
-        let slice = self.get_slice(addr, 1)?;
-        Ok(slice[0])
+        let bytes = self.get_slice(addr, 1)?;
+        Ok(bytes[0])
     }
 
     /// Reads a 64-bit Word (8 bytes) from memory at the specified address (Little-Endian)

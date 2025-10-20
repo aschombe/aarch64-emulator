@@ -507,7 +507,7 @@ impl AsmParser {
         let mut blocks = Vec::new();
         let mut current_block = AssemblyBlock {
             label: "".to_string(),
-            is_entry: false,
+            _is_entry: false,
             content: AssemblyContent::Text(Vec::new()),
         };
         let mut current_section = "none";
@@ -550,7 +550,7 @@ impl AsmParser {
 
                 current_block = AssemblyBlock {
                     label: format!(".section_{}", current_section),
-                    is_entry: global_entry_flag,
+                    _is_entry: global_entry_flag,
                     content: AssemblyContent::Text(Vec::new()),
                 };
             } else if line_content.contains(':') {
@@ -566,7 +566,7 @@ impl AsmParser {
 
                 current_block = AssemblyBlock {
                     label: label.clone(),
-                    is_entry: is_entry_flag_for_new_block,
+                    _is_entry: is_entry_flag_for_new_block,
                     content: match current_section {
                         "text" => AssemblyContent::Text(Vec::new()),
                         "data" => AssemblyContent::Data(Vec::new()),

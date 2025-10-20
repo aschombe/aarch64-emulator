@@ -9,14 +9,14 @@ use super::Plugin;
 use super::lua_api::{LuaContext, initialize_lua_environment};
 use crate::memory;
 use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED, Word};
-use mlua::{Chunk, Function, Lua, Result as LuaResult, Value};
+use mlua::{Function, Lua, Value};
 
 /// Maps a hook name (e.g., "pre_exec") to a script function name (e.g., "on_pre_execution").
 type ScriptHookMap = HashMap<String, String>;
 
 /// Represents a loaded Lua script plugin.
-struct LuaPlugin {
-    pub script_code: String,
+pub struct LuaPlugin {
+    pub _script_code: String,
     pub hook_map: ScriptHookMap,
 }
 
@@ -51,12 +51,6 @@ impl PluginManager {
         Ok(())
     }
 
-    /// Loads a static plugin instance using the standard Plugin trait.
-    pub fn load_plugin(&mut self, plugin: Box<dyn Plugin>) {
-        // plugin.on_plugin_load();
-        self.plugins.push(plugin);
-    }
-
     /// Loads a Lua script, compiles it, and registers the global hooks.
     pub fn load_lua_plugin(&mut self, file_path: &str) -> EmuResult<()> {
         let script_code = fs::read_to_string(file_path).map_err(|e| {
@@ -86,8 +80,10 @@ impl PluginManager {
             ),
         ]);
 
+        let _script_code = script_code;
+
         self.lua_plugins.push(LuaPlugin {
-            script_code,
+            _script_code,
             hook_map,
         });
 
@@ -100,8 +96,8 @@ impl PluginManager {
     /// Executes a single Lua hook function across all plugins.
     pub fn execute_lua_hook(
         &mut self,
-        cpu_regs: &[Word; 31],
-        memory: memory::Memory,
+        _cpu_regs: &[Word; 31],
+        _memory: memory::Memory,
         hook_name: &str,
     ) -> EmuResult<bool> {
         let mut handled = false;

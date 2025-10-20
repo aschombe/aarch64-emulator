@@ -5,12 +5,12 @@ pub mod manager;
 use crate::memory::Memory;
 use crate::types::{EmuResult, Word};
 
-pub type PluginEntry = unsafe extern "C" fn() -> *mut dyn Plugin;
+// pub type PluginEntry = unsafe extern "C" fn() -> *mut dyn Plugin;
 
 /// Trait defining the plugin interface. Each plugin can react to emulator events.
 pub trait Plugin: Send + Sync {
     /// Returns the name of the plugin for logging/identification.
-    fn name(&self) -> &str;
+    fn _name(&self) -> &str;
 
     fn on_plugin_load(&mut self) -> EmuResult<()> {
         Ok(())
@@ -21,21 +21,21 @@ pub trait Plugin: Send + Sync {
     }
 
     /// Called before an instruction is fetched and executed.
-    fn pre_execution_event(&mut self, cpu_regs: &[Word; 31], memory: &Memory) -> EmuResult<bool> {
+    fn pre_execution_event(&mut self, _cpu_regs: &[Word; 31], _memory: &Memory) -> EmuResult<bool> {
         Ok(false)
     }
 
     /// Called after a successful instruction execution.
-    fn post_execution_event(&mut self, cpu_regs: &[Word; 31], memory: &Memory) -> EmuResult<()> {
+    fn post_execution_event(&mut self, _cpu_regs: &[Word; 31], _memory: &Memory) -> EmuResult<()> {
         Ok(())
     }
 
     /// Called before a system call is executed.
     fn pre_syscall_execution(
         &mut self,
-        cpu_regs: &[Word; 31],
-        memory: &Memory,
-        sys_call_num: Word,
+        _cpu_regs: &[Word; 31],
+        _memory: &Memory,
+        _sys_call_num: Word,
     ) -> EmuResult<bool> {
         Ok(false)
     }
@@ -43,9 +43,9 @@ pub trait Plugin: Send + Sync {
     /// Called after a system call has been executed.
     fn post_syscall_execution(
         &mut self,
-        cpu_regs: &[Word; 31],
-        memory: &Memory,
-        sys_call_num: Word,
+        _cpu_regs: &[Word; 31],
+        _memory: &Memory,
+        _sys_call_num: Word,
     ) -> EmuResult<()> {
         Ok(())
     }

@@ -221,6 +221,6 @@ pub enum AssemblyContent {
 #[derive(Debug, Clone)]
 pub struct AssemblyBlock {
     pub label: String,
-    pub is_entry: bool,
+    pub _is_entry: bool,
     pub content: AssemblyContent,
 }

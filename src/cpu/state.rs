@@ -4,7 +4,7 @@ use crate::assembler::asm_types::{
 use crate::memory::Memory;
 use crate::plugin::PluginManager;
 use crate::syscall;
-use crate::types::{EmuError, EmuResult, STACK_START, Word};
+use crate::types::{EmuError, EmuResult, STACK_TOP, Word};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -40,7 +40,7 @@ impl CpuState {
         program: InterpretedProgram,
         plugin_manager: Option<Rc<RefCell<PluginManager>>>,
     ) -> Self {
-        let cpu = CpuState {
+        let mut cpu = CpuState {
             x_registers: [0; 31],
             pstate: 0,
             memory: Memory::new(),
@@ -49,9 +49,9 @@ impl CpuState {
             plugin_manager,
         };
 
-        // let sp_base = STACK_START;
-        // cpu.x_registers[29] = sp_base; // SP (X29)
-        // cpu.x_registers[30] = 0; // LR (X30)
+        cpu.x_registers[29] = STACK_TOP;
+        cpu.x_registers[30] = 0;
+
         cpu
     }
 
@@ -543,7 +543,7 @@ impl CpuState {
     }
 
     pub fn execute_instruction_ir(&mut self, ir_insn: &InstructionIR) -> EmuResult<bool> {
-        match ir_insn.opcode {
+        let result = match ir_insn.opcode {
             OpCode::ADD => {
                 self.execute_binary_op(&ir_insn.operands, Self::op_add_logic, false, false)
             }
@@ -589,6 +589,8 @@ impl CpuState {
                 "Unimplemented OpCode: {:?}",
                 ir_insn.opcode
             ))),
-        }
+        };
+
+        result
     }
 }

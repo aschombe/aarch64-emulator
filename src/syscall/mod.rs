@@ -36,15 +36,27 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
 
                         if is_ascii_text {
                             // Pretty-print ASCII output
-                            let text = String::from_utf8_lossy(bytes);
-                            print!("[SYSCALL WRITE] {}", text);
+                            // let text = String::from_utf8_lossy(bytes);
+                            // println!("[SYSCALL WRITE] {}", text);
+
+                            print!("[SYSCALL WRITE] ");
+                            for &b in bytes {
+                                match b {
+                                    b'\n' => print!("\\n\n"),
+                                    b'\r' => print!("\\r"),
+                                    b'\t' => print!("\\t"),
+                                    0x20..=0x7E => print!("{}", b as char),
+                                    _ => print!("\\x{:02X}", b),
+                                }
+                            }
+                            println!();
                         } else if count == 8 {
                             // If exactly 8 bytes, interpret as u64
                             let val = u64::from_le_bytes(bytes.try_into().unwrap());
                             println!("[SYSCALL WRITE] {}", val);
                         } else {
                             // Fallback: hex dump
-                            print!("[SYSCALL WRITE - RAW BYTES]");
+                            println!("[SYSCALL WRITE - RAW BYTES]");
                             for b in bytes {
                                 print!(" {:02X}", b);
                             }
