@@ -55,4 +55,10 @@ impl fmt::Display for EmuError {
     }
 }
 
+impl From<std::io::Error> for EmuError {
+    fn from(err: std::io::Error) -> EmuError {
+        EmuError::InternalError(format!("IO error: {}", err))
+    }
+}
+
 pub type EmuResult<T> = Result<T, EmuError>;
