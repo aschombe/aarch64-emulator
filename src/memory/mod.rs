@@ -81,17 +81,6 @@ impl Memory {
         Ok(())
     }
 
-    // fn check_stack_bounds(&self, addr: u64, size: usize) -> EmuResult<()> {
-    //     if addr < STACK_START
-    //         || addr
-    //             .checked_add(size as u64)
-    //             .map_or(true, |end| end > STACK_TOP)
-    //     {
-    //         return Err(EmuError::StackSmashDetected(addr));
-    //     }
-    //     Ok(())
-    // }
-
     pub fn data_section(&self) -> Option<&[u8]> {
         self.get_region_slice("data")
     }
@@ -123,7 +112,6 @@ impl Memory {
     /// Helper to get the byte slice for a given address and length, checking bounds
     fn get_slice_mut(&mut self, addr: Word, len: usize) -> EmuResult<&mut [u8]> {
         self.check_bounds(addr, len)?;
-        // self.check_stack_bounds(addr, len)?;
         let start_index = addr as usize;
         let end_index = start_index
             .checked_add(len)
@@ -134,7 +122,6 @@ impl Memory {
     /// Helper to get an immutable byte slice, checking bounds
     fn get_slice(&self, addr: Word, len: usize) -> EmuResult<&[u8]> {
         self.check_bounds(addr, len)?;
-        // self.check_stack_bounds(addr, len)?;
         let start_index = addr as usize;
         let end_index = start_index
             .checked_add(len)
