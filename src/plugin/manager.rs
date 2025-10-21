@@ -9,7 +9,7 @@ use super::Plugin;
 use super::lua_api::{LuaContext, initialize_lua_environment};
 use crate::memory;
 use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED, Word};
-use mlua::{Function, Lua, Value};
+use mlua::{Function, Lua, Value, Variadic};
 
 /// Maps a hook name (e.g., "pre_exec") to a script function name (e.g., "on_pre_execution").
 type ScriptHookMap = HashMap<String, String>;
@@ -65,10 +65,7 @@ impl PluginManager {
 
         // Mock Hook Map for demonstration purposes.
         let hook_map = HashMap::from([
-            (
-                "on_plugin_unload".to_string(),
-                "on_plugin_unload".to_string(),
-            ),
+            ("on_plugin_load".to_string(), "on_plugin_unload".to_string()),
             ("pre_execution_event".to_string(), "on_pre_exec".to_string()),
             (
                 "post_execution_event".to_string(),
@@ -92,7 +89,10 @@ impl PluginManager {
         });
 
         if VERBOSE_ENABLED.load(Ordering::Relaxed) {
-            println!("[Manager] Loaded Lua script plugin from {}.", file_path);
+            println!(
+                "[PluginManager] Loaded Lua script plugin from {}.",
+                file_path
+            );
         }
         Ok(())
     }
@@ -164,16 +164,26 @@ impl PluginManager {
         Ok(handled)
     }
 
-    pub fn on_plugin_load(&mut self) -> EmuResult<()> {
+    pub fn on_plugin_load(
+        &mut self,
+        cpu_regs: &[Word; 32],
+        memory: memory::Memory,
+    ) -> EmuResult<()> {
+        self.execute_lua_hook(cpu_regs, memory.clone(), "on_plugin_load")?;
         for plugin in &mut self.plugins {
-            plugin.on_plugin_load()?;
+            plugin.on_plugin_load(cpu_regs, &memory)?;
         }
         Ok(())
     }
 
-    pub fn on_plugin_unload(&mut self) -> EmuResult<()> {
+    pub fn on_plugin_unload(
+        &mut self,
+        cpu_regs: &[Word; 32],
+        memory: memory::Memory,
+    ) -> EmuResult<()> {
+        self.execute_lua_hook(cpu_regs, memory.clone(), "on_plugin_unload")?;
         for plugin in &mut self.plugins {
-            plugin.on_plugin_unload()?;
+            plugin.on_plugin_unload(cpu_regs, &memory)?;
         }
         Ok(())
     }

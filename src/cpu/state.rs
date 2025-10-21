@@ -158,7 +158,6 @@ impl CpuState {
     // --- Setup and Utilities ---
 
     pub fn get_reg(&self, id: usize) -> Word {
-        // if id == 32 { 0 } else { self.registers[id] }
         if id == 31 {
             0
         } else if id == 32 {
@@ -180,7 +179,7 @@ impl CpuState {
 
     pub fn dump_state_full(&self) {
         println!("--- REGISTER STATE ---");
-        for i in 0..=30 {
+        for i in 0..=31 {
             if i % 4 == 0 {
                 print!("\n");
             }

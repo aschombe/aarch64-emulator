@@ -71,19 +71,25 @@ fn main() -> Result<(), EmuError> {
         ));
     };
 
-    let mut cpu: CpuState;
+    // let mut cpu: Rc<RefCell<CpuState>>;
+    // let mut cpu: CpuState;
+    let mut cpu: Rc<RefCell<CpuState>>;
     if !config.plugins.is_empty() {
         let plugin_manager = Rc::new(RefCell::new(PluginManager::new(Vec::new())));
-        cpu = CpuState::new(program, Some(Rc::clone(&plugin_manager)));
+        // cpu = CpuState::new(program, Some(Rc::clone(&plugin_manager)));
+        cpu = Rc::new(RefCell::new(CpuState::new(
+            program,
+            Some(Rc::clone(&plugin_manager)),
+        )));
 
         // Load assembled data into CPU memory
-        load_data_into_cpu(&mut cpu, &data_blocks)?;
+        load_data_into_cpu(&mut cpu.borrow_mut(), &data_blocks)?;
 
         // Initialize lua if plugin manager present
         plugin_manager
             .borrow_mut()
-            .init_lua(Rc::new(RefCell::new(cpu.clone())))
-            .expect("Failed to initialize Lua context.");
+            .init_lua(Rc::clone(&cpu))
+            .expect("Failed to initialize Lua in Plugin Manager");
 
         // Load Lua plugins
         for plugin_path in &config.plugins {
@@ -94,32 +100,36 @@ fn main() -> Result<(), EmuError> {
         }
 
         // call on_plugin_load for each plugin
-        plugin_manager.borrow_mut().on_plugin_load()?;
+        plugin_manager
+            .borrow_mut()
+            .on_plugin_load(&cpu.borrow().registers, cpu.borrow().memory.clone())?;
     } else {
-        cpu = CpuState::new(program, None);
+        cpu = Rc::new(RefCell::new(CpuState::new(program, None)));
 
         // Load assembled data into CPU memory
-        load_data_into_cpu(&mut cpu, &data_blocks)?;
+        load_data_into_cpu(&mut cpu.borrow_mut(), &data_blocks)?;
     };
 
     println!("\n--- Starting Execution ---");
 
     let result = if config.debug {
-        debugger::run_debugger(&mut cpu)
+        debugger::run_debugger(&mut cpu.borrow_mut())
     } else {
-        cpu.run()
+        cpu.borrow_mut().run()
     };
 
     // Call on_plugin_unload if present
-    if let Some(plugin_manager) = &cpu.plugin_manager {
-        plugin_manager.borrow_mut().on_plugin_unload()?;
+    if let Some(plugin_manager) = &cpu.borrow().plugin_manager {
+        plugin_manager
+            .borrow_mut()
+            .on_plugin_unload(&cpu.borrow().registers, cpu.borrow().memory.clone())?;
     }
 
     match result {
         Ok(_) => {
             println!("\nProgram finished successfully.\n");
             if !config.debug {
-                cpu.dump_state_full();
+                cpu.borrow().dump_state_full();
             }
             Ok(())
         }
@@ -128,7 +138,7 @@ fn main() -> Result<(), EmuError> {
                 return Ok(());
             }
             eprintln!("\nExecution failed with error: {:?}\n", e);
-            cpu.dump_state_full();
+            cpu.borrow().dump_state_full();
             Err(e)
         }
     }

@@ -12,11 +12,11 @@ pub trait Plugin: Send + Sync {
     /// Returns the name of the plugin for logging/identification.
     fn _name(&self) -> &str;
 
-    fn on_plugin_load(&mut self) -> EmuResult<()> {
+    fn on_plugin_load(&mut self, _cpu_regs: &[Word; 32], _memory: &Memory) -> EmuResult<()> {
         Ok(())
     }
 
-    fn on_plugin_unload(&mut self) -> EmuResult<()> {
+    fn on_plugin_unload(&mut self, _cpu_regs: &[Word; 32], _memory: &Memory) -> EmuResult<()> {
         Ok(())
     }
 

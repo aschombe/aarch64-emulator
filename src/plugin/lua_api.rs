@@ -22,7 +22,12 @@ impl UserData for LuaContext {
             if !(0..=32).contains(&id) {
                 return Err(mlua::Error::runtime(format!("Invalid register ID: {}", id)));
             }
-            Ok(this.state.borrow().get_reg(id as usize))
+
+            let reg_val = this.state.borrow().get_reg(id as usize);
+
+            println!("[LUA] get_reg({}) = 0x{:016x}", id, reg_val);
+
+            Ok(reg_val as Word)
         });
 
         methods.add_method(
