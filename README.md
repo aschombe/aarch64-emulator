@@ -2,7 +2,6 @@
 
 ## Todo:
 - [ ] Plugins:
-    - [ ] lua api get_reg seems to be broken
     - [ ] Implement CC checker
 - [ ] Syscall:
     - [ ] Bins and dotprod not printing properly

@@ -12,26 +12,385 @@ General idea for checking CC:
 - Link register must be properly set before and after procedure call
 --]]
 
+-- This code is stolen from Shudong's CC_checker (it doesn't check X0, and it sometimes crashes when parsing, but thats not an issue for me):
+-- #!/usr/bin/env python3
+-- """
+-- A simple AArch64 calling-convention checker (heuristic/static).
+-- Usage: python aarch64_cc_checker.py file.s
+-- """
+--
+-- import re
+-- import sys
+-- from collections import defaultdict
+-- from itertools import product
+--
+-- # Callee-saved registers per AArch64 procedure call standard:
+-- #CALLEE_SAVED = {"x19","x20","x21","x22","x23","x24","x25","x26","x27","x28","x29","x30"}
+-- # CALLEE_SAVED = [
+-- #     "x19", "w19",
+-- #     "x20", "w20",
+-- #     "x21", "w21",
+-- #     "x22", "w22",
+-- #     "x23", "w23",
+-- #     "x24", "w24",
+-- #     "x25", "w25",
+-- #     "x26", "w26",
+-- #     "x27", "w27",
+-- #     "x28", "w28",
+-- #     "x29", "w29",
+-- # ]
+--
+--
+-- CALLEE_SAVED = list(range(19,30))
+-- CALLER_SAVED = list(range(0,19))
+--
+-- REG_RE = re.compile(r"\b(x[0-9]{1,2}|w[0-9]{1,2}|sp|fp|lr)\b")
+--
+-- def normalize_line(line):
+--     # remove comments (common comment starters: //, @, ;)
+--     # but be careful not to remove '#' which is immediate marker
+--     line = re.sub(r"//.*", "", line)
+--     line = re.sub(r"@.*", "", line)
+--     line = re.sub(r";.*", "", line)
+--     return line.strip()
+--
+-- def extract_regs(tokens):
+--     # return list of register occurrences (simple)
+--     regs = REG_RE.findall(" ".join(tokens))
+--     # normalize alias names:
+--     return [ ("sp" if r=="sp" else ("x29" if r=="fp" else ("x30" if r=="lr" else r))) for r in regs ]
+--
+-- def parse_immediate(tok):
+--     # parse immediates like #16, #0x10, #16, 16
+--     m = re.match(r".*#(-?0x[0-9a-fA-F]+|-?\d+).*", tok)
+--     if not m:
+--         m = re.match(r"(-?0x[0-9a-fA-F]+|-?\d+)$", tok)
+--     if not m:
+--         return None
+--     s = m.group(1)
+--     try:
+--         if s.startswith("0x") or s.startswith("-0x"):
+--             return int(s,0)
+--         return int(s)
+--     except:
+--         return None
+--
+-- def analyze_function(name, lines):
+--     info = {
+--         "name": name,
+--         "prologue_subs": [],
+--         "epilogue_adds": [],
+--         "saves": set(),
+--         "restores": set(),
+--         "writes": set(),
+--         "ret_present": False,
+--         "sp_usage": False,
+--         "calls": [],
+--         "caller_saved_violations": []
+--     }
+--
+--     last_def = {}  # map reg → line index of last write
+--     line_index = 0
+--
+--     for ln in lines:
+--         s = normalize_line(ln)
+--         if not s:
+--             continue
+--         tokens = [t.strip() for t in re.split(r"[,\t ]+", s) if t.strip()]
+--         if not tokens:
+--             continue
+--         op = tokens[0].lower()
+--
+--         # detect stack adjust
+--         if op == "sub" and len(tokens) >= 4 and tokens[1].lower()=="sp" and tokens[2].lower()=="sp":
+--             imm = parse_immediate(tokens[3])
+--             if imm is not None:
+--                 info["prologue_subs"].append(imm)
+--                 info["sp_usage"] = True
+--         if op == "add" and len(tokens) >= 4 and tokens[1].lower()=="sp" and tokens[2].lower()=="sp":
+--             imm = parse_immediate(tokens[3])
+--             if imm is not None:
+--                 info["epilogue_adds"].append(imm)
+--                 info["sp_usage"] = True
+--
+--         # saves/restores
+--         if op in ("stp","str","stur") and any("sp" in t for t in tokens):
+--             regs = extract_regs(tokens[1:3])
+--             for r in regs:
+--                 if r.startswith("x"):
+--                     info["saves"].add(r)
+--         if op in ("ldp","ldr","ldur") and any("sp" in t for t in tokens):
+--             regs = extract_regs(tokens[1:3])
+--             for r in regs:
+--                 if r.startswith("x"):
+--                     info["restores"].add(r)
+--
+--         # track writes
+--         if len(tokens) >= 2:
+--             dest_regs = extract_regs([tokens[1]])
+--             for r in dest_regs:
+--                 if r.startswith("x"):
+--                     info["writes"].add(r)
+--                     last_def[r] = line_index
+--
+--         # detect function calls
+--         if op in ("bl", "blr"):
+--             info["calls"].append((line_index, s))
+--             # simulate caller-saved clobber
+--             for reg in CALLER_SAVED:
+--                 last_def[reg] = None  # invalidated
+--
+--         # detect reads of registers (sources)
+--         src_regs = extract_regs(tokens[2:]) if len(tokens) > 2 else []
+--         for r in src_regs:
+--             if r in CALLER_SAVED:
+--                 # used after a call but not rewritten?
+--                 if r in last_def and last_def[r] is None:
+--                     info["caller_saved_violations"].append(
+--                         f"CALLER-SAVED: {r} used after function call without being redefined (line {line_index}: {s})"
+--                     )
+--                     last_def[r] = line_index  # mark to avoid duplicates
+--
+--         if op == "ret":
+--             info["ret_present"] = True
+--
+--         line_index += 1
+--
+--     # Perform callee-saved checks
+--     reports = []
+--
+--     for imm in info["prologue_subs"]:
+--         if imm % 16 != 0:
+--             reports.append(f"STACK-ALIGN: sub sp, sp, #{imm} not multiple of 16")
+--
+--     if sum(info["prologue_subs"]) != sum(info["epilogue_adds"]):
+--         reports.append("STACK-BALANCE: unbalanced stack adjustments")
+--
+--     if info["saves"] != info["restores"]:
+--         missing_restores = info["saves"] - info["restores"]
+--         missing_saves = info["restores"] - info["saves"]
+--         if missing_restores:
+--             reports.append(f"SAVE/RESTORE: saved but not restored: {', '.join(sorted(missing_restores))}")
+--         if missing_saves:
+--             reports.append(f"SAVE/RESTORE: restored but not saved: {', '.join(sorted(missing_saves))}")
+--
+--     for r in sorted(info["writes"].intersection(CALLEE_SAVED)):
+--         if r not in info["saves"] or r not in info["restores"]:
+--             reports.append(f"CALLEE-SAVED: {r} modified but not saved/restored")
+--
+--     if not info["ret_present"]:
+--         reports.append("MISSING-RET: no 'ret' found")
+--
+--     reports.extend(info["caller_saved_violations"])
+--     return info, reports
+-- def analyze_function2(name, lines):
+--     info = {
+--         "name": name,
+--         "saves": set(),        # regs saved to stack (stp/str to sp)
+--         "restores": set(),     # regs restored from stack (ldp/ldr from sp)
+--         "writes": set(),       # regs that appear as dest in instructions
+--         "other_warnings": []
+--     }
+--
+--     reg_tracks = defaultdict(lambda: defaultdict(list))
+--     bl_lines   = []
+--
+--     for ln, line in enumerate(lines):
+--         s = normalize_line(line)
+--         print(ln, s)
+--         if not s: continue
+--         tokens = [t.strip() for t in re.split(r"[,\t ]+", s) if t.strip()]
+--         tokens = [t.lower().strip("[").strip("]") for t in tokens]
+--
+--
+--         if len(tokens) >= 2:
+--             op, dest = tokens[0], tokens[1]
+--             if dest[1:].isdigit():
+--                 dest_no = int(dest[1:])
+--                 # Callee-saved regies
+--                 if dest_no in CALLEE_SAVED:
+--                     if 'ldr' in op: info["restores"].add(dest_no)
+--                     elif 'str' in op: info["saves"].add(dest_no)
+--
+--                     if not ('str' in op or 'cbz' in op or \
+--                             'cbnz' in op or 'cmp' in op):
+--                         info["writes"].add(dest_no)
+--
+--                 elif dest[1:] != "30":
+--                     regno = int(dest[1:])
+--                     if 'str' in op or 'cbz' in op or \
+--                         'cbnz' in op or 'cmp' in op:
+--                         reg_tracks[regno]["reads"].append(ln)
+--                     else:
+--                         reg_tracks[regno]["writes"].append(ln)
+--
+--                     if 'str' in op:
+--                         reg_tracks[regno]["stores"].append(ln)
+--                     elif 'ldr' in op:
+--                         reg_tracks[regno]["restores"].append(ln)
+--
+--                     if op != 'cbz' and op != 'cbnz':
+--                         for reg in tokens[2:]:
+--                             if ("x" in reg or "w" in reg) and \
+--                                 (reg not in CALLEE_SAVED) and \
+--                                 (reg != "lr" or reg != "sp" or reg != "x30"):
+--                                 regno = int(reg[1:])
+--                                 reg_tracks[regno]["reads"].append(ln)
+--
+--
+--             elif op == 'bl':
+--                 bl_lines.append(ln)
+--
+--
+--     for regno in list(reg_tracks):
+--
+--         # print(regno)
+--         # print("  reads:    ", reg_tracks[regno]["reads"])
+--         # print("  stores:   ", reg_tracks[regno]["stores"])
+--         # print("  writes:   ", reg_tracks[regno]["writes"])
+--         # print("  restores: ", reg_tracks[regno]["restores"])
+--
+--         reg_tracks[regno]["reads"]  = list(set(reg_tracks[regno]["reads"]) - set(reg_tracks[regno]["stores"]))
+--         reg_tracks[regno]["writes"] = list(set(reg_tracks[regno]["writes"]) - set(reg_tracks[regno]["restores"]))
+--
+--         if len(reg_tracks[regno]["stores"]) != 0 and len(reg_tracks[regno]["restores"]) != 0:
+--             del reg_tracks[regno]
+--
+--
+--     # now do checks
+--     reports = []
+--
+--
+--
+--     # # saved/restored registers check
+--     # if info["saves"] != info["restores"]:
+--     #     missing_restores = info["saves"] - info["restores"]
+--     #     missing_saves = info["restores"] - info["saves"]
+--     #     if missing_restores:
+--     #         reports.append(f"SAVE/RESTORE: saved regs but not restored: {', '.join(sorted(missing_restores))}")
+--     #     if missing_saves:
+--     #         reports.append(f"SAVE/RESTORE: restored regs but not saved: {', '.join(sorted(missing_saves))}")
+--
+--     # callee-saved regs written -> must be saved/restored
+--     written_callee = info["writes"].intersection(CALLEE_SAVED)
+--     for r in sorted(written_callee):
+--         if r not in info["saves"] or r not in info["restores"]:
+--             reports.append(f"CALLEE-SAVED: register x{r} is written but not saved/restored on the stack")
+--
+--
+--     done = False
+--     for reg in reg_tracks:
+--         if reg == 0: continue
+--         combo = list(product(reg_tracks[reg]["writes"], reg_tracks[reg]["reads"]))
+--         for pair in combo:
+--             if pair[0] >= pair[1]: continue
+--             for bl in bl_lines:
+--                 if bl in range(*pair):
+--                     reports.append("CALLER-SAVED: register x" + str(reg) +" is written but not saved/restored around BL")
+--                     done = True
+--                     break
+--
+--             if done:
+--                 done = False
+--                 break
+--
+--
+--     return info, reports
+--
+--
+-- def load_file(path):
+--     with open(path, "r", encoding="utf-8") as f:
+--         return f.read().splitlines()
+--
+-- def split_functions(lines):
+--     """
+--     Very simple splitter: a line that starts at column 0 and ends with ':' is a label.
+--     We treat such label as function entry if next lines contain instructions.
+--     """
+--     funcs            = []
+--     cur_group_labels = []
+--     cur_lines        = []
+--     for ln in lines:
+--         s = ln.rstrip("\n")
+--         # ignore assembler directives as potential beginning (like .global). But labels end with ':'
+--         m = re.match(r"^([A-Za-z0-9_.@\$]+):\s*(?:$|;|//|@)", s)
+--         if m: # if there's a label
+--             cur_group_labels.append(m.group(1))
+--             rest = s[m.end():].strip()
+--             if rest: cur_lines.append(rest)
+--         else:
+--             s = normalize_line(ln)
+--             if not s: continue
+--             tokens = [t.strip() for t in re.split(r"[,\t ]+", s) if t.strip()]
+--             cur_lines.append(s)
+--             op = tokens[0].lower() if tokens else ""
+--             if op == 'ret':
+--                 funcs.append((cur_group_labels[0],cur_lines))
+--                 cur_group_labels = []
+--                 cur_lines        = []
+--
+--     if not cur_group_labels:
+--         funcs.append((cur_group_labels[0],""))
+--     return funcs
+--
+-- def main():
+--     if len(sys.argv) < 2:
+--         print("Usage: python aarch64_cc_checker.py file.s")
+--         sys.exit(2)
+--     path = sys.argv[1]
+--     lines = load_file(path)
+--     funcs = split_functions(lines)
+--     if not funcs:
+--         print("No functions found (no labels ending with ':'). Exiting.")
+--         return
+--
+--
+--     any_issues = False
+--     for name, flines in funcs:
+--         info, reports = analyze_function2(name, flines)
+--
+--         print(f"\nFunction: {name}")
+--         print("-" * (10+len(name)))
+--         # if info["prologue_subs"]:
+--         #     print(f"  Prologue sub sp immediates: {info['prologue_subs']}")
+--         # if info["epilogue_adds"]:
+--         #     print(f"  Epilogue add sp immediates: {info['epilogue_adds']}")
+--         # if info["saves"]:
+--         #     print(f"  Saved regs (to stack): {', '.join(sorted([str(x) for x in info['saves']]))}")
+--         # if info["restores"]:
+--         #     print(f"  Restored regs (from stack): {', '.join(sorted([str(x) for x in info['restores']]))}")
+--         # if info["writes"]:
+--         #     print(f"  Written regs (dest occurrences): {', '.join(sorted([str(x) for x in info['writes']]))}")
+--         if reports:
+--             any_issues = True
+--             print("\n  ISSUES / WARNINGS:")
+--             for r in reports:
+--                 print("   - " + r)
+--         else:
+--             print("  OK: no issues detected by heuristics.")
+--
+--     if any_issues:
+--         print("\nSummary: Some functions had warnings. See above for details.")
+--     else:
+--         print("\nSummary: No issues detected (heuristic).")
+--
+-- if __name__ == "__main__":
+--     main()
+
 -- Global variable for tracking the stack pointer
-local sp = 0x0000000040000000
+-- local sp = 0x0000000040000000
+local sp = nil
 
 function on_plugin_load()
-	-- grab the initial stack pointer value
 	sp = cpu:get_reg(32) -- Index 32 corresponds to SP
 end
 
 function on_plugin_unload()
 	-- if the current stack pointer doesn't match the saved one, log a warning
-	-- local current_sp = cpu:get_reg(32)
-	-- if current_sp ~= sp then
-	-- 	cpu:log(
-	-- 		string.format(
-	-- 			"[CC Checker] Warning: Stack pointer mismatch! Initial SP: 0x%X, Final SP: 0x%X",
-	-- 			sp,
-	-- 			current_sp
-	-- 		)
-	-- 	)
-	-- end
+	local current_sp = cpu:get_reg(32)
+	if current_sp ~= sp then
+		cpu:log(string.format("Warning: Stack pointer mismatch! Initial SP: 0x%X, Final SP: 0x%X", sp, current_sp))
+	end
 end
 
 -- function on_pre_exec()

@@ -95,6 +95,12 @@ impl fmt::Display for EmuError {
     }
 }
 
+impl From<mlua::Error> for EmuError {
+    fn from(err: mlua::Error) -> Self {
+        EmuError::InternalError(format!("Lua error: {}", err))
+    }
+}
+
 impl From<std::io::Error> for EmuError {
     fn from(err: std::io::Error) -> EmuError {
         EmuError::InternalError(format!("IO error: {}", err))

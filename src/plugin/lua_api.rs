@@ -8,11 +8,12 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub struct LuaContext {
     pub state: Rc<RefCell<CpuState>>,
+    pub plugin_name: String,
 }
 
 impl LuaContext {
-    pub fn new(state: Rc<RefCell<CpuState>>) -> Self {
-        LuaContext { state }
+    pub fn new(state: Rc<RefCell<CpuState>>, plugin_name: String) -> Self {
+        LuaContext { state, plugin_name }
     }
 }
 
@@ -24,8 +25,6 @@ impl UserData for LuaContext {
             }
 
             let reg_val = this.state.borrow().get_reg(id as usize);
-
-            println!("[LUA] get_reg({}) = 0x{:016x}", id, reg_val);
 
             Ok(reg_val as Word)
         });
@@ -65,8 +64,10 @@ impl UserData for LuaContext {
             },
         );
 
-        methods.add_method("log", |_, _, msg: String| {
-            println!("[LUA] {}", msg);
+        methods.add_method("log", |_, this, msg: String| {
+            // println!("[LUA] {}", msg);
+            // instead of "LUA" use the name of the plugin
+            println!("[{}] {}", this.plugin_name, msg);
             Ok(())
         });
     }

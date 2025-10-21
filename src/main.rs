@@ -85,17 +85,20 @@ fn main() -> Result<(), EmuError> {
         // Load assembled data into CPU memory
         load_data_into_cpu(&mut cpu.borrow_mut(), &data_blocks)?;
 
-        // Initialize lua if plugin manager present
-        plugin_manager
-            .borrow_mut()
-            .init_lua(Rc::clone(&cpu))
-            .expect("Failed to initialize Lua in Plugin Manager");
-
         // Load Lua plugins
         for plugin_path in &config.plugins {
+            let plugin_name = plugin_path
+                .split('/')
+                .last()
+                .unwrap_or("unknown_plugin.lua")
+                .split('.')
+                .next()
+                .unwrap_or("unknown_plugin")
+                .to_uppercase();
+
             plugin_manager
                 .borrow_mut()
-                .load_lua_plugin(plugin_path)
+                .load_lua_plugin(plugin_path, Rc::clone(&cpu), plugin_name)
                 .expect("Failed to load Lua plugin");
         }
 
