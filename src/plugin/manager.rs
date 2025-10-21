@@ -65,6 +65,10 @@ impl PluginManager {
 
         // Mock Hook Map for demonstration purposes.
         let hook_map = HashMap::from([
+            (
+                "on_plugin_unload".to_string(),
+                "on_plugin_unload".to_string(),
+            ),
             ("pre_execution_event".to_string(), "on_pre_exec".to_string()),
             (
                 "post_execution_event".to_string(),
@@ -102,24 +106,57 @@ impl PluginManager {
     ) -> EmuResult<bool> {
         let mut handled = false;
 
+        if VERBOSE_ENABLED.load(Ordering::Relaxed) {
+            println!("[PluginManager] Executing Lua hook '{}'", hook_name);
+        }
+
         for plugin in &self.lua_plugins {
             if let Some(fn_name) = plugin.hook_map.get(hook_name) {
-                // 1. Get the function from the global scope.
                 let globals = self.lua_vm.globals();
 
-                let hook_fn: Function = match globals.get(fn_name.as_str()) {
-                    Ok(f) => f,
-                    Err(_) => continue,
-                };
-
-                let result = hook_fn.call(()).map_err(|e| {
-                    EmuError::InternalError(format!("Lua hook '{}' failed: {}", fn_name, e))
-                })?;
-
-                match result {
-                    Value::Boolean(true) => handled = true,
-                    Value::Boolean(false) | Value::Nil => {}
-                    _ => {} // ignore other return types or consider logging
+                match globals.get::<mlua::Function>(fn_name.as_str()) {
+                    Ok(func) => match func.call(()) {
+                        Ok(result) => {
+                            if VERBOSE_ENABLED.load(Ordering::Relaxed) {
+                                println!(
+                                    "[PluginManager] Lua hook '{}' executed successfully.",
+                                    fn_name
+                                );
+                            }
+                            if let mlua::Value::Boolean(true) = result {
+                                handled = true;
+                            }
+                        }
+                        Err(e) => {
+                            return Err(EmuError::InternalError(format!(
+                                "Error calling Lua hook '{}': {}",
+                                fn_name, e
+                            )));
+                        }
+                    },
+                    Err(mlua::Error::FromLuaConversionError { from, .. }) if from == "nil" => {
+                        // Expected & benign: function not defined; skip silently
+                        if VERBOSE_ENABLED.load(Ordering::Relaxed) {
+                            println!(
+                                "[PluginManager] Lua function '{}' is nil (not defined), skipping.",
+                                fn_name
+                            );
+                        }
+                        continue;
+                    }
+                    Err(e) => {
+                        return Err(EmuError::InternalError(format!(
+                            "Error getting Lua function '{}': {}",
+                            fn_name, e
+                        )));
+                    }
+                }
+            } else {
+                if VERBOSE_ENABLED.load(Ordering::Relaxed) {
+                    println!(
+                        "[PluginManager] No Lua function mapped for hook '{}'. Skipping.",
+                        hook_name
+                    );
                 }
             }
         }

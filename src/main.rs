@@ -93,7 +93,7 @@ fn main() -> Result<(), EmuError> {
                 .expect("Failed to load Lua plugin");
         }
 
-        // Call on_plugin_load if present
+        // call on_plugin_load for each plugin
         plugin_manager.borrow_mut().on_plugin_load()?;
     } else {
         cpu = CpuState::new(program, None);
@@ -117,7 +117,7 @@ fn main() -> Result<(), EmuError> {
 
     match result {
         Ok(_) => {
-            println!("\nProgram finished successfully.");
+            println!("\nProgram finished successfully.\n");
             if !config.debug {
                 cpu.dump_state_full();
             }
@@ -127,7 +127,7 @@ fn main() -> Result<(), EmuError> {
             if e.to_string().contains("Halt command received.") {
                 return Ok(());
             }
-            eprintln!("\nExecution failed with error: {:?}", e);
+            eprintln!("\nExecution failed with error: {:?}\n", e);
             cpu.dump_state_full();
             Err(e)
         }

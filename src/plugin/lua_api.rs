@@ -19,7 +19,7 @@ impl LuaContext {
 impl UserData for LuaContext {
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         methods.add_method("get_reg", |_, this, id: i64| {
-            if !(0..=31).contains(&id) {
+            if !(0..=32).contains(&id) {
                 return Err(mlua::Error::runtime(format!("Invalid register ID: {}", id)));
             }
             Ok(this.state.borrow().get_reg(id as usize))

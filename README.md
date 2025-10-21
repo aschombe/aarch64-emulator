@@ -1,9 +1,14 @@
 # Aarch64 Emulator in Rust
 
 ## Todo:
+- [ ] Plugins:
+    - [ ] Ensure plugins' log messages can be seen in the emulators output (currently not working)
+    - [ ] Implement CC checker
 - [ ] Syscall:
     - [ ] Bins and dotprod not printing properly
-- [ ] Fix TUI debugger:
+- [ ] TUI debugger:
+    - [ ] Implement data diff panel, as your program changes memory,
+            the top right panel is the diff of memory with every step and it is scrollable
     - [ ] The instruction indicator delays by one cycle after skipping whitespace
     - [ ] The instruction highlighter (for scrolling) is 2 instructions behind the instruction indicator
 - [ ] Every assembly program causes stack smashing
