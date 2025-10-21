@@ -423,8 +423,8 @@ pub fn run_debugger(cpu: &mut CpuState) -> EmuResult<()> {
                 .direction(Direction::Horizontal)
                 .constraints([
                     Constraint::Percentage(25),
-                    Constraint::Percentage(40),
                     Constraint::Percentage(35),
+                    Constraint::Percentage(40),
                 ])
                 .split(Rect {
                     x: 0,
@@ -467,7 +467,37 @@ pub fn run_debugger(cpu: &mut CpuState) -> EmuResult<()> {
             let regs_lines: Vec<Line> = regs_spans.into_iter().map(Line::from).collect();
             let regs_paragraph = Paragraph::new(regs_lines)
                 .block(Block::default().borders(Borders::ALL).title("Registers"));
-            f.render_widget(regs_paragraph, top_chunks[2]);
+            f.render_widget(regs_paragraph, top_chunks[1]);
+
+            // let data_output = if let Some(data_bytes) = cpu.memory.data_section() {
+            //     let region_base = cpu
+            //         .memory
+            //         .regions
+            //         .iter()
+            //         .find(|r| r.name == "data")
+            //         .map(|r| r.base)
+            //         .unwrap_or(0);
+            //
+            //     let mut lines = Vec::new();
+            //     for (i, chunk) in data_bytes.chunks(16).enumerate() {
+            //         let addr = region_base + i as u64 * 16;
+            //         let hex_bytes = chunk
+            //             .iter()
+            //             .map(|b| format!("{:02X}", b))
+            //             .collect::<Vec<_>>()
+            //             .join(" ");
+            //         lines.push(format!("0x{:08X}: {}", addr, hex_bytes));
+            //     }
+            //     lines.join("\n")
+            // } else {
+            //     "No .data section".to_string()
+            // };
+            //
+            // let data_paragraph = Paragraph::new(data_output)
+            //     .block(Block::default().borders(Borders::ALL).title("Data Dump"))
+            //     .style(Style::default().fg(Color::White));
+            //
+            // f.render_widget(data_paragraph, top_chunks[2]);
 
             let history_selected = ui_state.history_list_state.selected();
             let history_items = render_history_scrollable(&history, history_selected);
@@ -487,7 +517,7 @@ pub fn run_debugger(cpu: &mut CpuState) -> EmuResult<()> {
                         .bg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 )
-                .highlight_symbol(">>")
+                .highlight_symbol(">> ")
                 .highlight_spacing(HighlightSpacing::Always);
             f.render_stateful_widget(
                 history_list,
