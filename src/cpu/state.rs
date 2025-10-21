@@ -180,10 +180,15 @@ impl CpuState {
     pub fn dump_state_full(&self) {
         println!("--- REGISTER STATE ---");
         for i in 0..=31 {
-            if i % 4 == 0 {
+            if (i != 0) && (i % 4 == 0) {
                 print!("\n");
             }
-            print!("X{:02}: 0x{:016X} | ", i, self.registers[i]);
+
+            if i % 4 != 3 {
+                print!("X{:02}: 0x{:016X} | ", i, self.registers[i]);
+            } else {
+                print!("X{:02}: 0x{:016X}   ", i, self.registers[i]);
+            }
         }
         println!("\nLR (X30): 0x{:016X}", self.registers[30]);
         println!("SP: 0x{:016X}", self.sp);
