@@ -28,19 +28,21 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
                 return Ok(false);
             }
 
-            // Only handle stdout (1) and stderr (2)
             if fd == 1 || fd == 2 {
-                match state.memory.read_bytes(buf_addr, count) {
+                // Clone bytes into an owned Vec<u8> to drop borrow before mutable uses
+                let read_result: EmuResult<Vec<u8>> = {
+                    let mem_ref = state.memory.borrow();
+                    mem_ref
+                        .read_bytes(buf_addr, count)
+                        .map(|slice| slice.to_vec())
+                };
+
+                match read_result {
                     Ok(bytes) => {
                         let is_ascii_text = bytes.iter().all(|&b| b.is_ascii());
-
                         if is_ascii_text {
-                            // Pretty-print ASCII output
-                            // let text = String::from_utf8_lossy(bytes);
-                            // println!("[SYSCALL WRITE] {}", text);
-
                             print!("[SYSCALL WRITE] ");
-                            for &b in bytes {
+                            for &b in &bytes {
                                 match b {
                                     b'\n' => print!("\\n\n"),
                                     b'\r' => print!("\\r"),
@@ -51,13 +53,11 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
                             }
                             println!();
                         } else if count == 8 {
-                            // If exactly 8 bytes, interpret as u64
                             let val = u64::from_le_bytes(bytes.try_into().unwrap());
                             println!("[SYSCALL WRITE] {}", val);
                         } else {
-                            // Fallback: hex dump
                             println!("[SYSCALL WRITE - RAW BYTES]");
-                            for b in bytes {
+                            for b in &bytes {
                                 print!(" {:02X}", b);
                             }
                             println!();
@@ -69,22 +69,19 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
                         return Err(e);
                     }
                 }
-            } else {
-                if VERBOSE_ENABLED.load(Ordering::Relaxed) {
-                    eprintln!("[SYSCALL WARNING] Write call to unsupported FD: {}", fd);
-                }
+            } else if VERBOSE_ENABLED.load(Ordering::Relaxed) {
+                eprintln!("[SYSCALL WARNING] Write call to unsupported FD: {}", fd);
             }
 
-            // Return bytes written in X0
             state.set_reg(0, count as u64);
             Ok(false)
         }
+
         SYS_EXIT => {
             let exit_code = state.get_reg(0) as i32;
             if VERBOSE_ENABLED.load(Ordering::Relaxed) {
                 println!("[SYSCALL EXIT] Exiting with code: {}", exit_code);
             }
-
             Ok(true)
         }
 

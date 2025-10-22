@@ -199,14 +199,14 @@ fn source_line_to_ui_index_map(source_lines: &[String]) -> HashMap<usize, usize>
 }
 
 fn render_source_scrollable<'a>(cpu: &'a CpuState, dbg: &'a DebuggerState) -> Vec<ListItem<'a>> {
-    let source_line_to_ui_idx = source_line_to_ui_index_map(&cpu.program.source_lines);
-    let current_ip = cpu.ip;
-    let current_source_line = cpu.program.source_map.get(current_ip).copied().unwrap_or(0);
-    let highlight_index =
-        find_next_valid_line(&cpu.program.source_map, &source_line_to_ui_idx, current_ip);
+    let source_lines = &cpu.program.source_lines;
+    let source_map = &cpu.program.source_map;
+    let src_line_to_ui = source_line_to_ui_index_map(source_lines);
+    let current_ip = *cpu.ip.borrow();
+    let current_source_line = source_map.get(current_ip).copied().unwrap_or(0);
+    let highlight_index = find_next_valid_line(source_map, &src_line_to_ui, current_ip);
 
-    cpu.program
-        .source_lines
+    source_lines
         .iter()
         .enumerate()
         .map(|(idx, line)| {
@@ -216,13 +216,11 @@ fn render_source_scrollable<'a>(cpu: &'a CpuState, dbg: &'a DebuggerState) -> Ve
             } else {
                 "  "
             };
-
-            let ip_marker = if highlight_index == source_line_to_ui_idx.get(&line_num).copied() {
+            let ip_marker = if highlight_index == src_line_to_ui.get(&line_num).copied() {
                 "> "
             } else {
                 "  "
             };
-
             let content = format!("{}{}{:4} {}", bp_marker, ip_marker, line_num, line);
             ListItem::new(content)
         })
@@ -230,11 +228,12 @@ fn render_source_scrollable<'a>(cpu: &'a CpuState, dbg: &'a DebuggerState) -> Ve
 }
 
 fn render_registers<'a>(cpu: &'a CpuState) -> Vec<Span<'a>> {
+    let regs_snapshot = cpu.registers.borrow();
     let mut regs: Vec<(String, Word)> = (0..32)
-        .map(|i| (format!(" X{}", i), cpu.registers[i]))
+        .map(|i| (format!(" X{}", i), regs_snapshot[i]))
         .collect();
-    regs.push((" SP".to_string(), cpu.sp));
-    regs.push((" PC".to_string(), cpu.ip as u64));
+    regs.push((" SP".to_string(), *cpu.sp.borrow()));
+    regs.push((" PC".to_string(), *cpu.ip.borrow() as u64));
 
     let rows = 17;
     let columns = 2;
@@ -256,7 +255,7 @@ fn render_registers<'a>(cpu: &'a CpuState) -> Vec<Span<'a>> {
 // New helper to synchronize UI highlight immediately after stepping
 fn update_highlight_ui(cpu: &CpuState, ui_state: &mut DebuggerUIState) {
     let source_line_to_ui_idx = source_line_to_ui_index_map(&cpu.program.source_lines);
-    let current_ip = cpu.ip;
+    let current_ip = *cpu.ip.borrow();
     let source_map = &cpu.program.source_map;
 
     // Try to get UI index from current instruction's source line
@@ -266,7 +265,6 @@ fn update_highlight_ui(cpu: &CpuState, ui_state: &mut DebuggerUIState) {
         .copied()
         // Fallback to next valid line if current line blank or missing in map
         .or_else(|| find_next_valid_line(source_map, &source_line_to_ui_idx, current_ip));
-
     ui_state.source_list_state.select(highlight_idx);
 }
 
@@ -287,7 +285,8 @@ fn execute_continue(
     ui_state: &mut DebuggerUIState,
 ) -> EmuResult<()> {
     while !cpu.halted() {
-        if dbg.breakpoints.contains(&(cpu.ip as usize)) {
+        // if dbg.breakpoints.contains(&(cpu.ip as usize)) {
+        if dbg.breakpoints.contains(&(*cpu.ip.borrow() as usize)) {
             break;
         }
         cpu.step_instruction()?;
@@ -361,7 +360,8 @@ fn handle_debug_command(
             let addr = Word::from_str_radix(addr_str.trim_start_matches("0x"), 16)
                 .map_err(|_| EmuError::InternalError(format!("Invalid address: {}", addr_str)))?;
 
-            match cpu.memory.read_bytes(addr, size) {
+            // match cpu.memory.read_bytes(addr, size) {
+            match cpu.memory.borrow_mut().read_bytes(addr, size) {
                 Ok(bytes) => Ok((
                     true,
                     dbg.last_command,

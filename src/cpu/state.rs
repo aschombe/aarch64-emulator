@@ -20,13 +20,13 @@ pub struct InterpretedProgram {
 
 #[derive(Clone)]
 pub struct CpuState {
-    pub registers: [Word; 32],
-    pub sp: Word,
-    pub pstate: Word,
-    pub memory: Memory,
+    pub registers: RefCell<[Word; 32]>,
+    pub sp: RefCell<Word>,
+    pub pstate: RefCell<Word>,
+    pub memory: RefCell<Memory>,
 
     pub program: InterpretedProgram,
-    pub ip: usize,
+    pub ip: RefCell<usize>,
 
     pub plugin_manager: Option<Rc<RefCell<PluginManager>>>,
 }
@@ -41,18 +41,18 @@ impl CpuState {
         program: InterpretedProgram,
         plugin_manager: Option<Rc<RefCell<PluginManager>>>,
     ) -> Self {
-        let mut cpu = CpuState {
-            registers: [0; 32],
-            sp: 0,
-            pstate: 0,
-            memory: Memory::new(),
-            ip: program.entry_ip,
+        let cpu = CpuState {
+            registers: RefCell::new([0; 32]),
+            sp: RefCell::new(0),
+            pstate: RefCell::new(0),
+            memory: RefCell::new(Memory::new()),
+            ip: RefCell::new(program.entry_ip),
             program,
             plugin_manager,
         };
 
-        cpu.sp = STACK_TOP;
-        cpu.registers[30] = 0;
+        *cpu.sp.borrow_mut() = STACK_TOP;
+        cpu.registers.borrow_mut()[30] = 0;
 
         cpu
     }
@@ -62,37 +62,42 @@ impl CpuState {
             return Err(EmuError::InternalError("CPU already halted".to_string()));
         }
 
+        let current_ip = *self.ip.borrow();
         let ir_insn = self
             .program
             .instructions
-            .get(self.ip)
+            .get(current_ip)
             .ok_or_else(|| EmuError::InternalError("IP out of range".to_string()))?
             .clone();
 
         let halt = self.execute_instruction_ir(&ir_insn)?;
 
         if halt {
-            self.pstate |= V_FLAG; // Mark as halted
+            *self.pstate.borrow_mut() |= V_FLAG; // Mark as halted
         } else {
-            self.ip += 1;
+            *self.ip.borrow_mut() += 1;
         }
 
         Ok(())
     }
 
     pub fn current_instruction(&self) -> EmuResult<InstructionIR> {
+        let current_ip = *self.ip.borrow();
         self.program
             .instructions
-            .get(self.ip)
+            .get(current_ip)
             .cloned()
             .ok_or_else(|| {
-                EmuError::InternalError(format!("Instruction pointer out of bounds: {}", self.ip))
+                EmuError::InternalError(format!(
+                    "Instruction pointer out of bounds: {}",
+                    current_ip
+                ))
             })
     }
 
     pub fn halted(&self) -> bool {
         // Here we check for V_FLAG or other halt indication
-        self.pstate & V_FLAG != 0
+        *self.pstate.borrow() & V_FLAG != 0
     }
 
     fn op_add_logic(val_n: Word, val_m: Word) -> (Word, bool, bool) {
@@ -124,7 +129,6 @@ impl CpuState {
         (res, borrow, overflow)
     }
 
-    // --- NON-FLAG ARITHMETIC (Simple wrappers) ---
     fn op_mul(val_n: Word, val_m: Word) -> (Word, bool, bool) {
         (val_n.wrapping_mul(val_m), false, false)
     }
@@ -155,15 +159,13 @@ impl CpuState {
         (res as Word, false, false)
     }
 
-    // --- Setup and Utilities ---
-
     pub fn get_reg(&self, id: usize) -> Word {
         if id == 31 {
             0
         } else if id == 32 {
-            self.sp
+            *self.sp.borrow()
         } else {
-            self.registers[id]
+            self.registers.borrow()[id]
         }
     }
 
@@ -171,9 +173,9 @@ impl CpuState {
         if id == 31 {
             // XZR - do nothing
         } else if id == 32 {
-            self.sp = value;
+            *self.sp.borrow_mut() = value;
         } else {
-            self.registers[id] = value;
+            self.registers.borrow_mut()[id] = value;
         }
     }
 
@@ -185,13 +187,14 @@ impl CpuState {
             }
 
             if i % 4 != 3 {
-                print!("X{:02}: 0x{:016X} | ", i, self.registers[i]);
+                print!("X{:02}: 0x{:016X} | ", i, self.registers.borrow()[i]);
             } else {
-                print!("X{:02}: 0x{:016X}   ", i, self.registers[i]);
+                print!("X{:02}: 0x{:016X}   ", i, self.registers.borrow()[i]);
             }
         }
-        println!("\nLR (X30): 0x{:016X}", self.registers[30]);
-        println!("SP: 0x{:016X}", self.sp);
+
+        println!("\nLR (X30): 0x{:016X}", self.registers.borrow()[30]);
+        println!("SP: 0x{:016X}", *self.sp.borrow());
         println!("----------------------");
     }
 
@@ -229,22 +232,22 @@ impl CpuState {
         overflow: bool,
         is_sub: bool,
     ) {
-        self.pstate = 0;
+        *self.pstate.borrow_mut() = 0;
         if (result as i64) < 0 {
-            self.pstate |= N_FLAG;
+            *self.pstate.borrow_mut() |= N_FLAG;
         }
         if result == 0 {
-            self.pstate |= Z_FLAG;
+            *self.pstate.borrow_mut() |= Z_FLAG;
         }
         if is_sub {
             if !carry_or_borrow {
-                self.pstate |= C_FLAG;
+                *self.pstate.borrow_mut() |= C_FLAG;
             }
         } else if carry_or_borrow {
-            self.pstate |= C_FLAG;
+            *self.pstate.borrow_mut() |= C_FLAG;
         }
         if overflow {
-            self.pstate |= V_FLAG;
+            *self.pstate.borrow_mut() |= V_FLAG;
         }
     }
 
@@ -351,9 +354,10 @@ impl CpuState {
     }
 
     fn check_condition(&self, condition: Condition) -> bool {
-        let n = (self.pstate & N_FLAG) != 0;
-        let z = (self.pstate & Z_FLAG) != 0;
-        let v = (self.pstate & V_FLAG) != 0;
+        let pstate = *self.pstate.borrow();
+        let n = (pstate & N_FLAG) != 0;
+        let z = (pstate & Z_FLAG) != 0;
+        let v = (pstate & V_FLAG) != 0;
 
         match condition {
             Condition::Al => true,
@@ -405,7 +409,8 @@ impl CpuState {
                 let rt_id = self.resolve_operand_dest(dest_op)?;
                 let effective_addr = self.resolve_offset_address(offset)?;
 
-                let value = self.memory.read_word(effective_addr)?;
+                // let value = self.memory.read_word(effective_addr)?;
+                let value = self.memory.borrow().read_word(effective_addr)?;
                 self.set_reg(rt_id, value);
                 Ok(false)
             }
@@ -422,7 +427,8 @@ impl CpuState {
                 let rt_id = self.resolve_operand_dest(dest_op)?;
                 let effective_addr = self.resolve_offset_address(offset)?;
 
-                let byte_value = self.memory.read_byte(effective_addr)?;
+                // let byte_value = self.memory.read_byte(effective_addr)?;
+                let byte_value = self.memory.borrow().read_byte(effective_addr)?;
                 self.set_reg(rt_id, byte_value as Word);
                 Ok(false)
             }
@@ -439,7 +445,10 @@ impl CpuState {
                 let rt_val = self.resolve_operand_source(source_op)?;
                 let effective_addr = self.resolve_offset_address(offset)?;
 
-                self.memory.write_word(effective_addr, rt_val)?;
+                // self.memory.write_word(effective_addr, rt_val)?;
+                self.memory
+                    .borrow_mut()
+                    .write_word(effective_addr, rt_val)?;
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(format!(
@@ -455,7 +464,9 @@ impl CpuState {
                 let rt_val = self.resolve_operand_source(source_op)? as u8;
                 let effective_addr = self.resolve_offset_address(offset)?;
 
-                self.memory.write_byte(effective_addr, rt_val)?;
+                self.memory
+                    .borrow_mut()
+                    .write_byte(effective_addr, rt_val)?;
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(format!(
@@ -480,10 +491,48 @@ impl CpuState {
                     })? as usize;
 
                 if let OpCode::BL = opcode {
-                    self.set_reg(30, (self.ip + 1) as Word);
+                    if let Some(pm_rc) = &self.plugin_manager {
+                        {
+                            let regs_snapshot = *self.registers.borrow();
+                            let mem_snapshot = self.memory.borrow().clone();
+
+                            let _ = drop(regs_snapshot);
+                            let _ = drop(mem_snapshot);
+                        }
+
+                        let mut pm = pm_rc.borrow_mut();
+                        pm.pre_bl(
+                            &self.registers.borrow(),
+                            self.memory.borrow().clone(),
+                            target_ip as u64,
+                        )?;
+                    }
+
+                    // self.set_reg(30, (self.ip + 1) as Word);
+                    self.set_reg(30, (target_ip) as Word);
                 }
 
-                self.ip = target_ip.checked_sub(1).unwrap_or(0);
+                *self.ip.borrow_mut() = target_ip.checked_sub(1).unwrap_or(0);
+
+                if let OpCode::BL = opcode {
+                    if let Some(pm_rc) = &self.plugin_manager {
+                        {
+                            let regs_snapshot = *self.registers.borrow();
+                            let mem_snapshot = self.memory.borrow().clone();
+
+                            let _ = drop(regs_snapshot);
+                            let _ = drop(mem_snapshot);
+                        }
+
+                        let mut pm = pm_rc.borrow_mut();
+                        pm.post_bl(
+                            &self.registers.borrow(),
+                            self.memory.borrow().clone(),
+                            target_ip as u64,
+                        )?;
+                    }
+                }
+
                 Ok(false)
             }
             [Operand::Reg(reg), Operand::Imm(Immediate::Lbl(label))] => {
@@ -503,7 +552,7 @@ impl CpuState {
                     let target_ip = *self.program.label_to_ip.get(label).ok_or_else(|| {
                         EmuError::InternalError(format!("Undefined label: {}", label))
                     })? as usize;
-                    self.ip = target_ip.checked_sub(1).unwrap_or(0);
+                    *self.ip.borrow_mut() = target_ip.checked_sub(1).unwrap_or(0);
                 }
                 Ok(false)
             }
@@ -516,25 +565,64 @@ impl CpuState {
     }
 
     fn execute_ret(&mut self) -> EmuResult<bool> {
+        if let Some(pm_rc) = &self.plugin_manager {
+            {
+                let regs_snapshot = *self.registers.borrow();
+                let mem_snapshot = self.memory.borrow().clone();
+
+                let _ = drop(regs_snapshot);
+                let _ = drop(mem_snapshot);
+            }
+
+            let mut pm = pm_rc.borrow_mut();
+            pm.pre_ret(&self.registers.borrow(), self.memory.borrow().clone())?;
+        }
+
         let lr_value = self.get_reg(30);
         if lr_value == 0 {
             return Err(EmuError::InternalError(
                 "LR is zero on RET; cannot return.".to_string(),
             ));
         }
-        self.ip = lr_value as usize;
-        self.ip -= 1;
+
+        *self.ip.borrow_mut() = lr_value as usize;
+        *self.ip.borrow_mut() -= 1;
+
+        if let Some(pm_rc) = &self.plugin_manager {
+            {
+                let regs_snapshot = *self.registers.borrow();
+                let mem_snapshot = self.memory.borrow().clone();
+
+                let _ = drop(regs_snapshot);
+                let _ = drop(mem_snapshot);
+            }
+
+            let mut pm = pm_rc.borrow_mut();
+            pm.post_ret(&self.registers.borrow(), self.memory.borrow().clone())?;
+        }
+
         Ok(false)
     }
 
     pub fn execute_svc(&mut self, _operands: &[Operand]) -> EmuResult<bool> {
         // Call pre-syscall hooks
-        let sys_call_num = self.registers[8];
+        let sys_call_num = self.get_reg(8);
 
         if let Some(pm_rc) = &self.plugin_manager {
+            {
+                let regs_snapshot = *self.registers.borrow();
+                let mem_snapshot = self.memory.borrow().clone();
+
+                let _ = drop(regs_snapshot);
+                let _ = drop(mem_snapshot);
+            }
+
             let mut pm = pm_rc.borrow_mut();
-            let skip_syscall =
-                pm.pre_syscall_execution(&self.registers, self.memory.clone(), sys_call_num)?;
+            let skip_syscall = pm.pre_syscall(
+                &self.registers.borrow(),
+                self.memory.borrow().clone(),
+                sys_call_num,
+            )?;
             if skip_syscall {
                 return Ok(false);
             }
@@ -544,56 +632,58 @@ impl CpuState {
 
         // Call post-syscall hooks
         if let Some(pm_rc) = &self.plugin_manager {
+            {
+                let regs_snapshot = *self.registers.borrow();
+                let mem_snapshot = self.memory.borrow().clone();
+
+                let _ = drop(regs_snapshot);
+                let _ = drop(mem_snapshot);
+            }
+
             let mut pm = pm_rc.borrow_mut();
-            pm.post_syscall_execution(&self.registers, self.memory.clone(), sys_call_num)?;
+            pm.post_syscall(
+                &self.registers.borrow(),
+                self.memory.borrow().clone(),
+                sys_call_num,
+            )?;
         }
 
         Ok(halt)
     }
 
-    /// Runs the instruction cycle until a halt condition is met. (Full Speed Execution)
     pub fn run(&mut self) -> EmuResult<()> {
-        let max_instructions = self.program.instructions.len();
+        let total_insns = self.program.instructions.len();
 
-        while self.ip < max_instructions {
-            // Call pre-execution hooks
+        while *self.ip.borrow() < total_insns {
+            // --- Phase 1: Pre-execution hooks ---
             if let Some(pm_rc) = &self.plugin_manager {
-                let mut pm = pm_rc.borrow_mut();
-                let should_skip = pm.pre_execution_event(&self.registers, self.memory.clone())?;
-                if should_skip {
-                    self.ip += 1;
-                    continue;
-                }
+                pm_rc.borrow().run_hooks("pre_pc_increment").ok();
             }
 
-            if self.ip > max_instructions * 1000 {
-                return Err(EmuError::InternalError(
-                    "Execution limit reached. Possible infinite loop.".to_string(),
-                ));
-            }
-
+            // --- Phase 2: Execute a single instruction ---
+            let current_ip = *self.ip.borrow();
             let ir_insn = self
                 .program
                 .instructions
-                .get(self.ip)
+                .get(current_ip)
                 .ok_or_else(|| {
-                    EmuError::InternalError(format!("Invalid instruction pointer: {}", self.ip))
+                    EmuError::InternalError(format!("Invalid instruction pointer: {}", current_ip))
                 })?
                 .clone();
 
-            let halt = self.execute_instruction_ir(&ir_insn)?;
-
-            // Call post-execution hooks
-            if let Some(pm_rc) = &self.plugin_manager {
-                let mut pm = pm_rc.borrow_mut();
-                pm.post_execution_event(&self.registers, self.memory.clone())?;
-            }
-
-            if halt {
+            let halted = self.execute_instruction_ir(&ir_insn)?;
+            if halted {
                 return Ok(());
             }
-            self.ip += 1;
+
+            *self.ip.borrow_mut() += 1;
+
+            // --- Phase 3: Post-execution hooks ---
+            if let Some(pm_rc) = &self.plugin_manager {
+                pm_rc.borrow().run_hooks("post_pc_increment").ok();
+            }
         }
+
         Ok(())
     }
 

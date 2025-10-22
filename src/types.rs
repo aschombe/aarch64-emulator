@@ -4,38 +4,6 @@ use std::sync::atomic::AtomicBool;
 /// Flag set by CLI arguments to enable detailed output tracing
 pub static VERBOSE_ENABLED: AtomicBool = AtomicBool::new(false);
 
-// Memory constants
-// pub const MEMORY_SIZE: u64 = 0x4000_0000; // 1 GB total simulated RAM
-// pub const STACK_SIZE: u64 = 0x800000; // 8 MB stack
-// pub const STACK_TOP: u64 = MEMORY_SIZE; // top of address space
-// pub const STACK_START: u64 = STACK_TOP - STACK_SIZE; // bottom of the stack (grows downward)
-
-// mem.regions.push(MemoryRegion {
-//     name: "text",
-//     base: 0x0,
-//     size: 0x100000,
-// });
-// mem.regions.push(MemoryRegion {
-//     name: "rodata",
-//     base: 0x100000,
-//     size: 0x200000,
-// });
-// mem.regions.push(MemoryRegion {
-//     name: "data",
-//     base: 0x300000,
-//     size: 0x100000,
-// });
-// mem.regions.push(MemoryRegion {
-//     name: "heap",
-//     base: 0x400000,
-//     size: 0x100000,
-// });
-// mem.regions.push(MemoryRegion {
-//     name: "stack",
-//     base: STACK_START,
-//     size: STACK_TOP - STACK_START,
-// });
-
 // Memory region constants
 pub const TEXT_BASE: u64 = 0x0;
 pub const TEXT_SIZE: u64 = 0x100000; // 1 MB

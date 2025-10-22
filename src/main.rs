@@ -49,7 +49,9 @@ impl EmuConfig {
     }
 }
 
+/// Entry point for the AArch64 interpreter.
 fn main() -> Result<(), EmuError> {
+    // Parse command-line arguments
     let config = EmuConfig::parse();
     config.validate()?;
 
@@ -63,6 +65,7 @@ fn main() -> Result<(), EmuError> {
         println!("AArch64 Interpreter starting up.");
     }
 
+    // Assemble input assembly files
     let (program, data_blocks) = if !config.assembly_files.is_empty() {
         assemble_multiple_files(&config.assembly_files)?
     } else {
@@ -71,12 +74,10 @@ fn main() -> Result<(), EmuError> {
         ));
     };
 
-    // let mut cpu: Rc<RefCell<CpuState>>;
-    // let mut cpu: CpuState;
-    let mut cpu: Rc<RefCell<CpuState>>;
+    // Initialize CPU state
+    let cpu: Rc<RefCell<CpuState>>;
     if !config.plugins.is_empty() {
         let plugin_manager = Rc::new(RefCell::new(PluginManager::new(Vec::new())));
-        // cpu = CpuState::new(program, Some(Rc::clone(&plugin_manager)));
         cpu = Rc::new(RefCell::new(CpuState::new(
             program,
             Some(Rc::clone(&plugin_manager)),
@@ -103,9 +104,13 @@ fn main() -> Result<(), EmuError> {
         }
 
         // call on_plugin_load for each plugin
-        plugin_manager
-            .borrow_mut()
-            .on_plugin_load(&cpu.borrow().registers, cpu.borrow().memory.clone())?;
+        {
+            let regs_snapshot = *cpu.borrow().registers.borrow();
+            let mem_snapshot = cpu.borrow().memory.borrow().clone();
+            plugin_manager
+                .borrow_mut()
+                .on_plugin_load(&regs_snapshot, mem_snapshot)?;
+        }
     } else {
         cpu = Rc::new(RefCell::new(CpuState::new(program, None)));
 
@@ -121,14 +126,7 @@ fn main() -> Result<(), EmuError> {
         cpu.borrow_mut().run()
     };
 
-    // Call on_plugin_unload if present
-    if let Some(plugin_manager) = &cpu.borrow().plugin_manager {
-        plugin_manager
-            .borrow_mut()
-            .on_plugin_unload(&cpu.borrow().registers, cpu.borrow().memory.clone())?;
-    }
-
-    match result {
+    let exec_res = match result {
         Ok(_) => {
             println!("\nProgram finished successfully.\n");
             if !config.debug {
@@ -144,5 +142,22 @@ fn main() -> Result<(), EmuError> {
             cpu.borrow().dump_state_full();
             Err(e)
         }
+    };
+
+    // Call on_plugin_unload if present
+    if let Some(plugin_manager) = &cpu.borrow().plugin_manager {
+        {
+            println!("\n--- Unloading Plugins ---");
+
+            let regs_snapshot = *cpu.borrow().registers.borrow();
+            let mem_snapshot = cpu.borrow().memory.borrow().clone();
+            plugin_manager
+                .borrow_mut()
+                .on_plugin_unload(&regs_snapshot, mem_snapshot)?;
+
+            println!("--- Plugins Unloaded ---");
+        }
     }
+
+    exec_res
 }

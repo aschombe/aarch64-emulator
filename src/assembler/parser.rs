@@ -694,11 +694,6 @@ impl AsmParser {
             blocks.push(current_block);
         }
 
-        // println!("Instruction to source line mapping:");
-        // for (idx, (instr, line_num)) in instruction_line_map.iter().enumerate() {
-        //     println!("{:3}: Line {:3} => {:?}", idx, line_num, instr.opcode);
-        // }
-
         Ok((blocks, instruction_line_map))
     }
 }
