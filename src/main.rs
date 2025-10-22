@@ -28,11 +28,13 @@ struct EmuConfig {
     verbose: bool,
 
     /// Enables the GDB-like interactive debugging mode (step-by-step).
-    #[clap(short, long)]
+    /// Cannot be used together with --plugins.
+    #[clap(short, long, conflicts_with = "plugins")]
     debug: bool,
 
     /// Comma-separated list of Lua plugin file paths to load.
-    #[clap(long, value_delimiter = ',')]
+    /// Cannot be used together with --debug.
+    #[clap(long, value_delimiter = ',', conflicts_with = "debug")]
     plugins: Vec<String>,
 }
 

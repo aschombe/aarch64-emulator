@@ -1,9 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::io;
 use std::time::Duration;
 
+use crate::assembler::asm_types::InstructionIR;
+use crate::cpu::CpuState;
+use crate::types::{EmuError, EmuResult, Word};
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -16,25 +19,25 @@ use ratatui::{
     widgets::{Block, Borders, HighlightSpacing, List, ListItem, ListState, Paragraph},
 };
 
-use crate::assembler::asm_types::InstructionIR;
-use crate::cpu::CpuState;
-use crate::types::{EmuError, EmuResult, Word};
-
 #[derive(Debug, Clone, Copy)]
 pub enum LastCommand {
     Step,
     Continue,
     BreakpointSet(usize),
     BreakpointRemoved(usize),
-    ExamineMemory(usize, usize),
     None,
+}
+
+pub struct MemoryDiffEntry {
+    pub line_number: usize,
+    pub diffs: Vec<(usize, u8, u8)>,
 }
 
 pub struct DebuggerState {
     pub breakpoints: HashSet<usize>,
     pub last_command: LastCommand,
-    pub running_continuously: bool,
     pub last_executed_insn: Option<InstructionIR>,
+    pub memory_diff_history: Vec<MemoryDiffEntry>, // NEW
 }
 
 impl DebuggerState {
@@ -42,8 +45,8 @@ impl DebuggerState {
         Self {
             breakpoints: HashSet::new(),
             last_command: LastCommand::None,
-            running_continuously: false,
             last_executed_insn: None,
+            memory_diff_history: Vec::new(),
         }
     }
 }
@@ -52,6 +55,7 @@ impl DebuggerState {
 enum FocusArea {
     Source,
     History,
+    MemoryDiff,
 }
 
 #[derive(Clone)]
@@ -61,278 +65,269 @@ struct HistoryEntry {
 }
 
 struct DebuggerUIState {
-    source_list_state: ListState,
-    history_list_state: ListState,
+    source: ListState,
+    history: ListState,
+    memdiff: ListState,
     focus: FocusArea,
 }
 
 impl DebuggerUIState {
     fn new() -> Self {
-        let mut source_list_state = ListState::default();
-        source_list_state.select(Some(0));
-        let mut history_list_state = ListState::default();
-        history_list_state.select(None);
+        let mut s = ListState::default();
+        s.select(Some(0));
         Self {
-            source_list_state,
-            history_list_state,
+            source: s,
+            history: ListState::default(),
+            memdiff: ListState::default(),
             focus: FocusArea::Source,
         }
     }
 
-    fn scroll_up_source(&mut self, _source_len: usize) {
-        if let Some(i) = self.source_list_state.selected() {
-            if i > 0 {
-                self.source_list_state.select(Some(i - 1));
+    fn toggle_focus(&mut self, history_len: usize, memdiff_len: usize, reverse: bool) {
+        self.focus = if reverse {
+            match self.focus {
+                FocusArea::MemoryDiff => FocusArea::History,
+                FocusArea::History => FocusArea::Source,
+                FocusArea::Source => FocusArea::MemoryDiff,
             }
-        }
+        } else {
+            match self.focus {
+                FocusArea::Source => {
+                    if history_len > 0 && self.history.selected().is_none() {
+                        self.history.select(Some(0));
+                    }
+                    FocusArea::History
+                }
+                FocusArea::History => {
+                    if memdiff_len > 0 && self.memdiff.selected().is_none() {
+                        self.memdiff.select(Some(0));
+                    }
+                    FocusArea::MemoryDiff
+                }
+                FocusArea::MemoryDiff => FocusArea::Source,
+            }
+        };
     }
 
-    fn scroll_down_source(&mut self, source_len: usize) {
-        if let Some(i) = self.source_list_state.selected() {
-            if i + 1 < source_len {
-                self.source_list_state.select(Some(i + 1));
-            }
-        }
-    }
-
-    fn scroll_up_history(&mut self, _history_len: usize) {
-        if let Some(i) = self.history_list_state.selected() {
-            if i > 0 {
-                self.history_list_state.select(Some(i - 1));
-            }
-        }
-    }
-
-    fn scroll_down_history(&mut self, history_len: usize) {
-        if let Some(i) = self.history_list_state.selected() {
-            if i + 1 < history_len {
-                self.history_list_state.select(Some(i + 1));
-            }
-        }
-    }
-
-    fn toggle_focus(&mut self, history_len: usize) {
+    fn scroll_up(&mut self, (s_len, h_len, m_len): (usize, usize, usize)) {
         match self.focus {
             FocusArea::Source => {
-                if self.history_list_state.selected().is_none() && history_len > 0 {
-                    self.history_list_state.select(Some(0));
+                if let Some(i) = self.source.selected() {
+                    if i > 0 {
+                        self.source.select(Some(i - 1));
+                    }
                 }
-                self.focus = FocusArea::History;
             }
             FocusArea::History => {
-                self.focus = FocusArea::Source;
-            }
-        }
-    }
-}
-
-fn render_history_scrollable<'a>(
-    history: &'a [HistoryEntry],
-    selected: Option<usize>,
-) -> Vec<ListItem<'a>> {
-    history
-        .iter()
-        .enumerate()
-        .map(|(idx, entry)| {
-            // Convert multiline command/output into Lines of Spans
-            let mut lines: Vec<Line> = entry
-                .command
-                .lines()
-                .map(|line| Line::from(Span::raw(line)))
-                .collect();
-
-            // Append error message in last line if exists
-            if let Some(err) = &entry.error {
-                if let Some(last_line) = lines.last_mut() {
-                    let mut spans = last_line.spans.clone();
-                    spans.push(Span::raw(format!("  [ERROR: {}]", err)));
-                    *last_line = Line {
-                        spans,
-                        ..*last_line
-                    };
-                } else {
-                    lines.push(Line::from(Span::raw(format!("[ERROR: {}]", err))));
+                if let Some(i) = self.history.selected() {
+                    if i > 0 {
+                        self.history.select(Some(i - 1));
+                    }
                 }
             }
-
-            let mut list_item = ListItem::new(lines);
-
-            if selected == Some(idx) {
-                list_item = list_item.style(
-                    Style::default()
-                        .bg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                );
-            } else {
-                list_item = list_item.style(Style::default());
+            FocusArea::MemoryDiff => {
+                if let Some(i) = self.memdiff.selected() {
+                    if i > 0 {
+                        self.memdiff.select(Some(i - 1));
+                    }
+                }
             }
-            list_item
-        })
-        .collect()
-}
-
-fn find_next_valid_line(
-    source_map: &Vec<usize>, // instruction index → source line number
-    source_line_to_ui_map: &HashMap<usize, usize>,
-    current_ip: usize,
-) -> Option<usize> {
-    let max_ip = source_map.len();
-    for ip in current_ip..max_ip {
-        if let Some(&ui_idx) = source_line_to_ui_map.get(&source_map[ip]) {
-            return Some(ui_idx);
         }
     }
-    None
-}
 
-fn source_line_to_ui_index_map(source_lines: &[String]) -> HashMap<usize, usize> {
-    let mut map = HashMap::new();
-    let mut ui_index = 0;
-    for (idx, line) in source_lines.iter().enumerate() {
-        let line_num = idx + 1; // 1-based line number
-        if !line.trim().is_empty() {
-            map.insert(line_num, ui_index);
-            ui_index += 1;
+    fn scroll_down(&mut self, (s_len, h_len, m_len): (usize, usize, usize)) {
+        match self.focus {
+            FocusArea::Source => {
+                if let Some(i) = self.source.selected() {
+                    if i + 1 < s_len {
+                        self.source.select(Some(i + 1));
+                    }
+                }
+            }
+            FocusArea::History => {
+                if let Some(i) = self.history.selected() {
+                    if i + 1 < h_len {
+                        self.history.select(Some(i + 1));
+                    }
+                }
+            }
+            FocusArea::MemoryDiff => {
+                if let Some(i) = self.memdiff.selected() {
+                    if i + 1 < m_len {
+                        self.memdiff.select(Some(i + 1));
+                    }
+                }
+            }
         }
     }
-    map
 }
 
-fn render_source_scrollable<'a>(cpu: &'a CpuState, dbg: &'a DebuggerState) -> Vec<ListItem<'a>> {
-    let source_lines = &cpu.program.source_lines;
-    let source_map = &cpu.program.source_map;
-    let src_line_to_ui = source_line_to_ui_index_map(source_lines);
-    let current_ip = *cpu.ip.borrow();
-    let current_source_line = source_map.get(current_ip).copied().unwrap_or(0);
-    let highlight_index = find_next_valid_line(source_map, &src_line_to_ui, current_ip);
-
-    source_lines
-        .iter()
+fn render_source<'a>(cpu: &'a CpuState, dbg: &'a DebuggerState) -> Vec<ListItem<'a>> {
+    let src = &cpu.program.source_lines;
+    let map = &cpu.program.source_map;
+    let ip = *cpu.ip.borrow();
+    src.iter()
         .enumerate()
-        .map(|(idx, line)| {
-            let line_num = idx + 1;
-            let bp_marker = if dbg.breakpoints.contains(&line_num) {
+        .map(|(i, line)| {
+            let num = i + 1;
+            let bp = if dbg.breakpoints.contains(&num) {
                 "B "
             } else {
                 "  "
             };
-            let ip_marker = if highlight_index == src_line_to_ui.get(&line_num).copied() {
+            let ptr = if map.get(ip) == Some(&num) {
                 "> "
             } else {
                 "  "
             };
-            let content = format!("{}{}{:4} {}", bp_marker, ip_marker, line_num, line);
-            ListItem::new(content)
+            ListItem::new(format!("{bp}{ptr}{num:4} {line}"))
         })
         .collect()
 }
 
 fn render_registers<'a>(cpu: &'a CpuState) -> Vec<Span<'a>> {
-    let regs_snapshot = cpu.registers.borrow();
-    let mut regs: Vec<(String, Word)> = (0..32)
-        .map(|i| (format!(" X{}", i), regs_snapshot[i]))
-        .collect();
-    regs.push((" SP".to_string(), *cpu.sp.borrow()));
-    regs.push((" PC".to_string(), *cpu.ip.borrow() as u64));
-
-    let rows = 17;
-    let columns = 2;
+    let regs = cpu.registers.borrow();
+    let mut list: Vec<(String, Word)> = (0..32).map(|i| (format!(" X{}", i), regs[i])).collect();
+    list.push((" SP".to_string(), *cpu.sp.borrow()));
+    list.push((" PC".to_string(), *cpu.ip.borrow() as u64));
     let mut spans = Vec::new();
-    for row in 0..rows {
-        let mut line = String::new();
-        for col in 0..columns {
-            let idx = row + col * rows;
-            if idx < regs.len() {
-                let (ref name, val) = regs[idx];
-                line.push_str(&format!("{:<4}: 0x{:016X}  ", name, val));
+    for row in 0..17 {
+        let mut s = String::new();
+        for col in 0..2 {
+            let idx = row + col * 17;
+            if idx < list.len() {
+                s.push_str(&format!("{:<4}: 0x{:016X}  ", list[idx].0, list[idx].1));
             }
         }
-        spans.push(Span::raw(line));
+        spans.push(Span::raw(s));
     }
     spans
 }
 
-// New helper to synchronize UI highlight immediately after stepping
-fn update_highlight_ui(cpu: &CpuState, ui_state: &mut DebuggerUIState) {
-    let source_line_to_ui_idx = source_line_to_ui_index_map(&cpu.program.source_lines);
-    let current_ip = *cpu.ip.borrow();
-    let source_map = &cpu.program.source_map;
-
-    // Try to get UI index from current instruction's source line
-    let current_source_line = source_map.get(current_ip).copied().unwrap_or(0);
-    let highlight_idx = source_line_to_ui_idx
-        .get(&current_source_line)
-        .copied()
-        // Fallback to next valid line if current line blank or missing in map
-        .or_else(|| find_next_valid_line(source_map, &source_line_to_ui_idx, current_ip));
-    ui_state.source_list_state.select(highlight_idx);
-}
-
-fn execute_step(
-    cpu: &mut CpuState,
-    dbg: &mut DebuggerState,
-    ui_state: &mut DebuggerUIState,
-) -> EmuResult<()> {
-    cpu.step_instruction()?;
-    dbg.last_executed_insn = Some(cpu.current_instruction()?);
-    update_highlight_ui(cpu, ui_state);
-    Ok(())
-}
-
-fn execute_continue(
-    cpu: &mut CpuState,
-    dbg: &mut DebuggerState,
-    ui_state: &mut DebuggerUIState,
-) -> EmuResult<()> {
-    while !cpu.halted() {
-        // if dbg.breakpoints.contains(&(cpu.ip as usize)) {
-        if dbg.breakpoints.contains(&(*cpu.ip.borrow() as usize)) {
-            break;
+// Optimized diff
+fn compute_memory_diff_fast(a: &[u8], b: &[u8]) -> Vec<(usize, u8, u8)> {
+    const CHUNK: usize = 64;
+    let mut res = Vec::with_capacity(2048);
+    let mut i = 0;
+    while i + CHUNK <= a.len() {
+        if &a[i..i + CHUNK] != &b[i..i + CHUNK] {
+            for j in 0..CHUNK {
+                if a[i + j] != b[i + j] {
+                    res.push((i + j, a[i + j], b[i + j]));
+                    if res.len() > 5000 {
+                        res.push((usize::MAX, 0, 0));
+                        return res;
+                    }
+                }
+            }
         }
-        cpu.step_instruction()?;
-        dbg.last_executed_insn = Some(cpu.current_instruction()?);
+        i += CHUNK;
     }
-    update_highlight_ui(cpu, ui_state);
-    Ok(())
+    for n in i..a.len() {
+        if a[n] != b[n] {
+            res.push((n, a[n], b[n]));
+            if res.len() > 5000 {
+                res.push((usize::MAX, 0, 0));
+                break;
+            }
+        }
+    }
+    res
 }
 
-fn handle_debug_command(
+fn render_diff<'a>(history: &[MemoryDiffEntry], selected: Option<usize>) -> Vec<ListItem<'a>> {
+    if history.is_empty() {
+        return vec![ListItem::new("(no memory diffs yet)")];
+    }
+
+    let mut items = Vec::new();
+    for (i, entry) in history.iter().enumerate() {
+        // Header row for the entry
+        let mut lines: Vec<Line> = vec![Line::from(Span::styled(
+            format!("[Line {}]", entry.line_number),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ))];
+
+        // Memory address changes
+        for (addr, old, new) in &entry.diffs.iter().take(10).collect::<Vec<_>>() {
+            lines.push(Line::from(Span::raw(format!(
+                "  0x{:08X}: {:02X} → {:02X}",
+                addr, old, new
+            ))));
+        }
+
+        if entry.diffs.len() > 10 {
+            lines.push(Line::from(Span::raw(format!(
+                "  ... ({} more changes)",
+                entry.diffs.len() - 10
+            ))));
+        }
+
+        let mut item = ListItem::new(lines);
+        if selected == Some(i) {
+            item = item.style(
+                Style::default()
+                    .bg(Color::Yellow)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD),
+            );
+        }
+        items.push(item);
+    }
+    items
+}
+
+fn handle_command(
     cpu: &mut CpuState,
     dbg: &mut DebuggerState,
-    ui_state: &mut DebuggerUIState,
-    command: &str,
+    ui: &mut DebuggerUIState,
+    cmd: &str,
 ) -> EmuResult<(bool, LastCommand, Option<String>)> {
-    let parts: Vec<&str> = command.split_whitespace().collect();
+    let parts: Vec<&str> = cmd.split_whitespace().collect();
 
     match parts.as_slice() {
+        // Step one instruction
         ["s"] | ["step"] => {
-            execute_step(cpu, dbg, ui_state)?;
+            cpu.step_instruction()?;
+            dbg.last_executed_insn = Some(cpu.current_instruction()?);
             Ok((
                 true,
                 LastCommand::Step,
-                Some("Stepped one instruction".to_string()),
+                Some("Stepped one instruction.".into()),
             ))
         }
+
+        // Continue until breakpoint or halt
         ["c"] | ["continue"] => {
-            execute_continue(cpu, dbg, ui_state)?;
+            while !cpu.halted() {
+                let ip = *cpu.ip.borrow() as usize;
+                if dbg.breakpoints.contains(&ip) {
+                    break;
+                }
+                cpu.step_instruction()?;
+                dbg.last_executed_insn = Some(cpu.current_instruction()?);
+            }
             if cpu.halted() {
-                // Exit the debugger main loop when halted
                 Ok((
                     false,
                     LastCommand::Continue,
-                    Some("Program halted (exit).".to_string()),
+                    Some("Program halted (exit).".into()),
                 ))
             } else {
                 Ok((
                     true,
                     LastCommand::Continue,
-                    Some("Continued execution.".to_string()),
+                    Some("Continued execution.".into()),
                 ))
             }
         }
+
+        // Set breakpoint
         ["b", line_str] | ["break", line_str] => {
             let line = line_str.parse::<usize>().map_err(|_| {
-                EmuError::InternalError(format!("Invalid line number format: {}", line_str))
+                EmuError::InternalError(format!("Invalid line number: {}", line_str))
             })?;
             dbg.breakpoints.insert(line);
             Ok((
@@ -341,9 +336,11 @@ fn handle_debug_command(
                 Some(format!("Breakpoint set at line {}", line)),
             ))
         }
+
+        // Delete breakpoint
         ["d", line_str] | ["delete", line_str] => {
             let line = line_str.parse::<usize>().map_err(|_| {
-                EmuError::InternalError(format!("Invalid line number format: {}", line_str))
+                EmuError::InternalError(format!("Invalid line number: {}", line_str))
             })?;
             dbg.breakpoints.remove(&line);
             Ok((
@@ -352,23 +349,29 @@ fn handle_debug_command(
                 Some(format!("Breakpoint removed from line {}", line)),
             ))
         }
+
+        // Examine memory (x <size> <addr>)
         ["x", size_str, addr_str] => {
             let size = size_str.parse::<usize>().map_err(|_| {
-                EmuError::InternalError(format!("Invalid memory size format: {}", size_str))
+                EmuError::InternalError(format!("Invalid memory size: {}", size_str))
             })?;
-
             let addr = Word::from_str_radix(addr_str.trim_start_matches("0x"), 16)
                 .map_err(|_| EmuError::InternalError(format!("Invalid address: {}", addr_str)))?;
-
-            // match cpu.memory.read_bytes(addr, size) {
-            match cpu.memory.borrow_mut().read_bytes(addr, size) {
-                Ok(bytes) => Ok((
-                    true,
-                    dbg.last_command,
-                    Some(format!("0x{:016X}: {:?}", addr, bytes)),
-                )),
+            match cpu.memory.borrow().read_bytes(addr, size) {
+                Ok(bytes) => {
+                    let hex = bytes
+                        .iter()
+                        .map(|b| format!("{:02X}", b))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    Ok((
+                        true,
+                        dbg.last_command,
+                        Some(format!("0x{:016X}: {}", addr, hex)),
+                    ))
+                }
                 Err(EmuError::MemoryAccessViolation(_)) => Ok((
-                    false,
+                    true,
                     dbg.last_command,
                     Some(format!(
                         "Error: Invalid memory address or size: 0x{:X}",
@@ -378,48 +381,83 @@ fn handle_debug_command(
                 Err(e) => Err(e),
             }
         }
-        ["q"] | ["quit"] | ["exit"] => Ok((false, dbg.last_command, None)),
 
+        // Reset / Run command
+        ["r"] | ["reset"] => {
+            // Keep the currently loaded program and rebuild CPU state
+            let program_clone = cpu.program.clone();
+            let plugin_manager = cpu.plugin_manager.clone();
+
+            // Create a brand-new CpuState using the same program
+            let mut new_cpu = CpuState::new(program_clone, plugin_manager);
+
+            // Reset breakpoints and diff history to start clean
+            dbg.breakpoints.clear();
+            dbg.last_executed_insn = None;
+            dbg.last_command = LastCommand::None;
+            dbg.memory_diff_history.clear();
+
+            // Replace the old CPU with the new instance contents
+            *cpu = new_cpu;
+
+            Ok((
+                true,
+                LastCommand::None,
+                Some("CPU state reset — program reloaded.".into()),
+            ))
+        }
+
+        // Quit commands
+        ["q"] | ["quit"] | ["exit"] => {
+            Ok((false, dbg.last_command, Some("Exiting debugger.".into())))
+        }
+
+        // Help message (restored full version)
         ["h"] | ["help"] | ["?"] => {
-            let help_text = "Commands:
+            let msg = "Commands:
   [ENTER]/s: Repeat last command.
+  r/reset: Reset CPU and program.
   s/step: Execute one instruction.
   c/continue: Run continuously.
   b/break <Line>: Set breakpoint.
   d/delete <Line>: Delete breakpoint.
   x <size> <addr>: Examine memory.
-  q/quit/exit: Exit debugger."
+  q/quit/exit: Exit debugger.
+  h/help/?: Show this help.
+Use Tab/Shift+Tab to switch panels, ↑/↓ to scroll, Enter to run commands."
                 .to_string();
-            Ok((true, dbg.last_command, Some(help_text)))
+            Ok((true, dbg.last_command, Some(msg)))
         }
+
+        // Unknown command fallback
         _ => {
             let joined = parts.join(" ");
-            let err_msg = format!("Unknown command: {}. Type 'h' or 'help'.", joined);
-            Ok((true, dbg.last_command, Some(err_msg)))
+            let err = format!("Unknown command: {}. Type 'h' or 'help'.", joined);
+            Ok((true, dbg.last_command, Some(err)))
         }
     }
 }
 
 pub fn run_debugger(cpu: &mut CpuState) -> EmuResult<()> {
-    let mut debugger_state = DebuggerState::new();
-    let mut ui_state = DebuggerUIState::new();
-    let mut history: Vec<HistoryEntry> = Vec::new();
+    let mut dbg = DebuggerState::new();
+    let mut ui = DebuggerUIState::new();
+    let mut hist = Vec::new();
+    let mut memdiff = Vec::new();
+    let mut prev_mem = cpu.memory.borrow().ram.clone();
     let mut input = String::new();
-    let mut last_command_ran: Option<String> = None;
+    let mut last_cmd: Option<String> = None;
+    let mut done = false;
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut term = Terminal::new(backend)?;
 
-    let mut break_loop = false;
-
-    loop {
-        terminal.draw(|f| {
+    while !done {
+        term.draw(|f| {
             let size = f.area();
-
-            let top_chunks = Layout::default()
+            let top = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([
                     Constraint::Percentage(25),
@@ -432,8 +470,7 @@ pub fn run_debugger(cpu: &mut CpuState) -> EmuResult<()> {
                     width: size.width,
                     height: size.height / 2,
                 });
-
-            let bottom_chunks = Layout::default()
+            let bottom = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Min(3), Constraint::Length(3)])
                 .split(Rect {
@@ -443,182 +480,188 @@ pub fn run_debugger(cpu: &mut CpuState) -> EmuResult<()> {
                     height: size.height / 2,
                 });
 
-            let source_items = render_source_scrollable(cpu, &debugger_state);
-            let source_list = List::new(source_items)
+            let border = |fa: FocusArea| {
+                if ui.focus == fa {
+                    Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default()
+                }
+            };
+
+            // Source list with highlight
+            let src_list = List::new(render_source(cpu, &dbg))
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title("Source Code")
-                        .border_style(if ui_state.focus == FocusArea::Source {
-                            Style::default().fg(Color::Yellow)
-                        } else {
-                            Style::default()
-                        }),
-                )
-                .highlight_style(
-                    Style::default()
-                        .bg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                )
-                .highlight_symbol(">>");
-            f.render_stateful_widget(source_list, top_chunks[0], &mut ui_state.source_list_state);
-
-            let regs_spans = render_registers(cpu);
-            let regs_lines: Vec<Line> = regs_spans.into_iter().map(Line::from).collect();
-            let regs_paragraph = Paragraph::new(regs_lines)
-                .block(Block::default().borders(Borders::ALL).title("Registers"));
-            f.render_widget(regs_paragraph, top_chunks[1]);
-
-            // let data_output = if let Some(data_bytes) = cpu.memory.data_section() {
-            //     let region_base = cpu
-            //         .memory
-            //         .regions
-            //         .iter()
-            //         .find(|r| r.name == "data")
-            //         .map(|r| r.base)
-            //         .unwrap_or(0);
-            //
-            //     let mut lines = Vec::new();
-            //     for (i, chunk) in data_bytes.chunks(16).enumerate() {
-            //         let addr = region_base + i as u64 * 16;
-            //         let hex_bytes = chunk
-            //             .iter()
-            //             .map(|b| format!("{:02X}", b))
-            //             .collect::<Vec<_>>()
-            //             .join(" ");
-            //         lines.push(format!("0x{:08X}: {}", addr, hex_bytes));
-            //     }
-            //     lines.join("\n")
-            // } else {
-            //     "No .data section".to_string()
-            // };
-            //
-            // let data_paragraph = Paragraph::new(data_output)
-            //     .block(Block::default().borders(Borders::ALL).title("Data Dump"))
-            //     .style(Style::default().fg(Color::White));
-            //
-            // f.render_widget(data_paragraph, top_chunks[2]);
-
-            let history_selected = ui_state.history_list_state.selected();
-            let history_items = render_history_scrollable(&history, history_selected);
-            let history_list = List::new(history_items)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title("History")
-                        .border_style(if ui_state.focus == FocusArea::History {
-                            Style::default().fg(Color::Yellow)
-                        } else {
-                            Style::default()
-                        }),
-                )
-                .highlight_style(
-                    Style::default()
-                        .bg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
+                        .border_style(border(FocusArea::Source))
+                        .title("Source Code"),
                 )
                 .highlight_symbol(">> ")
-                .highlight_spacing(HighlightSpacing::Always);
-            f.render_stateful_widget(
-                history_list,
-                bottom_chunks[0],
-                &mut ui_state.history_list_state,
+                .highlight_spacing(HighlightSpacing::Always)
+                .highlight_style(
+                    Style::default()
+                        .bg(Color::Yellow)
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD),
+                );
+            f.render_stateful_widget(src_list, top[0], &mut ui.source);
+
+            // Registers
+            let regs: Vec<Line> = render_registers(cpu).into_iter().map(Line::from).collect();
+            f.render_widget(
+                Paragraph::new(regs)
+                    .block(Block::default().borders(Borders::ALL).title("Registers")),
+                top[1],
             );
 
-            let input_block = Block::default()
-                .title("Command Input")
-                .borders(Borders::ALL);
-            let input_paragraph = Paragraph::new(input.as_str()).block(input_block);
-            f.render_widget(input_paragraph, bottom_chunks[1]);
+            // Memory diff with highlight
+            let diff_list = List::new(render_diff(&dbg.memory_diff_history, ui.memdiff.selected()))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(border(FocusArea::MemoryDiff))
+                        .title("Memory Diff Log"),
+                )
+                .highlight_symbol(">> ")
+                .highlight_spacing(HighlightSpacing::Always)
+                .highlight_style(
+                    Style::default()
+                        .bg(Color::Yellow)
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD),
+                );
+
+            f.render_stateful_widget(diff_list, top[2], &mut ui.memdiff);
+
+            // History with highlight
+            let items: Vec<ListItem> = hist
+                .iter()
+                .map(|h: &HistoryEntry| {
+                    if let Some(e) = &h.error {
+                        ListItem::new(format!("{} [ERROR: {}]", h.command, e))
+                    } else {
+                        ListItem::new(h.command.clone())
+                    }
+                })
+                .collect();
+            let hist_list = List::new(items)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(border(FocusArea::History))
+                        .title("History"),
+                )
+                .highlight_symbol(">> ")
+                .highlight_spacing(HighlightSpacing::Always)
+                .highlight_style(
+                    Style::default()
+                        .bg(Color::Yellow)
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD),
+                );
+            f.render_stateful_widget(hist_list, bottom[0], &mut ui.history);
+
+            let inp = Paragraph::new(input.as_str()).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Command Input"),
+            );
+            f.render_widget(inp, bottom[1]);
         })?;
 
-        if crossterm::event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('q') => break_loop = true,
-                    KeyCode::Char(c) => input.push(c),
-                    KeyCode::Backspace => {
-                        input.pop();
-                    }
-                    KeyCode::Enter => {
-                        let trimmed = input.trim();
-                        let cmd = if trimmed.is_empty() {
-                            last_command_ran.clone().unwrap_or_default()
-                        } else {
-                            trimmed.to_string()
-                        };
-
-                        if !cmd.is_empty() {
-                            match handle_debug_command(
-                                cpu,
-                                &mut debugger_state,
-                                &mut ui_state,
-                                &cmd,
-                            ) {
-                                Ok((continue_running, last_cmd, output_opt)) => {
-                                    history.push(HistoryEntry {
-                                        command: cmd.clone(),
-                                        error: None,
+        if event::poll(Duration::from_millis(10))? {
+            if let Event::Key(k) = event::read()? {
+                if k.kind == KeyEventKind::Press {
+                    match k.code {
+                        KeyCode::Char('q') => done = true,
+                        KeyCode::Char(c) => input.push(c),
+                        KeyCode::Backspace => {
+                            input.pop();
+                        }
+                        KeyCode::Enter => {
+                            let t = input.trim();
+                            let cmd = if t.is_empty() {
+                                last_cmd.clone().unwrap_or_default()
+                            } else {
+                                t.to_string()
+                            };
+                            if !cmd.is_empty() {
+                                let snap = { cpu.memory.borrow().ram.clone() };
+                                let new_diffs = compute_memory_diff_fast(&prev_mem, &snap);
+                                if !new_diffs.is_empty() {
+                                    let current_ip = *cpu.ip.borrow();
+                                    let line_number = cpu
+                                        .program
+                                        .source_map
+                                        .get(current_ip)
+                                        .copied()
+                                        .unwrap_or(0); // fallback if unmapped
+                                    dbg.memory_diff_history.push(MemoryDiffEntry {
+                                        line_number,
+                                        diffs: new_diffs.clone(),
                                     });
-                                    if let Some(out) = output_opt {
-                                        history.push(HistoryEntry {
-                                            command: out,
+                                    const MAX_DIFF_HISTORY: usize = 200;
+                                    if dbg.memory_diff_history.len() > MAX_DIFF_HISTORY {
+                                        // Efficiently remove oldest entries without reallocating
+                                        let excess =
+                                            dbg.memory_diff_history.len() - MAX_DIFF_HISTORY;
+                                        dbg.memory_diff_history.drain(0..excess);
+                                    }
+
+                                    memdiff.extend(new_diffs);
+                                }
+                                prev_mem.copy_from_slice(&snap);
+                                match handle_command(cpu, &mut dbg, &mut ui, &cmd) {
+                                    Ok((cont, lc, msg)) => {
+                                        hist.push(HistoryEntry {
+                                            command: cmd.clone(),
                                             error: None,
                                         });
+                                        if let Some(m) = msg {
+                                            hist.push(HistoryEntry {
+                                                command: m,
+                                                error: None,
+                                            });
+                                        }
+                                        last_cmd = Some(cmd);
+                                        dbg.last_command = lc;
+                                        if !cont {
+                                            done = true;
+                                        }
                                     }
-                                    ui_state.history_list_state.select(Some(history.len() - 1));
-
-                                    last_command_ran = Some(cmd);
-                                    debugger_state.last_command = last_cmd;
-
-                                    if !continue_running {
-                                        break_loop = true;
-                                    }
-                                }
-                                Err(e) => {
-                                    history.push(HistoryEntry {
+                                    Err(e) => hist.push(HistoryEntry {
                                         command: cmd.clone(),
                                         error: Some(e.to_string()),
-                                    });
-                                    ui_state.history_list_state.select(Some(history.len() - 1));
-                                    last_command_ran = Some(cmd);
+                                    }),
                                 }
                             }
+                            input.clear();
                         }
-                        input.clear();
+                        KeyCode::Tab => ui.toggle_focus(hist.len(), memdiff.len(), false),
+                        KeyCode::BackTab => ui.toggle_focus(hist.len(), memdiff.len(), true),
+                        KeyCode::Up => ui.scroll_up((
+                            cpu.program.source_lines.len(),
+                            hist.len(),
+                            memdiff.len(),
+                        )),
+                        KeyCode::Down => ui.scroll_down((
+                            cpu.program.source_lines.len(),
+                            hist.len(),
+                            memdiff.len(),
+                        )),
+                        _ => {}
                     }
-                    KeyCode::Up => match ui_state.focus {
-                        FocusArea::Source => {
-                            ui_state.scroll_up_source(cpu.program.source_lines.len())
-                        }
-                        FocusArea::History => ui_state.scroll_up_history(history.len()),
-                    },
-                    KeyCode::Down => match ui_state.focus {
-                        FocusArea::Source => {
-                            ui_state.scroll_down_source(cpu.program.source_lines.len())
-                        }
-                        FocusArea::History => ui_state.scroll_down_history(history.len()),
-                    },
-                    KeyCode::Tab => {
-                        ui_state.toggle_focus(history.len());
-                    }
-                    _ => {}
                 }
             }
-        }
-
-        if break_loop {
-            break;
         }
     }
 
     disable_raw_mode()?;
     execute!(
-        terminal.backend_mut(),
+        term.backend_mut(),
         LeaveAlternateScreen,
         DisableMouseCapture
     )?;
-    terminal.show_cursor()?;
-
+    term.show_cursor()?;
     Ok(())
 }
