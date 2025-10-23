@@ -2,11 +2,12 @@
 
 ## Todo:
 - [ ] Plugins:
-    - [ ] Implement CC checker
+    - [ ] Test CC checker
 - [ ] Psuedo Filesystem:
     - [ ] Test filesystem and I/O syscalls thoroughly
 - [ ] Syscall:
-    - [ ] Bins and dotprod not printing properly
+    - [ ] atoi, bins, dotprod not printing properly (write syscall issue, or escape_string)
+    - [ ] display32 infinite loop
     - [ ] Add more syscalls
         - [ ] Check [syscall list](./syscalls.txt) for more ideas
 - [ ] TUI debugger:

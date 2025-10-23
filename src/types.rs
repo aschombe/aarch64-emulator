@@ -5,19 +5,19 @@ use std::sync::atomic::AtomicBool;
 pub static VERBOSE_ENABLED: AtomicBool = AtomicBool::new(false);
 
 // Memory region constants
-pub const TEXT_BASE: u64 = 0x0;
-pub const TEXT_SIZE: u64 = 0x100000; // 1 MB
-pub const RODATA_BASE: u64 = TEXT_BASE + TEXT_SIZE; // 0x100000
-pub const RODATA_SIZE: u64 = 0x200000; // 2 MB
-pub const DATA_BASE: u64 = RODATA_BASE + RODATA_SIZE; // 0x300000
-pub const DATA_SIZE: u64 = 0x100000; // 1 MB
-pub const HEAP_BASE: u64 = DATA_BASE + DATA_SIZE; // 0x400000
-pub const HEAP_SIZE: u64 = 0x100000; // 1 MB
-pub const STACK_TOP: u64 = 0x4000_0000; // 1 GB
-pub const STACK_SIZE: u64 = 0x800000; // 8 MB
-pub const STACK_START: u64 = STACK_TOP - STACK_SIZE; // 0x3F800000
-pub const MEMORY_SIZE: u64 = 0x4000_0000; // 1 GB total simulated RAM
-
+pub const IMAGE_BASE: u64 = 0x000000;
+pub const TEXT_BASE: u64 = IMAGE_BASE;
+pub const TEXT_SIZE: u64 = 0x0010000; // 64 KB code + rodata + data
+pub const DATA_BASE: u64 = TEXT_BASE + TEXT_SIZE;
+pub const DATA_SIZE: u64 = 0x0008000; // 32 KB writable data
+pub const BSS_BASE: u64 = DATA_BASE + DATA_SIZE;
+pub const BSS_SIZE: u64 = 0x0008000; // 32 KB zeroed bss
+pub const HEAP_BASE: u64 = BSS_BASE + BSS_SIZE;
+pub const HEAP_SIZE: u64 = 0x0040000; // 256 KB heap
+pub const STACK_TOP: u64 = 0x0080_0000; // 8 MB top of stack
+pub const STACK_SIZE: u64 = 0x00080000; // 512 KB stack
+pub const STACK_START: u64 = STACK_TOP - STACK_SIZE;
+pub const MEMORY_SIZE: u64 = 0x0100_0000; // total 16 MB of emulated RAM
 // Type aliases
 pub type Word = u64; // 64-bit data/address word
 // pub type Instruction = u32; // 32-bit instruction word

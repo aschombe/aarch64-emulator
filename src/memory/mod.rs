@@ -1,7 +1,7 @@
 // use crate::types::{EmuError, EmuResult, MEMORY_SIZE, STACK_START, STACK_TOP, Word};
 use crate::types::{
-    DATA_BASE, DATA_SIZE, EmuError, EmuResult, HEAP_BASE, HEAP_SIZE, MEMORY_SIZE, RODATA_BASE,
-    RODATA_SIZE, STACK_SIZE, STACK_START, TEXT_BASE, TEXT_SIZE, Word,
+    BSS_BASE, BSS_SIZE, DATA_BASE, DATA_SIZE, EmuError, EmuResult, HEAP_BASE, HEAP_SIZE,
+    MEMORY_SIZE, STACK_SIZE, STACK_START, TEXT_BASE, TEXT_SIZE, Word,
 };
 use byteorder::{ByteOrder, LittleEndian};
 
@@ -32,14 +32,14 @@ impl Memory {
             size: TEXT_SIZE,
         });
         mem.regions.push(MemoryRegion {
-            name: "rodata",
-            base: RODATA_BASE,
-            size: RODATA_SIZE,
-        });
-        mem.regions.push(MemoryRegion {
             name: "data",
             base: DATA_BASE,
             size: DATA_SIZE,
+        });
+        mem.regions.push(MemoryRegion {
+            name: "bss",
+            base: BSS_BASE,
+            size: BSS_SIZE,
         });
         mem.regions.push(MemoryRegion {
             name: "heap",
@@ -96,33 +96,33 @@ impl Memory {
         Ok(())
     }
 
-    pub fn data_section(&self) -> Option<&[u8]> {
-        self.get_region_slice("data")
-    }
+    // pub fn data_section(&self) -> Option<&[u8]> {
+    //     self.get_region_slice("data")
+    // }
+    //
+    // pub fn rodata_section(&self) -> Option<&[u8]> {
+    //     self.get_region_slice("rodata")
+    // }
+    //
+    // pub fn text_section(&self) -> Option<&[u8]> {
+    //     self.get_region_slice("text")
+    // }
+    //
+    // pub fn stack_section(&self) -> Option<&[u8]> {
+    //     self.get_region_slice("stack")
+    // }
+    //
+    // pub fn heap_section(&self) -> Option<&[u8]> {
+    //     self.get_region_slice("heap")
+    // }
 
-    pub fn rodata_section(&self) -> Option<&[u8]> {
-        self.get_region_slice("rodata")
-    }
-
-    pub fn text_section(&self) -> Option<&[u8]> {
-        self.get_region_slice("text")
-    }
-
-    pub fn stack_section(&self) -> Option<&[u8]> {
-        self.get_region_slice("stack")
-    }
-
-    pub fn heap_section(&self) -> Option<&[u8]> {
-        self.get_region_slice("heap")
-    }
-
-    fn get_region_slice(&self, name: &str) -> Option<&[u8]> {
-        self.regions.iter().find(|r| r.name == name).and_then(|r| {
-            let start = r.base as usize;
-            let end = start + r.size as usize;
-            self.ram.get(start..end)
-        })
-    }
+    // fn get_region_slice(&self, name: &str) -> Option<&[u8]> {
+    //     self.regions.iter().find(|r| r.name == name).and_then(|r| {
+    //         let start = r.base as usize;
+    //         let end = start + r.size as usize;
+    //         self.ram.get(start..end)
+    //     })
+    // }
 
     /// Helper to get the byte slice for a given address and length, checking bounds
     fn get_slice_mut(&mut self, addr: Word, len: usize) -> EmuResult<&mut [u8]> {

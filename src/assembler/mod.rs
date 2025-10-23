@@ -3,13 +3,10 @@ pub mod data_loader;
 pub mod parser;
 
 use crate::cpu::InterpretedProgram;
-use crate::types::{EmuError, EmuResult, Word};
+use crate::types::{DATA_BASE, EmuError, EmuResult, Word};
 use asm_types::{AssemblyBlock, AssemblyContent, Data, InstructionIR, SymbolTable};
 use parser::AsmParser;
 use std::fs;
-
-// Start address for data in simulated memory
-const DATA_SECTION_START: Word = 0x200000;
 
 /// The main entry point for assembling multiple source files.
 /// This function coordinates parsing, symbol resolution, and flattening.
@@ -91,7 +88,7 @@ fn flatten_and_resolve(
     let mut label_to_ip = SymbolTable::new();
     let mut ip_to_line_map = Vec::new();
     let mut current_ip = 0usize;
-    let mut current_data_addr: Word = DATA_SECTION_START;
+    let mut current_data_addr: Word = DATA_BASE;
     let mut entry_ip = 0usize;
 
     // Pass 1: assign addresses for DATA and BSS blocks, and IPs for TEXT
