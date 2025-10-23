@@ -109,7 +109,7 @@ impl DebuggerUIState {
         };
     }
 
-    fn scroll_up(&mut self, (s_len, h_len, m_len): (usize, usize, usize)) {
+    fn scroll_up(&mut self, (_s_len, _h_len, _m_len): (usize, usize, usize)) {
         match self.focus {
             FocusArea::Source => {
                 if let Some(i) = self.source.selected() {
@@ -282,7 +282,7 @@ fn render_diff<'a>(history: &[MemoryDiffEntry], selected: Option<usize>) -> Vec<
 fn handle_command(
     cpu: &mut CpuState,
     dbg: &mut DebuggerState,
-    ui: &mut DebuggerUIState,
+    _ui: &mut DebuggerUIState,
     cmd: &str,
 ) -> EmuResult<(bool, LastCommand, Option<String>)> {
     let parts: Vec<&str> = cmd.split_whitespace().collect();
@@ -387,9 +387,10 @@ fn handle_command(
             // Keep the currently loaded program and rebuild CPU state
             let program_clone = cpu.program.clone();
             let plugin_manager = cpu.plugin_manager.clone();
+            let vfs = cpu.vfs.clone();
 
             // Create a brand-new CpuState using the same program
-            let mut new_cpu = CpuState::new(program_clone, plugin_manager);
+            let new_cpu = CpuState::new(program_clone, plugin_manager, vfs);
 
             // Reset breakpoints and diff history to start clean
             dbg.breakpoints.clear();

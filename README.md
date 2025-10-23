@@ -10,9 +10,7 @@
 - [ ] Syscall:
     - [ ] Bins and dotprod not printing properly
     - [ ] Add more syscalls
-        <!-- - [ ] Open - 56 (openat) -->
-        <!-- - [ ] Close - 57 -->
-        <!-- - [ ] Lseek - 62 -->
+        - [ ] Debug VFS syscalls
         - [ ] Check [syscall list](./syscalls.txt) for more ideas
 - [ ] TUI debugger:
     - [ ] The instruction indicator delays by one cycle after skipping whitespace

@@ -5,11 +5,13 @@ mod memory;
 mod plugin;
 mod syscall;
 mod types;
+mod vfs;
 
 use crate::assembler::{assemble_multiple_files, data_loader::load_data_into_cpu};
 use crate::cpu::CpuState;
 use crate::plugin::PluginManager;
 use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED};
+use crate::vfs::VirtualFileSystem;
 use clap::Parser;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -36,6 +38,10 @@ struct EmuConfig {
     /// Cannot be used together with --debug.
     #[clap(long, value_delimiter = ',', conflicts_with = "debug")]
     plugins: Vec<String>,
+
+    /// Folder path to give the emulated program access to the files within.
+    #[clap(short, long)]
+    filesystem: String,
 }
 
 impl EmuConfig {
@@ -76,6 +82,12 @@ fn main() -> Result<(), EmuError> {
         ));
     };
 
+    let vfs = if !config.filesystem.is_empty() {
+        Some(VirtualFileSystem::new(&config.filesystem))
+    } else {
+        None
+    };
+
     // Initialize CPU state
     let cpu: Rc<RefCell<CpuState>>;
     if !config.plugins.is_empty() {
@@ -83,6 +95,7 @@ fn main() -> Result<(), EmuError> {
         cpu = Rc::new(RefCell::new(CpuState::new(
             program,
             Some(Rc::clone(&plugin_manager)),
+            vfs,
         )));
 
         // Load assembled data into CPU memory
@@ -114,7 +127,7 @@ fn main() -> Result<(), EmuError> {
                 .on_plugin_load(&regs_snapshot, mem_snapshot)?;
         }
     } else {
-        cpu = Rc::new(RefCell::new(CpuState::new(program, None)));
+        cpu = Rc::new(RefCell::new(CpuState::new(program, None, vfs)));
 
         // Load assembled data into CPU memory
         load_data_into_cpu(&mut cpu.borrow_mut(), &data_blocks)?;

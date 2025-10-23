@@ -55,6 +55,21 @@ impl Memory {
         mem
     }
 
+    // In Memory implementation
+    pub fn read_c_string(&self, addr: Word) -> Result<String, EmuError> {
+        let mut buf = Vec::new();
+        let mut cur_addr = addr;
+        loop {
+            let b = self.read_byte(cur_addr)?;
+            if b == 0 {
+                break;
+            }
+            buf.push(b);
+            cur_addr += 1;
+        }
+        String::from_utf8(buf).map_err(|e| EmuError::InternalError(format!("UTF8 Error: {}", e)))
+    }
+
     /// Given an address range, find the region name it belongs to if any
     pub fn find_region(&self, base_addr: u64, size: u64) -> Option<&'static str> {
         for region in &self.regions {

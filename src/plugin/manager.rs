@@ -9,7 +9,7 @@ use super::Plugin;
 use super::lua_api::{LuaContext, initialize_lua_environment};
 use crate::memory;
 use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED, Word};
-use mlua::{Function, Lua, Value};
+use mlua::{Function, Lua};
 
 /// Maps hook names to Lua functions
 type ScriptHookMap = HashMap<String, String>;

@@ -5,6 +5,7 @@ use crate::memory::Memory;
 use crate::plugin::PluginManager;
 use crate::syscall;
 use crate::types::{EmuError, EmuResult, STACK_TOP, Word};
+use crate::vfs::VirtualFileSystem;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -28,6 +29,8 @@ pub struct CpuState {
     pub program: InterpretedProgram,
     pub ip: RefCell<usize>,
 
+    pub vfs: Option<VirtualFileSystem>,
+
     pub plugin_manager: Option<Rc<RefCell<PluginManager>>>,
 }
 
@@ -40,6 +43,7 @@ impl CpuState {
     pub fn new(
         program: InterpretedProgram,
         plugin_manager: Option<Rc<RefCell<PluginManager>>>,
+        vfs: Option<VirtualFileSystem>,
     ) -> Self {
         let cpu = CpuState {
             registers: RefCell::new([0; 32]),
@@ -48,6 +52,7 @@ impl CpuState {
             memory: RefCell::new(Memory::new()),
             ip: RefCell::new(program.entry_ip),
             program,
+            vfs,
             plugin_manager,
         };
 
