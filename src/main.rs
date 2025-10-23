@@ -41,7 +41,7 @@ struct EmuConfig {
 
     /// Folder path to give the emulated program access to the files within.
     #[clap(short, long)]
-    filesystem: String,
+    filesystem: Option<String>,
 }
 
 impl EmuConfig {
@@ -82,10 +82,9 @@ fn main() -> Result<(), EmuError> {
         ));
     };
 
-    let vfs = if !config.filesystem.is_empty() {
-        Some(VirtualFileSystem::new(&config.filesystem))
-    } else {
-        None
+    let vfs = match &config.filesystem {
+        Some(fs_path) => Some(VirtualFileSystem::new(fs_path)),
+        None => None,
     };
 
     // Initialize CPU state
