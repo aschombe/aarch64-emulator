@@ -1,17 +1,13 @@
 use crate::cpu::CpuState;
 use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED, Word};
 use std::convert::TryInto;
+use std::io::{self, Read, Write};
 use std::sync::atomic::Ordering;
-
-// Lets add:
-// Read - 63
-// Open - 56 (openat)
-// Close - 57
-// Lseek - 62
 
 // AArch64 Linux Syscall Numbers
 const SYS_WRITE: Word = 64;
 const SYS_EXIT: Word = 93;
+const SYS_READ: Word = 63;
 
 /// Executes the system call defined by register X8 in the CPU state.
 ///
@@ -23,6 +19,46 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
     let syscall_num = state.get_reg(8); // Syscall number is in X8
 
     match syscall_num {
+        SYS_READ => {
+            // read(fd, buf, count)
+            let fd = state.get_reg(0);
+            let buf_addr = state.get_reg(1);
+            let count = state.get_reg(2) as usize;
+
+            if count == 0 {
+                state.set_reg(0, 0);
+                return Ok(false);
+            }
+
+            if fd == 0 {
+                // Indicate blocking for input
+                print!("[SYSCALL READ] Waiting for {} bytes of input: ", count);
+                io::stdout().flush().unwrap();
+
+                let mut buffer = vec![0u8; count];
+                let bytes_read = match io::stdin().read(&mut buffer) {
+                    Ok(n) => n,
+                    Err(e) => {
+                        eprintln!("[SYSCALL ERROR] SYS_READ from stdin failed: {:?}", e);
+                        state.set_reg(0, !0u64);
+                        return Err(EmuError::IoError(e.to_string()));
+                    }
+                };
+
+                {
+                    let mut mem_ref = state.memory.borrow_mut();
+                    mem_ref.write_bytes(buf_addr, &buffer[..bytes_read])?;
+                }
+
+                println!("[SYSCALL READ] Received {} bytes", bytes_read);
+                state.set_reg(0, bytes_read as u64);
+            } else if VERBOSE_ENABLED.load(Ordering::Relaxed) {
+                eprintln!("[SYSCALL WARNING] Read call from unsupported FD: {}", fd);
+                state.set_reg(0, 0);
+            }
+
+            Ok(false)
+        }
         SYS_WRITE => {
             // write(fd, buf, count)
             let fd = state.get_reg(0);
