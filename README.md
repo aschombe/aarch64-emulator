@@ -9,6 +9,7 @@
         - [ ] Read
         - [ ] Open
         - [ ] Close
+        - [ ] Check [syscall list](./syscalls.txt) for more ideas
 - [ ] TUI debugger:
     - [ ] The instruction indicator delays by one cycle after skipping whitespace
     - [ ] The instruction highlighter (for scrolling) is 2 instructions behind the instruction indicator

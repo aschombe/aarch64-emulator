@@ -3,6 +3,12 @@ use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED, Word};
 use std::convert::TryInto;
 use std::sync::atomic::Ordering;
 
+// Lets add:
+// Read - 63
+// Open - 56 (openat)
+// Close - 57
+// Lseek - 62
+
 // AArch64 Linux Syscall Numbers
 const SYS_WRITE: Word = 64;
 const SYS_EXIT: Word = 93;
