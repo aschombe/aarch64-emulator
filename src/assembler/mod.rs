@@ -19,7 +19,7 @@ pub fn assemble_multiple_files(
 
     // 1. Process and Merge All Files
     for path in file_paths {
-        println!("Assembling file: {}", path);
+        // println!("Assembling file: {}", path);
 
         let raw_content = fs::read_to_string(path)
             .map_err(|e| EmuError::IoError(format!("Failed to open {}: {}", path, e)))?;
@@ -83,16 +83,27 @@ fn flatten_and_resolve(
     Vec<AssemblyBlock>,
     Vec<usize>,
 )> {
+    use crate::types::DATA_BASE;
+
+    // --- Sort to ensure .text blocks come first, keeping deterministic code order
+    let mut sorted_blocks = ir_blocks.clone();
+    sorted_blocks.sort_by_key(|b| match b.content {
+        AssemblyContent::Text(_) => 0,
+        AssemblyContent::Data(_) => 1,
+        AssemblyContent::Bss(_) => 2,
+    });
+
     let mut instructions = Vec::new();
     let mut data_blocks = Vec::new();
     let mut label_to_ip = SymbolTable::new();
     let mut ip_to_line_map = Vec::new();
+
     let mut current_ip = 0usize;
     let mut current_data_addr: Word = DATA_BASE;
     let mut entry_ip = 0usize;
 
-    // Pass 1: assign addresses for DATA and BSS blocks, and IPs for TEXT
-    for block in ir_blocks.iter() {
+    for block in sorted_blocks.iter() {
+        // Prevent duplicate labels
         if label_to_ip.contains_key(&block.label) {
             return Err(EmuError::InternalError(format!(
                 "Duplicate label definition: {}",
@@ -101,32 +112,64 @@ fn flatten_and_resolve(
         }
 
         match &block.content {
-            AssemblyContent::Text(block_instructions) => {
+            // -------------------- TEXT SECTION --------------------
+            AssemblyContent::Text(instrs) => {
                 label_to_ip.insert(block.label.clone(), current_ip as Word);
 
+                // Capture the true entry point: prefer explicit `_start`
                 if block.label == "_start" {
+                    entry_ip = current_ip;
+                } else if block._is_entry && entry_ip == 0 {
                     entry_ip = current_ip;
                 }
 
-                current_ip += block_instructions.len();
+                current_ip += instrs.len();
             }
-            AssemblyContent::Data(data_items) => {
+
+            // -------------------- DATA SECTION --------------------
+            AssemblyContent::Data(items) => {
                 label_to_ip.insert(block.label.clone(), current_data_addr);
 
-                let block_size: Word = data_items.iter().map(|d| get_data_size(d)).sum();
+                let block_size: Word = items
+                    .iter()
+                    .map(|d| match d {
+                        Data::Quad(_) => 8,
+                        Data::Word(_) => 4,
+                        Data::Byte(_) => 1,
+                        Data::QuadArr(v) => (v.len() * 8) as Word,
+                        Data::WordArr(v) => (v.len() * 4) as Word,
+                        Data::IntArr(v) => (v.len() * 4) as Word,
+                        Data::ByteArr(v) => v.len() as Word,
+                    })
+                    .sum();
 
                 current_data_addr += block_size;
                 data_blocks.push(block.clone());
             }
+
+            // -------------------- BSS SECTION ---------------------
             AssemblyContent::Bss(size) => {
                 label_to_ip.insert(block.label.clone(), current_data_addr);
-
                 current_data_addr += *size;
             }
         }
     }
 
-    // Pass 2: flatten instructions and build source map
+    // -------------------- Determine correct entry point --------------------
+    if label_to_ip.contains_key("_start") {
+        // Always prefer _start if defined
+        entry_ip = *label_to_ip.get("_start").unwrap() as usize;
+    } else if entry_ip == 0 && !label_to_ip.is_empty() {
+        // Fallback: first text block
+        if let Some(first_text) = sorted_blocks
+            .iter()
+            .find(|b| matches!(b.content, AssemblyContent::Text(_)))
+        {
+            entry_ip = *label_to_ip.get(&first_text.label).unwrap_or(&0) as usize;
+        }
+    }
+
+    // -------------------- Flatten final IR stream --------------------
     for (ir, line_num) in ir_to_line_map {
         instructions.push(ir.clone());
         ip_to_line_map.push(*line_num);

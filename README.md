@@ -1,6 +1,8 @@
 # Aarch64 Emulator in Rust
 
 ## Todo:
+- [ ] Core:
+    - [ ] W register vs X register handling?
 - [ ] Plugins:
     - [ ] Test CC checker
 - [ ] Psuedo Filesystem:
