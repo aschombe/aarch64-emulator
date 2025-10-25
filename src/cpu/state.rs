@@ -7,7 +7,7 @@ use crate::plugin::PluginManager;
 use crate::syscall;
 use crate::types::{EmuError, EmuResult, STACK_TOP, Word};
 use crate::vfs::VirtualFileSystem;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 #[derive(Clone)]
@@ -29,6 +29,8 @@ pub struct CpuState {
     pub ip: RefCell<usize>,
     pub vfs: Option<VirtualFileSystem>,
     pub plugin_manager: Option<Rc<RefCell<PluginManager>>>,
+
+    did_branch: Cell<bool>, // <-- Add this field
 }
 
 pub const N_FLAG: Word = 1 << 31;
@@ -51,6 +53,7 @@ impl CpuState {
             program,
             vfs,
             plugin_manager,
+            did_branch: Cell::new(false),
         };
         cpu.registers.borrow_mut()[30] = 0;
         cpu
@@ -73,7 +76,10 @@ impl CpuState {
         if halted {
             *self.pstate.borrow_mut() |= V_FLAG;
         } else {
-            *self.ip.borrow_mut() += 1;
+            if !self.did_branch.get() {
+                *self.ip.borrow_mut() += 1;
+            }
+            self.did_branch.set(false);
         }
         Ok(())
     }
@@ -134,7 +140,13 @@ impl CpuState {
                 return Ok(());
             }
 
-            *self.ip.borrow_mut() += 1;
+            // Only increment IP if no branch or return changed control flow
+            if !self.did_branch.get() {
+                *self.ip.borrow_mut() += 1;
+            }
+
+            // Reset flag for next instruction
+            self.did_branch.set(false);
 
             // Post PC increment hook
             if let Some(pm_rc) = &self.plugin_manager {
@@ -150,6 +162,7 @@ impl CpuState {
                 pm.post_pc_increment(&self.registers.borrow(), self.memory.borrow().clone())?;
             }
         }
+
         Ok(())
     }
 
@@ -268,7 +281,10 @@ impl CpuState {
             [dest, src1, src2] => {
                 let (rd, is_w) = self.resolve_operand_dest(dest)?;
                 let val_n = self.resolve_operand_source(src1)?;
-                let val_m = self.resolve_operand_source(src2)?;
+                let val_m = match src2 {
+                    Operand::Imm(Immediate::Lit(v)) => *v as Word,
+                    _ => self.resolve_operand_source(src2)?,
+                };
                 let (result, carry, overflow) = opfunc(val_n, val_m, is_w);
                 self.set_reg_with_width(rd, result, is_w);
 
@@ -281,13 +297,27 @@ impl CpuState {
         }
     }
 
+    // fn execute_cmp(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+    //     if let [op1, op2] = operands {
+    //         let val_n = self.resolve_operand_source(op1)?;
+    //         let val_m = self.resolve_operand_source(op2)?;
+    //         let is_w = matches!(op1, Operand::Reg(r) if r.is_w_register());
+    //         let (res, carry, overflow) = alu::sub(val_n, val_m, is_w);
+    //         self.update_pstate_nzcv(res, carry, overflow, true);
+    //         Ok(false)
+    //     } else {
+    //         Err(EmuError::InternalError("Invalid CMP".into()))
+    //     }
+    // }
+
     fn execute_cmp(&mut self, operands: &[Operand]) -> EmuResult<bool> {
-        if let [op1, op2] = operands {
-            let val_n = self.resolve_operand_source(op1)?;
-            let val_m = self.resolve_operand_source(op2)?;
-            let is_w = matches!(op1, Operand::Reg(r) if r.is_w_register());
+        if let [src1, src2] = operands {
+            let val_n = self.resolve_operand_source(src1)?;
+            let val_m = self.resolve_operand_source(src2)?;
+            let is_w = matches!(src1, Operand::Reg(r) if r.is_w_register());
             let (res, carry, overflow) = alu::sub(val_n, val_m, is_w);
             self.update_pstate_nzcv(res, carry, overflow, true);
+
             Ok(false)
         } else {
             Err(EmuError::InternalError("Invalid CMP".into()))
@@ -334,7 +364,8 @@ impl CpuState {
         match operands {
             [Operand::Imm(Immediate::Lbl(label))] => {
                 if let OpCode::B(condition) = opcode {
-                    if !self.check_condition(condition) {
+                    let take = self.check_condition(condition);
+                    if !take {
                         return Ok(false);
                     }
                 }
@@ -363,10 +394,13 @@ impl CpuState {
                         )?;
                     }
 
-                    self.set_reg(30, (target_ip) as Word);
+                    let return_addr = *self.ip.borrow() + 1;
+                    self.set_reg(30, return_addr as Word);
                 }
 
-                *self.ip.borrow_mut() = target_ip.checked_sub(1).unwrap_or(0);
+                *self.ip.borrow_mut() = target_ip;
+                // self.did_branch = true;
+                self.did_branch.set(true);
 
                 // Post BL hook
                 if let OpCode::BL = opcode {
@@ -454,7 +488,8 @@ impl CpuState {
         }
 
         *self.ip.borrow_mut() = lr_value as usize;
-        *self.ip.borrow_mut() -= 1;
+        // self.did_branch = true;
+        self.did_branch.set(true);
 
         // Post RET hook
         if let Some(pm_rc) = &self.plugin_manager {

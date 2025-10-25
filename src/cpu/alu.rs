@@ -32,20 +32,48 @@ pub fn sub(val_n: Word, val_m: Word, is_w: bool) -> AluResult {
     if is_w {
         let (res, borrow) = (val_n as u32).overflowing_sub(val_m as u32);
         let res64 = res as u64;
-        let n_sign = (val_n >> 31) & 1;
-        let m_sign = (val_m >> 31) & 1;
-        let r_sign = (res64 >> 31) & 1;
+
+        // ARM: Carry = NOT borrow
+        let carry = !borrow;
+
+        // Signed overflow detection
+        let n_sign = ((val_n >> 31) & 1) != 0;
+        let m_sign = ((val_m >> 31) & 1) != 0;
+        let r_sign = ((res64 >> 31) & 1) != 0;
         let overflow = (n_sign != m_sign) && (n_sign != r_sign);
-        (res64, borrow, overflow)
+
+        (res64, carry, overflow)
     } else {
         let (res, borrow) = val_n.overflowing_sub(val_m);
-        let n_sign = (val_n >> 63) & 1;
-        let m_sign = (val_m >> 63) & 1;
-        let r_sign = (res >> 63) & 1;
+        let carry = !borrow;
+
+        let n_sign = ((val_n >> 63) & 1) != 0;
+        let m_sign = ((val_m >> 63) & 1) != 0;
+        let r_sign = ((res >> 63) & 1) != 0;
         let overflow = (n_sign != m_sign) && (n_sign != r_sign);
-        (res, borrow, overflow)
+
+        (res, carry, overflow)
     }
 }
+
+// pub fn sub(val_n: Word, val_m: Word, is_w: bool) -> AluResult {
+//     if is_w {
+//         let (res, borrow) = (val_n as u32).overflowing_sub(val_m as u32);
+//         let res64 = res as u64;
+//         let n_sign = (val_n >> 31) & 1;
+//         let m_sign = (val_m >> 31) & 1;
+//         let r_sign = (res64 >> 31) & 1;
+//         let overflow = (n_sign != m_sign) && (n_sign != r_sign);
+//         (res64, borrow, overflow)
+//     } else {
+//         let (res, borrow) = val_n.overflowing_sub(val_m);
+//         let n_sign = (val_n >> 63) & 1;
+//         let m_sign = (val_m >> 63) & 1;
+//         let r_sign = (res >> 63) & 1;
+//         let overflow = (n_sign != m_sign) && (n_sign != r_sign);
+//         (res, borrow, overflow)
+//     }
+// }
 
 /// Multiplication (no overflow flags).
 pub fn mul(val_n: Word, val_m: Word, _is_w: bool) -> AluResult {

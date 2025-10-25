@@ -1,15 +1,12 @@
 # Aarch64 Emulator in Rust
 
 ## Todo:
-- [ ] Core:
-    - [ ] W register vs X register handling?
 - [ ] Plugins:
     - [ ] Test CC checker
 - [ ] Psuedo Filesystem:
     - [ ] Test filesystem and I/O syscalls thoroughly
 - [ ] Syscall:
-    - [ ] atoi, bins, dotprod not printing properly (write syscall issue, or escape_string)
-    - [ ] display32 infinite loop
+    - [ ] Printing numbers?
     - [ ] Add more syscalls
         - [ ] Check [syscall list](./syscalls.txt) for more ideas
 - [ ] TUI debugger:
