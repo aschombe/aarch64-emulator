@@ -4,6 +4,9 @@ use crate::vfs::FileAccessMode;
 use std::fs::OpenOptions;
 use std::io::{Seek, SeekFrom, Write};
 
+#[cfg(test)]
+mod tests;
+
 // AArch64 Linux Syscall Numbers
 const SYS_OPENAT: Word = 56;
 const SYS_CLOSE: Word = 57;

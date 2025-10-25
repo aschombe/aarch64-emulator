@@ -1,17 +1,12 @@
-mod assembler;
-mod cpu;
-mod debugger;
-mod memory;
-mod plugin;
-mod syscall;
-mod types;
-mod vfs;
+use aarch64_emulator::{
+    assembler::{assemble_multiple_files, data_loader::load_data_into_cpu},
+    cpu::CpuState,
+    debugger,
+    plugin::PluginManager,
+    types::{EmuError, EmuResult, VERBOSE_ENABLED},
+    vfs::VirtualFileSystem,
+};
 
-use crate::assembler::{assemble_multiple_files, data_loader::load_data_into_cpu};
-use crate::cpu::CpuState;
-use crate::plugin::PluginManager;
-use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED};
-use crate::vfs::VirtualFileSystem;
 use clap::Parser;
 use std::cell::RefCell;
 use std::rc::Rc;

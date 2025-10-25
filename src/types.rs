@@ -76,3 +76,13 @@ impl From<std::io::Error> for EmuError {
 }
 
 pub type EmuResult<T> = Result<T, EmuError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn error_debug_format() {
+        let err = EmuError::InternalError("test".into());
+        assert!(format!("{:?}", err).contains("test"));
+    }
+}

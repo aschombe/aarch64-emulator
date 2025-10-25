@@ -2,8 +2,12 @@ pub mod asm_types;
 pub mod data_loader;
 pub mod parser;
 
+use crate::types::{EmuError, EmuResult, Word};
+
+#[cfg(test)]
+mod tests;
+
 use crate::cpu::InterpretedProgram;
-use crate::types::{DATA_BASE, EmuError, EmuResult, Word};
 use asm_types::{AssemblyBlock, AssemblyContent, Data, InstructionIR, SymbolTable};
 use parser::AsmParser;
 use std::fs;

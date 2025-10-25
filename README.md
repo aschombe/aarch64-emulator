@@ -1,6 +1,7 @@
 # Aarch64 Emulator in Rust
 
 ## Todo:
+- [ ] Set up unit and integration tests
 - [ ] Plugins:
     - [ ] Test CC checker
 - [ ] Psuedo Filesystem:

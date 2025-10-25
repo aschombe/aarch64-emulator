@@ -5,6 +5,9 @@ use crate::types::{
 };
 use byteorder::{ByteOrder, LittleEndian};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Debug)]
 pub struct MemoryRegion {
     pub name: &'static str,

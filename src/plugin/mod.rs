@@ -5,6 +5,9 @@ pub mod manager;
 use crate::memory::Memory;
 use crate::types::{EmuResult, Word};
 
+#[cfg(test)]
+mod tests;
+
 // pub type PluginEntry = unsafe extern "C" fn() -> *mut dyn Plugin;
 
 /// Trait defining the plugin interface. Each plugin can react to emulator events.
