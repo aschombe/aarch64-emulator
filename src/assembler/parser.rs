@@ -290,8 +290,8 @@ impl AsmParser {
                 let literal = &line_content[quote_pos..]; // from first quote to end
 
                 let mut bytes = self.parse_string_literal(literal)?;
-                if directive == ".asciiz" {
-                    bytes.push(0); // null terminator for .asciiz
+                if directive == ".asciiz" || directive == ".string" {
+                    bytes.push(0);
                 }
                 Ok(Data::ByteArr(bytes))
             }

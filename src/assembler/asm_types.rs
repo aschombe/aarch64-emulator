@@ -85,6 +85,7 @@ pub enum Reg {
     W29,
     W30,
     W31,
+    WZR,
 }
 
 impl Reg {
@@ -122,9 +123,48 @@ impl Reg {
             Reg::X28 | Reg::W28 => 28,
             Reg::X29 | Reg::W29 => 29,
             Reg::X30 | Reg::W30 | Reg::LR => 30,
-            Reg::XZR | Reg::W31 => 31,
-            Reg::SP => 32, // Stack Pointer does not have a physical register index
+            Reg::XZR | Reg::W31 | Reg::WZR => 31,
+            Reg::SP => 32,
         }
+    }
+
+    pub fn is_w_register(self) -> bool {
+        matches!(
+            self,
+            Reg::W0
+                | Reg::W1
+                | Reg::W2
+                | Reg::W3
+                | Reg::W4
+                | Reg::W5
+                | Reg::W6
+                | Reg::W7
+                | Reg::W8
+                | Reg::W9
+                | Reg::W10
+                | Reg::W11
+                | Reg::W12
+                | Reg::W13
+                | Reg::W14
+                | Reg::W15
+                | Reg::W16
+                | Reg::W17
+                | Reg::W18
+                | Reg::W19
+                | Reg::W20
+                | Reg::W21
+                | Reg::W22
+                | Reg::W23
+                | Reg::W24
+                | Reg::W25
+                | Reg::W26
+                | Reg::W27
+                | Reg::W28
+                | Reg::W29
+                | Reg::W30
+                | Reg::W31
+                | Reg::WZR
+        )
     }
 }
 
