@@ -1,0 +1,999 @@
+AArch64 Interpreter starting up.
+Parsed [x0] into Offset: Ind2(X0)
+Parsed [sp] into Offset: Ind2(SP)
+Parsed [sp 8] into Offset: Ind3(SP, Lit(8))
+Parsed [sp 16] into Offset: Ind3(SP, Lit(16))
+Parsed [sp] into Offset: Ind2(SP)
+Parsed [sp 8] into Offset: Ind3(SP, Lit(8))
+Parsed [sp 16] into Offset: Ind3(SP, Lit(16))
+Parsed [sp] into Offset: Ind2(SP)
+Assembly complete. 38 instructions generated.
+
+--- Starting Execution ---
+[IR TRACE] IP=0 ADR
+[IR TRACE] IP=1 LDR
+[IR TRACE] IP=2 BL
+[IR TRACE] IP=8 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(24))]
+[IR TRACE] IP=9 STR
+[IR TRACE] IP=10 STR
+[IR TRACE] IP=11 STR
+[IR TRACE] IP=12 MOV
+[IR TRACE] IP=13 MOV
+[IR TRACE] IP=14 MOV
+[IR TRACE] IP=15 LSR
+BINOP 4336540476 operands [Reg(W0), Reg(W0), Reg(W20)]
+[IR TRACE] IP=16 AND
+BINOP 4336540180 operands [Reg(W0), Reg(W0), Imm(Lit(1))]
+[IR TRACE] IP=17 BL
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x0 m=0xa res=0xfffffff6 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 0
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=37 RET
+[IR TRACE] IP=26 CMP
+[CMP DEBUG] n=0x1 m=0xa res=0xfffffff7 | N=false Z=false C=true V=false
+[IR TRACE] IP=27 B(Eq)
+[BR DEBUG] Condition=Eq => false
+[IR TRACE] IP=28 ADD
+BINOP 4336539012 operands [Reg(W0), Reg(W0), Imm(Lit(48))]
+[IR TRACE] IP=29 SUB
+BINOP 4336539340 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
+[IR TRACE] IP=30 STR
+[IR TRACE] IP=31 MOV
+[IR TRACE] IP=32 MOV
+[IR TRACE] IP=33 MOV
+[IR TRACE] IP=34 MOV
+[IR TRACE] IP=35 SVC
+[SYS_WRITE - STDOUT] 1
+[IR TRACE] IP=36 ADD
+BINOP 4336539012 operands [Reg(SP), Reg(SP), Imm(Lit(8))]
