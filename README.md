@@ -114,19 +114,18 @@ Example command to run with multiple plugins:
 ## TODO
 
 **Plugins**
-- [ ] Add and test cross-caller (CC) hook
-- [ ] Expand Lua plugin examples for load/unload
+- [ ] Add and test calling convention (CC) plugin
+- [ ] Add more hooks as needed
 
 **Virtual File System**
 - [ ] Test file I/O (open/read/write/lseek)
 - [ ] Validate flag and permission mapping
 
 **Syscall Layer**
-- [ ] Implement print number syscall
 - [ ] Expand syscall coverage (see syscalls.txt)
 
 **Debugger (TUI)**
-- [ ] Improve display: hide data sections
+- [ ] Improve display: hide data sections from source view?
 - [ ] Fix delayed instruction indicator
 - [ ] Synchronize highlight scrolling
 
@@ -135,7 +134,6 @@ Example command to run with multiple plugins:
 
 **Documentation**
 - [ ] Expand inline comments and Rustdocs
-- [ ] Add Lua API examples
 
 ---
 
