@@ -1,6 +1,7 @@
 # aarch64-emulator
 
 A modular and extensible AArch64 emulator written in Rust.  
+
 It features a modular CPU core, assembler, Linux syscall emulation, Ratatui-based TUI debugger, and Lua-based plugin system with lifecycle and execution hooks.
 
 ---
