@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Andrew Schomber
+// Licensed under the MIT License. See LICENSE for details.
+
 pub mod assembler;
 pub mod cpu;
 pub mod debugger;

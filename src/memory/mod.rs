@@ -1,4 +1,6 @@
-// use crate::types::{EmuError, EmuResult, MEMORY_SIZE, STACK_START, STACK_TOP, Word};
+// Copyright (c) 2025 Andrew Schomber
+// Licensed under the MIT License. See LICENSE for details.
+
 use crate::types::{
     BSS_BASE, BSS_SIZE, DATA_BASE, DATA_SIZE, EmuError, EmuResult, HEAP_BASE, HEAP_SIZE,
     MEMORY_SIZE, STACK_SIZE, STACK_START, TEXT_BASE, TEXT_SIZE, Word,

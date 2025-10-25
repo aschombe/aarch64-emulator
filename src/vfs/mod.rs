@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Andrew Schomber
+// Licensed under the MIT License. See LICENSE for details.
+
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};

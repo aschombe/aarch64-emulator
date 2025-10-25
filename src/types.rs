@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Andrew Schomber
+// Licensed under the MIT License. See LICENSE for details.
+
 use std::fmt;
 use std::sync::atomic::AtomicBool;
 

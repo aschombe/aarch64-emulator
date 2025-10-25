@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Andrew Schomber
+// Licensed under the MIT License. See LICENSE for details.
+
 use aarch64_emulator::{
     assembler::{assemble_multiple_files, data_loader::load_data_into_cpu},
     cpu::CpuState,

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Andrew Schomber
+// Licensed under the MIT License. See LICENSE for details.
+
 pub mod asm_types;
 pub mod data_loader;
 pub mod parser;

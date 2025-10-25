@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Andrew Schomber
+// Licensed under the MIT License. See LICENSE for details.
+
 use std::collections::HashSet;
 use std::io;
 use std::time::Duration;
