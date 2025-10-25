@@ -22,11 +22,13 @@ Requires:
 - Rust 1.90+ with Cargo  
 - Linux or macOS (Haven't tested on Windows yet)
 
-Build and run:  
-    git clone https://github.com/aschombe/aarch64-emulator.git  
-    cd aarch64-emulator  
-    cargo build --release  
-    cargo run -- --help  
+Build and run:
+```bash
+git clone https://github.com/aschombe/aarch64-emulator.git
+cd aarch64-emulator
+cargo build --release
+cargo run -- --help
+```
 
 ---
 
