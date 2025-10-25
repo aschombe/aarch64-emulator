@@ -21,11 +21,11 @@ Requires:
 - Rust 1.90+ with Cargo  
 - Linux or macOS (Haven't tested on Windows yet)
 
-Build and run:
-    git clone https://github.com/aschombe/aarch64-emulator.git
-    cd aarch64-emulator
-    cargo build --release
-    cargo run -- --help
+Build and run:  
+    git clone https://github.com/aschombe/aarch64-emulator.git  
+    cd aarch64-emulator  
+    cargo build --release  
+    cargo run -- --help  
 
 ---
 
@@ -33,29 +33,29 @@ Build and run:
 
     cargo run -- [OPTIONS] <input_file>
 
-Options:
-  -d, --debug             Start TUI debugger
-  --verbose               Enable verbose output and tracing
-  --plugins <files>       Comma-separated Lua plugin file paths
-  --filesystem <path>     Mount a host folder as a virtual filesystem
+Options:  
+  -d, --debug             Start TUI debugger  
+  --verbose               Enable verbose output and tracing  
+  --plugins <files>       Comma-separated Lua plugin file paths  
+  --filesystem <path>     Mount a host folder as a virtual filesystem  
 
-Example:
-    cargo run -- --debug --plugins ./plugins/logger.lua examples/hello_world.s
-    cargo run -- --filesystem /tmp examples/file_io.s # This mounts /tmp as the VFS root
+Example:  
+    cargo run -- --debug --plugins ./plugins/logger.lua examples/hello_world.s  
+    cargo run -- --filesystem /tmp examples/file_io.s # This mounts /tmp as the VFS root  
 
 ---
 
 ## Architecture Overview
 
-Core modules:
-  assembler    - Parses source, resolves symbols
-  cpu          - Execution pipeline and register state
-  memory       - Virtual address space and safety checks
-  syscall      - Linux syscall emulation
-  debugger     - TUI powered by ratatui
-  vfs          - Virtual file system abstraction
-  plugin       - Lua and Rust plugin architecture
-  types.rs     - Core constants, types, and errors
+Core modules:  
+  assembler    - Parses source, resolves symbols  
+  cpu          - Execution pipeline and register state  
+  memory       - Virtual address space and safety checks  
+  syscall      - Linux syscall emulation  
+  debugger     - TUI powered by ratatui  
+  vfs          - Virtual file system abstraction  
+  plugin       - Lua and Rust plugin architecture  
+  types.rs     - Core constants, types, and errors  
 
 ---
 
@@ -95,16 +95,16 @@ Each Lua plugin runs in its own VM, isolated but sharing access to the emulator 
 
 ### Lua CPU API
 
-Available functions (via `cpu` object):
-    cpu:get_reg(id)          -- Get register value (0-32), 32 is SP
-    cpu:get_ip()             -- Get instruction pointer
-    cpu:get_pstate()         -- Get processor state flags
-    cpu:peek_word(addr)      -- Read 64-bit word from memory
-    cpu:peek_bytes(addr, len) -- Read byte array from memory
-    cpu:log(msg)              -- Log message to host console
+Available functions (via `cpu` object):  
+    cpu:get_reg(id)          -- Get register value (0-32), 32 is SP  
+    cpu:get_ip()             -- Get instruction pointer  
+    cpu:get_pstate()         -- Get processor state flags  
+    cpu:peek_word(addr)      -- Read 64-bit word from memory  
+    cpu:peek_bytes(addr, len) -- Read a sequence of bytes from memory  
+    cpu:log(msg)              -- Log message to host console (plugin prefix is automatically added)  
 
-Example command to run with multiple plugins:
-    cargo run -- --plugins="./path/to/plugin.lua","./path/to/another.lua" examples/test.s
+Example command to run with multiple plugins:  
+    cargo run -- --plugins="./path/to/plugin.lua","./path/to/another.lua" examples/test.s  
 
 ---
 
