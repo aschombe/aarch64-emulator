@@ -246,7 +246,7 @@ impl AsmParser {
         Ok(bytes)
     }
 
-    /// Parses data definition directives (.quad, .string, .ascii, .asciiz, .skip, .int, .word).
+    /// Parses data definition directives (.quad, .string, .ascii, .asciiz, .skip, .int, etc.)
     fn parse_data_definition(
         &self,
         line_content: &str,
@@ -263,7 +263,7 @@ impl AsmParser {
         }
 
         match directive.as_str() {
-            ".quad" => {
+            ".quad" | ".dword" => {
                 // Join everything after directive into one string without removing spaces inside numbers
                 let values_str = parts[1..].join(" ");
                 let values: Result<Vec<i64>, _> = values_str
@@ -293,7 +293,7 @@ impl AsmParser {
                 let literal = &line_content[quote_pos..]; // from first quote to end
 
                 let mut bytes = self.parse_string_literal(literal)?;
-                if directive == ".asciiz" || directive == ".string" {
+                if directive == ".asciiz" || directive == ".asciz" || directive == ".string" {
                     bytes.push(0);
                 }
                 Ok(Data::ByteArr(bytes))

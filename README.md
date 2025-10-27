@@ -116,27 +116,35 @@ Example command to run with multiple plugins:
 **Architecture**:
 - [ ] SIMD/FP support
 
-**Instructions**
+**Instructions**:
 - [ ] Add more AArch64 instruction support
+    - STP/LDR
+    - ADRP
     - https://developer.arm.com/documentation/ddi0597/2025-09/Base-Instructions
+- [ ] Add directives:
+    - .byte, .single/.float, .double
+    - .fill
+    - .balign 
+    - .rept and .endr
+    - .extern
 
-**Virtual File System**
+**Virtual File System**:
 - [ ] Test file I/O (open/read/write/lseek)
 - [ ] Validate flag and permission mapping
 
-**Syscall Layer**
+**Syscall Layer**:
 - [ ] Expand syscall coverage (see syscalls.txt)
 
-**Debugger (TUI)**
+**Debugger (TUI)**:
 - [ ] Improve display: hide data sections from source view?
 - [ ] Fix delayed instruction indicator
 - [ ] Synchronize highlight scrolling
 
-**Plugins**
+**Plugins**:
 - [ ] Add and test calling convention (CC) plugin
 - [ ] Add more hooks as needed
 
-**Documentation**
+**Documentation**:
 - [ ] Expand inline comments and Rustdocs
 
 ---
