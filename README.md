@@ -115,7 +115,6 @@ Example command to run with multiple plugins:
 
 **Architecture**:
 - [ ] SIMD/FP support
-- [ ] Exception and interrupt handling
 
 **Instructions**
 - [ ] Add more AArch64 instruction support
