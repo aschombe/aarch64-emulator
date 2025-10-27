@@ -46,11 +46,11 @@ impl UserData for LuaContext {
         });
 
         // Processor state flags
-        methods.add_method("get_pstate", |_, this, _: ()| {
+        methods.add_method("get_cpsr", |_, this, _: ()| {
             let Ok(state_ref) = this.state.try_borrow() else {
                 return Err(mlua::Error::runtime("CPU already mutably borrowed"));
             };
-            Ok(*state_ref.pstate.borrow())
+            Ok(*state_ref.cpsr.borrow())
         });
 
         // Read a 64-bit word from memory

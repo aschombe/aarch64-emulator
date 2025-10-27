@@ -26,20 +26,21 @@ pub struct InterpretedProgram {
 pub struct CpuState {
     pub registers: RefCell<[Word; 32]>,
     pub sp: RefCell<Word>,
-    pub pstate: RefCell<Word>,
+    pub cpsr: RefCell<Word>,
     pub memory: RefCell<Memory>,
     pub program: InterpretedProgram,
     pub ip: RefCell<usize>,
     pub vfs: Option<VirtualFileSystem>,
     pub plugin_manager: Option<Rc<RefCell<PluginManager>>>,
 
-    did_branch: Cell<bool>, // <-- Add this field
+    did_branch: Cell<bool>,
 }
 
-pub const N_FLAG: Word = 1 << 31;
-pub const Z_FLAG: Word = 1 << 30;
-pub const C_FLAG: Word = 1 << 29;
-pub const V_FLAG: Word = 1 << 28;
+pub const N_FLAG: Word = 1 << 31; // Negative flag
+pub const Z_FLAG: Word = 1 << 30; // Zero flag
+pub const C_FLAG: Word = 1 << 29; // Carry flag
+pub const V_FLAG: Word = 1 << 28; // Overflow flag
+pub const Q_FLAG: Word = 1 << 27; // Saturation flag
 
 impl CpuState {
     pub fn new(
@@ -50,7 +51,7 @@ impl CpuState {
         let cpu = CpuState {
             registers: RefCell::new([0; 32]),
             sp: RefCell::new(STACK_TOP),
-            pstate: RefCell::new(0),
+            cpsr: RefCell::new(0),
             memory: RefCell::new(Memory::new()),
             ip: RefCell::new(program.entry_ip),
             program,
@@ -77,7 +78,7 @@ impl CpuState {
 
         let halted = self.execute_instruction_ir(&ir_insn)?;
         if halted {
-            *self.pstate.borrow_mut() |= V_FLAG;
+            *self.cpsr.borrow_mut() |= V_FLAG;
         } else {
             if !self.did_branch.get() {
                 *self.ip.borrow_mut() += 1;
@@ -102,7 +103,7 @@ impl CpuState {
     }
 
     pub fn halted(&self) -> bool {
-        *self.pstate.borrow() & V_FLAG != 0
+        *self.cpsr.borrow() & V_FLAG != 0
     }
 
     pub fn run(&mut self) -> EmuResult<()> {
@@ -208,7 +209,7 @@ impl CpuState {
         println!("SP: 0x{:016X}", *self.sp.borrow());
     }
 
-    fn update_pstate_nzcv(&mut self, result: Word, carry: bool, overflow: bool, is_sub: bool) {
+    fn update_cpsr_nzcv(&mut self, result: Word, carry: bool, overflow: bool, is_sub: bool) {
         let mut new_state = 0;
         if (result >> 63) & 1 == 1 {
             new_state |= N_FLAG;
@@ -226,14 +227,14 @@ impl CpuState {
         if overflow {
             new_state |= V_FLAG;
         }
-        *self.pstate.borrow_mut() = new_state;
+        *self.cpsr.borrow_mut() = new_state;
     }
 
     fn check_condition(&self, cond: Condition) -> bool {
-        let pstate = *self.pstate.borrow();
-        let n = (pstate & N_FLAG) != 0;
-        let z = (pstate & Z_FLAG) != 0;
-        let v = (pstate & V_FLAG) != 0;
+        let cpsr = *self.cpsr.borrow();
+        let n = (cpsr & N_FLAG) != 0;
+        let z = (cpsr & Z_FLAG) != 0;
+        let v = (cpsr & V_FLAG) != 0;
         match cond {
             Condition::Eq => z,
             Condition::Ne => !z,
@@ -243,14 +244,14 @@ impl CpuState {
             Condition::Le => z || (n != v),
             Condition::Al => true,
 
-            Condition::Cs | Condition::Hs => (pstate & C_FLAG) != 0,
-            Condition::Cc | Condition::Lo => (pstate & C_FLAG) == 0,
+            Condition::Cs | Condition::Hs => (cpsr & C_FLAG) != 0,
+            Condition::Cc | Condition::Lo => (cpsr & C_FLAG) == 0,
             Condition::Mi => n,
             Condition::Pl => !n,
             Condition::Vs => v,
             Condition::Vc => !v,
-            Condition::Hi => (pstate & C_FLAG) != 0 && !z,
-            Condition::Ls => (pstate & C_FLAG) == 0 || z,
+            Condition::Hi => (cpsr & C_FLAG) != 0 && !z,
+            Condition::Ls => (cpsr & C_FLAG) == 0 || z,
         }
     }
 
@@ -301,7 +302,7 @@ impl CpuState {
                 self.set_reg_with_width(rd, result, is_w);
 
                 if update_flags {
-                    self.update_pstate_nzcv(result, carry, overflow, is_sub);
+                    self.update_cpsr_nzcv(result, carry, overflow, is_sub);
                 }
                 Ok(false)
             }
@@ -315,7 +316,7 @@ impl CpuState {
     //         let val_m = self.resolve_operand_source(op2)?;
     //         let is_w = matches!(op1, Operand::Reg(r) if r.is_w_register());
     //         let (res, carry, overflow) = alu::sub(val_n, val_m, is_w);
-    //         self.update_pstate_nzcv(res, carry, overflow, true);
+    //         self.update_cpsr_nzcv(res, carry, overflow, true);
     //         Ok(false)
     //     } else {
     //         Err(EmuError::InternalError("Invalid CMP".into()))
@@ -328,7 +329,7 @@ impl CpuState {
             let val_m = self.resolve_operand_source(src2)?;
             let is_w = matches!(src1, Operand::Reg(r) if r.is_w_register());
             let (res, carry, overflow) = alu::sub(val_n, val_m, is_w);
-            self.update_pstate_nzcv(res, carry, overflow, true);
+            self.update_cpsr_nzcv(res, carry, overflow, true);
 
             Ok(false)
         } else {
@@ -419,7 +420,6 @@ impl CpuState {
                 }
 
                 *self.ip.borrow_mut() = target_ip;
-                // self.did_branch = true;
                 self.did_branch.set(true);
 
                 // Post BL hook
@@ -742,11 +742,6 @@ impl CpuState {
                 let idx_val = self.get_reg(index_reg.to_id());
                 Ok(base_addr.wrapping_add(idx_val))
             }
-
-            _ => Err(EmuError::InternalError(format!(
-                "Unimplemented offset addressing: {:?}",
-                offset
-            ))),
         }
     }
 }
