@@ -118,7 +118,6 @@ Example command to run with multiple plugins:
 
 **Instructions**:
 - [ ] Add more AArch64 instruction support
-    - STP/LDP
     - ADRP
     - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:

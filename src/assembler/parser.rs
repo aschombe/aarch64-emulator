@@ -476,16 +476,17 @@ impl AsmParser {
             "ASR" => OpCode::ASR,
             "ADR" => OpCode::ADR,
             "LDR" => OpCode::LDR,
+            "LDP" => OpCode::LDP,
             "LDRB" => OpCode::LDRB,
             "LDRH" => OpCode::LDRH,
             "LDRSB" => OpCode::LDRSB,
             "LDRSH" => OpCode::LDRSH,
             "STR" => OpCode::STR,
+            "STP" => OpCode::STP,
             "STRB" => OpCode::STRB,
             "STRH" => OpCode::STRH,
             "BL" => OpCode::BL,
             "BR" => OpCode::BR,
-            "B" => OpCode::B(Condition::Al),
             "B.EQ" => OpCode::B(Condition::Eq),
             "BEQ" => OpCode::B(Condition::Eq),
             "B.NE" => OpCode::B(Condition::Ne),
@@ -505,7 +506,10 @@ impl AsmParser {
             "SVC" => OpCode::SVC,
             "NOP" => OpCode::NOP,
 
-            _ if base_mnemonic == "B" => OpCode::B(self.parse_condition(&full_mnemonic)?),
+            _ if base_mnemonic == "B" => {
+                let condition = self.parse_condition(&full_mnemonic)?;
+                OpCode::B(condition)
+            }
 
             _ => {
                 return Err(EmuError::InternalError(format!(

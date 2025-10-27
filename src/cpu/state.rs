@@ -358,11 +358,13 @@ impl CpuState {
             OpCode::MOV => self.execute_mov(&ir_insn.operands),
             OpCode::ADR => self.execute_adr(&ir_insn.operands),
             OpCode::LDR => self.execute_ldr(OpCode::LDR, &ir_insn.operands),
+            OpCode::LDP => self.execute_ldr(OpCode::LDP, &ir_insn.operands),
             OpCode::LDRB => self.execute_ldr(OpCode::LDRB, &ir_insn.operands),
             OpCode::LDRH => self.execute_ldr(OpCode::LDRH, &ir_insn.operands),
             OpCode::LDRSB => self.execute_ldr(OpCode::LDRSB, &ir_insn.operands),
             OpCode::LDRSH => self.execute_ldr(OpCode::LDRSH, &ir_insn.operands),
             OpCode::STR => self.execute_str(OpCode::STR, &ir_insn.operands),
+            OpCode::STP => self.execute_str(OpCode::STP, &ir_insn.operands),
             OpCode::STRB => self.execute_str(OpCode::STRB, &ir_insn.operands),
             OpCode::STRH => self.execute_str(OpCode::STRH, &ir_insn.operands),
             OpCode::B(cond) => self.execute_branch(OpCode::B(cond), &ir_insn.operands),
@@ -620,7 +622,6 @@ impl CpuState {
     fn execute_ldr(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
         match opcode {
             OpCode::LDR => match operands {
-                // LDR
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
@@ -630,8 +631,20 @@ impl CpuState {
                 }
                 _ => Err(EmuError::InternalError("Invalid LDR operands".into())),
             },
+            OpCode::LDP => match operands {
+                [dest_op1, dest_op2, Operand::Offset(offset)] => {
+                    let (rt1_id, is_w1) = self.resolve_operand_dest(dest_op1)?;
+                    let (rt2_id, is_w2) = self.resolve_operand_dest(dest_op2)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    let value1 = self.memory.borrow().read_word(effective_addr)?;
+                    let value2 = self.memory.borrow().read_word(effective_addr + 8)?;
+                    self.set_reg_with_width(rt1_id, value1, is_w1);
+                    self.set_reg_with_width(rt2_id, value2, is_w2);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid LDP operands".into())),
+            },
             OpCode::LDRB => match operands {
-                // LDRB
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
@@ -688,6 +701,21 @@ impl CpuState {
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid STR operands".into())),
+            },
+            OpCode::STP => match operands {
+                [source_op1, source_op2, Operand::Offset(offset)] => {
+                    let value1 = self.resolve_operand_source(source_op1)?;
+                    let value2 = self.resolve_operand_source(source_op2)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    self.memory
+                        .borrow_mut()
+                        .write_word(effective_addr, value1)?;
+                    self.memory
+                        .borrow_mut()
+                        .write_word(effective_addr + 8, value2)?;
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid STP operands".into())),
             },
             OpCode::STRB => match operands {
                 [source_op, Operand::Offset(offset)] => {
