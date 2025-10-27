@@ -334,6 +334,22 @@ impl AsmParser {
                 }
             }
 
+            ".space" => {
+                if parts.len() < 2 {
+                    return Err(EmuError::InternalError(format!(
+                        ".space directive requires a size argument on line {}.",
+                        original_line_number
+                    )));
+                }
+                let size = parts[1].parse::<usize>().map_err(|_| {
+                    EmuError::InternalError(format!(
+                        "Invalid .space size argument on line {}: {}",
+                        original_line_number, parts[1]
+                    ))
+                })?;
+                Ok(Data::ByteArr(vec![0u8; size]))
+            }
+
             _ => Err(EmuError::InternalError(format!(
                 "Unimplemented data definition on line {}: {}",
                 original_line_number, line_content
@@ -451,6 +467,7 @@ impl AsmParser {
             "UDIVS" => OpCode::UDIVS,
             "SDIVS" => OpCode::SDIVS,
             "AND" => OpCode::AND,
+            "ANDS" => OpCode::ANDS,
             "ORR" => OpCode::ORR,
             "EOR" => OpCode::EOR,
             "NOT" => OpCode::NOT,
@@ -460,9 +477,14 @@ impl AsmParser {
             "ADR" => OpCode::ADR,
             "LDR" => OpCode::LDR,
             "LDRB" => OpCode::LDRB,
+            "LDRH" => OpCode::LDRH,
+            "LDRSB" => OpCode::LDRSB,
+            "LDRSH" => OpCode::LDRSH,
             "STR" => OpCode::STR,
             "STRB" => OpCode::STRB,
+            "STRH" => OpCode::STRH,
             "BL" => OpCode::BL,
+            "BR" => OpCode::BR,
             "B" => OpCode::B(Condition::Al),
             "B.EQ" => OpCode::B(Condition::Eq),
             "BEQ" => OpCode::B(Condition::Eq),

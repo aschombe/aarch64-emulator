@@ -131,6 +131,11 @@ Example command to run with multiple plugins:
 
 **Instructions**
 - [ ] Add more AArch64 instruction support
+    - [ ] Finish implementation for:
+        - LDRH
+        - LDRSB
+        - LDRSH
+        - STRH
 
 **Documentation**
 - [ ] Expand inline comments and Rustdocs

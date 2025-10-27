@@ -338,6 +338,7 @@ impl CpuState {
             OpCode::UDIV => self.execute_binary_op(&ir_insn.operands, alu::udiv, false, false),
             OpCode::SDIV => self.execute_binary_op(&ir_insn.operands, alu::sdiv, false, false),
             OpCode::AND => self.execute_binary_op(&ir_insn.operands, alu::and, false, false),
+            OpCode::ANDS => self.execute_binary_op(&ir_insn.operands, alu::and, true, false),
             OpCode::ORR => self.execute_binary_op(&ir_insn.operands, alu::orr, false, false),
             OpCode::EOR => self.execute_binary_op(&ir_insn.operands, alu::eor, false, false),
             OpCode::LSL => self.execute_binary_op(&ir_insn.operands, alu::lsl, false, false),
@@ -348,10 +349,26 @@ impl CpuState {
             OpCode::ADR => self.execute_adr(&ir_insn.operands),
             OpCode::LDR => self.execute_ldr(&ir_insn.operands),
             OpCode::LDRB => self.execute_ldrb(&ir_insn.operands),
+            OpCode::LDRH => Err(EmuError::UnimplementedSyscall(
+                "LDRH not implemented".to_string(),
+            )),
+            OpCode::LDRSB => Err(EmuError::UnimplementedSyscall(
+                "LDRSB not implemented".to_string(),
+            )),
+            OpCode::LDRSH => Err(EmuError::UnimplementedSyscall(
+                "LDRSH not implemented".to_string(),
+            )),
             OpCode::STR => self.execute_str(&ir_insn.operands),
             OpCode::STRB => self.execute_strb(&ir_insn.operands),
+            OpCode::STRH => Err(EmuError::UnimplementedSyscall(
+                "STRH not implemented".to_string(),
+            )),
             OpCode::B(cond) => self.execute_branch(OpCode::B(cond), &ir_insn.operands),
             OpCode::BL => self.execute_branch(OpCode::BL, &ir_insn.operands),
+            // OpCode::BR => Err(EmuError::UnimplementedSyscall(
+            //     "BR not implemented".to_string(),
+            // )),
+            OpCode::BR => self.execute_branch(OpCode::BR, &ir_insn.operands),
             OpCode::CBZ => self.execute_branch(OpCode::CBZ, &ir_insn.operands),
             OpCode::CBNZ => self.execute_branch(OpCode::CBNZ, &ir_insn.operands),
             OpCode::RET => self.execute_ret(),
@@ -365,6 +382,7 @@ impl CpuState {
 
     fn execute_branch(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
         match operands {
+            // B / B.cond / BL
             [Operand::Imm(Immediate::Lbl(label))] => {
                 if let OpCode::B(condition) = opcode {
                     let take = self.check_condition(condition);
@@ -428,6 +446,7 @@ impl CpuState {
                 Ok(false)
             }
 
+            // CBZ / CBNZ
             [Operand::Reg(reg), Operand::Imm(Immediate::Lbl(label))] => {
                 let raw_val = self.get_reg(reg.to_id());
                 let reg_val = if reg.is_w_register() {
@@ -455,6 +474,14 @@ impl CpuState {
                     *self.ip.borrow_mut() = target_ip.saturating_sub(1);
                 }
 
+                Ok(false)
+            }
+
+            // BR
+            [Operand::Reg(reg)] if matches!(opcode, OpCode::BR) => {
+                let target_ip = self.get_reg(reg.to_id()) as usize;
+                *self.ip.borrow_mut() = target_ip;
+                self.did_branch.set(true);
                 Ok(false)
             }
 
