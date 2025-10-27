@@ -242,6 +242,15 @@ impl CpuState {
             Condition::Gt => !z && (n == v),
             Condition::Le => z || (n != v),
             Condition::Al => true,
+
+            Condition::Cs | Condition::Hs => (pstate & C_FLAG) != 0,
+            Condition::Cc | Condition::Lo => (pstate & C_FLAG) == 0,
+            Condition::Mi => n,
+            Condition::Pl => !n,
+            Condition::Vs => v,
+            Condition::Vc => !v,
+            Condition::Hi => (pstate & C_FLAG) != 0 && !z,
+            Condition::Ls => (pstate & C_FLAG) == 0 || z,
         }
     }
 

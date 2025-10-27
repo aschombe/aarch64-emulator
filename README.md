@@ -120,7 +120,7 @@ Example command to run with multiple plugins:
 - [ ] Add more AArch64 instruction support
     - STP/LDR
     - ADRP
-    - https://developer.arm.com/documentation/ddi0597/2025-09/Base-Instructions
+    - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
     - .byte, .single/.float, .double
     - .fill

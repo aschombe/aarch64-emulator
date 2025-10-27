@@ -198,6 +198,16 @@ pub enum Condition {
     Le,
     Gt,
     Ge,
+    Cs,
+    Hs,
+    Cc,
+    Lo,
+    Mi,
+    Pl,
+    Vs,
+    Vc,
+    Hi,
+    Ls,
 }
 
 /// Enum representing the various operation codes (opcodes) for instructions
