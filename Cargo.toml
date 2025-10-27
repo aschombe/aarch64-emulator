@@ -21,4 +21,3 @@ path = "src/main.rs"
 [lib]
 name = "aarch64_emulator"
 path = "src/lib.rs"
-
