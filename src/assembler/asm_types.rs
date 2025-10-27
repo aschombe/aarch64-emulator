@@ -239,6 +239,7 @@ pub enum OpCode {
     CBZ,
     CBNZ,
     SVC,
+    NOP,
 }
 
 /// Struct representing a single instruction in the intermediate representation (IR)

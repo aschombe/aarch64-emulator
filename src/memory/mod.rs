@@ -183,12 +183,28 @@ impl Memory {
         Ok(LittleEndian::read_u64(bytes))
     }
 
+    /// Reads a half-word (4 bytes) from memory at the specified address (Little-Endian)
+    pub fn read_halfword(&self, addr: Word) -> EmuResult<u32> {
+        let bytes = self.get_slice(addr, 4)?;
+
+        // Little-Endian conversion from 4 bytes to a u32
+        Ok(LittleEndian::read_u32(bytes))
+    }
+
     /// Writes a 64-bit Word (8 bytes) to memory at the specified address (Little-Endian)
     pub fn write_word(&mut self, addr: Word, val: Word) -> EmuResult<()> {
         let bytes = self.get_slice_mut(addr, 8)?;
 
         // Little-Endian conversion from u64 to 8 bytes
         LittleEndian::write_u64(bytes, val);
+        Ok(())
+    }
+
+    /// Writes a half-word (4 bytes) to memory at the specified address (Little-Endian)
+    pub fn write_halfword(&mut self, addr: Word, val: u32) -> EmuResult<()> {
+        let bytes = self.get_slice_mut(addr, 4)?;
+        // Little-Endian conversion from u32 to 4 bytes
+        LittleEndian::write_u32(bytes, val);
         Ok(())
     }
 }

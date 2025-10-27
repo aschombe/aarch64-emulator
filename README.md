@@ -113,9 +113,13 @@ Example command to run with multiple plugins:
 
 ## TODO
 
-**Plugins**
-- [ ] Add and test calling convention (CC) plugin
-- [ ] Add more hooks as needed
+**Architecture**:
+- [ ] SIMD/FP support
+- [ ] Exception and interrupt handling
+
+**Instructions**
+- [ ] Add more AArch64 instruction support
+    - https://developer.arm.com/documentation/ddi0597/2025-09/Base-Instructions
 
 **Virtual File System**
 - [ ] Test file I/O (open/read/write/lseek)
@@ -129,13 +133,9 @@ Example command to run with multiple plugins:
 - [ ] Fix delayed instruction indicator
 - [ ] Synchronize highlight scrolling
 
-**Instructions**
-- [ ] Add more AArch64 instruction support
-    - [ ] Finish implementation for:
-        - LDRH
-        - LDRSB
-        - LDRSH
-        - STRH
+**Plugins**
+- [ ] Add and test calling convention (CC) plugin
+- [ ] Add more hooks as needed
 
 **Documentation**
 - [ ] Expand inline comments and Rustdocs

@@ -503,6 +503,7 @@ impl AsmParser {
             "CBZ" => OpCode::CBZ,
             "CBNZ" => OpCode::CBNZ,
             "SVC" => OpCode::SVC,
+            "NOP" => OpCode::NOP,
 
             _ if base_mnemonic == "B" => OpCode::B(self.parse_condition(&full_mnemonic)?),
 
