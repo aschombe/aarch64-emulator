@@ -114,6 +114,7 @@ Example command to run with multiple plugins:
 ## TODO
 
 **Architecture**:
+- [ ] NAME MANGLING!!!!
 - [ ] SIMD/FP support
 - [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
 
