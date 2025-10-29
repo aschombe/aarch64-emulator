@@ -16,6 +16,7 @@ pub type Wword = i32;
 pub enum Immediate {
     Lit(Quad),
     Lbl(String),
+    Lo12Lbl(String),
 }
 
 /// Enum representing ARM64 registers
@@ -174,10 +175,12 @@ impl Reg {
 /// Enum representing different addressing modes for memory access
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Offset {
-    Ind1(Immediate),
-    Ind2(Reg),
-    Ind3(Reg, Immediate),
-    Ind4(Reg, Reg),
+    Ind1(Immediate),             // [imm]
+    Ind2(Reg),                   // [reg]
+    Ind3(Reg, Immediate),        // [reg, imm]
+    Ind4(Reg, Reg),              // [reg, reg]
+    PreIndexed(Reg, Immediate),  // [reg, imm]!
+    PostIndexed(Reg, Immediate), // [reg], imm
 }
 
 /// Enum representing different types of operands in an instruction
@@ -215,6 +218,7 @@ pub enum Condition {
 pub enum OpCode {
     MOV,
     ADR,
+    ADRP,
     ADD,
     SUB,
     MUL,

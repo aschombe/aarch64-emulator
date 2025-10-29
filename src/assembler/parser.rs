@@ -6,6 +6,7 @@ use crate::assembler::asm_types::{
     Operand, Reg,
 };
 use crate::types::{EmuError, EmuResult, Word};
+use std::collections::HashSet;
 
 fn is_register(s: &str) -> bool {
     let s = s.to_lowercase();
@@ -104,6 +105,7 @@ fn is_numeric(s: &str) -> bool {
 }
 
 fn is_label(s: &str) -> bool {
+    let s = s.trim_start_matches('=');
     !s.is_empty() && s.chars().next().unwrap().is_alphabetic() && !is_register(s)
 }
 
@@ -113,6 +115,12 @@ fn clean_source_code(lines: &[String]) -> Vec<String> {
     let mut in_block_comment = false;
 
     for line in lines {
+        // CRITICAL: Replace common non-standard whitespace (like NBSP, \r) with standard space (' ')
+        let line = line
+            .replace('\u{00A0}', " ") // Non-breaking space (NBSP)
+            .replace('\r', "") // Carriage return
+            .replace('\u{0009}', " "); // Tab character (just in case the original tab logic fails)
+
         let mut new_line = String::new();
         let mut chars = line.chars().peekable();
 
@@ -127,6 +135,7 @@ fn clean_source_code(lines: &[String]) -> Vec<String> {
                     chars.next();
                     in_block_comment = true;
                 } else if c == '/' && chars.peek() == Some(&'/') {
+                    // Start of single-line comment
                     break;
                 } else {
                     new_line.push(c);
@@ -134,8 +143,10 @@ fn clean_source_code(lines: &[String]) -> Vec<String> {
             }
         }
 
-        if !new_line.trim().is_empty() || in_block_comment {
-            cleaned_lines.push(new_line);
+        let trimmed_line = new_line.trim();
+        if !trimmed_line.is_empty() || in_block_comment {
+            // Push the processed line, trimmed only at the end.
+            cleaned_lines.push(new_line.trim_end().to_string());
         }
     }
 
@@ -146,16 +157,41 @@ pub struct AsmParser;
 
 impl AsmParser {
     fn parse_immediate(&self, token: &str) -> EmuResult<Immediate> {
-        let clean_token = token.trim_start_matches('#');
+        // 1. Handle :lo12:label first, as it's a unique prefix.
+        if let Some(label) = token.strip_prefix(":lo12:") {
+            if is_label(label) {
+                return Ok(Immediate::Lo12Lbl(label.to_string()));
+            } else {
+                return Err(EmuError::InternalError(format!(
+                    "Invalid label after :lo12:: {}",
+                    label
+                )));
+            }
+        }
 
+        // 2. Strip standard prefixes (# for immediate, = for literal pool).
+        // Note: We trim only the starting characters, preserving the rest of the token.
+        let clean_token = token.trim_start_matches(|c| c == '#' || c == '=').trim();
+
+        // 3. Check for numeric literals (decimal, hex, binary).
         if is_numeric(clean_token) {
-            match clean_token.parse::<i64>() {
-                Ok(val) => Ok(Immediate::Lit(val)),
+            let val = if clean_token.starts_with("0x") || clean_token.starts_with("0X") {
+                i64::from_str_radix(&clean_token[2..], 16)
+            } else if clean_token.starts_with("0b") || clean_token.starts_with("0B") {
+                i64::from_str_radix(&clean_token[2..], 2)
+            } else if clean_token.starts_with("0o") || clean_token.starts_with("0O") {
+                i64::from_str_radix(&clean_token[2..], 8)
+            } else {
+                clean_token.parse::<i64>()
+            };
+            match val {
+                Ok(v) => Ok(Immediate::Lit(v)),
                 Err(_) => Err(EmuError::InternalError(format!(
                     "Invalid number format: {}",
                     clean_token
                 ))),
             }
+        // 4. Check for regular labels (including those originally prefixed with '=')
         } else if is_label(clean_token) {
             Ok(Immediate::Lbl(clean_token.to_string()))
         } else {
@@ -166,27 +202,27 @@ impl AsmParser {
         }
     }
 
-    fn clean_offset_parts(&self, token: &str) -> Option<Vec<String>> {
-        let content = token.trim_matches(|c| c == '[' || c == ']').trim();
-        if content.is_empty() {
-            return None;
-        }
-
-        let parts: Vec<String>;
-
-        if content.contains(',') {
-            parts = content
-                .splitn(2, ',')
-                .map(|s| s.trim().to_string())
-                .collect();
-        } else if content.contains(' ') {
-            parts = content.split_whitespace().map(|s| s.to_string()).collect();
-        } else {
-            parts = vec![content.to_string()];
-        }
-
-        Some(parts.into_iter().filter(|s| !s.is_empty()).collect())
-    }
+    // fn clean_offset_parts(&self, token: &str) -> Option<Vec<String>> {
+    //     let content = token.trim_matches(|c| c == '[' || c == ']').trim();
+    //     if content.is_empty() {
+    //         return None;
+    //     }
+    //
+    //     let parts: Vec<String>;
+    //
+    //     if content.contains(',') {
+    //         parts = content
+    //             .splitn(2, ',')
+    //             .map(|s| s.trim().to_string())
+    //             .collect();
+    //     } else if content.contains(' ') {
+    //         parts = content.split_whitespace().map(|s| s.to_string()).collect();
+    //     } else {
+    //         parts = vec![content.to_string()];
+    //     }
+    //
+    //     Some(parts.into_iter().filter(|s| !s.is_empty()).collect())
+    // }
 
     fn parse_condition(&self, full_mnemonic: &str) -> EmuResult<Condition> {
         let parts: Vec<&str> = full_mnemonic.split('.').collect();
@@ -205,6 +241,14 @@ impl AsmParser {
             "GT" => Ok(Condition::Gt),
             "GE" => Ok(Condition::Ge),
             "AL" => Ok(Condition::Al),
+            "CS" | "HS" => Ok(Condition::Cs),
+            "CC" | "LO" => Ok(Condition::Cc),
+            "MI" => Ok(Condition::Mi),
+            "PL" => Ok(Condition::Pl),
+            "VS" => Ok(Condition::Vs),
+            "VC" => Ok(Condition::Vc),
+            "HI" => Ok(Condition::Hi),
+            "LS" => Ok(Condition::Ls),
             _ => Err(EmuError::InternalError(format!(
                 "Invalid condition code: {}",
                 cond_str
@@ -226,6 +270,7 @@ impl AsmParser {
                     Some('r') => b'\r',
                     Some('\\') => b'\\',
                     Some('"') => b'"',
+                    Some('0') => 0,
                     Some(other) => {
                         return Err(EmuError::InternalError(format!(
                             "Unknown escape sequence: \\{}",
@@ -264,12 +309,24 @@ impl AsmParser {
 
         match directive.as_str() {
             ".quad" | ".dword" => {
-                // Join everything after directive into one string without removing spaces inside numbers
+                // Get the string containing all values after the directive, preserving spaces between values
                 let values_str = parts[1..].join(" ");
+
+                // Split by comma, aggressively trimming each resulting value.
                 let values: Result<Vec<i64>, _> = values_str
                     .split(',')
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.trim().parse::<i64>())
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|s| {
+                        let trimmed = s.trim();
+
+                        if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
+                            // Parse as hexadecimal (base 16) after stripping the "0x" prefix
+                            i64::from_str_radix(&trimmed[2..], 16)
+                        } else {
+                            // Parse as decimal (base 10)
+                            trimmed.parse::<i64>()
+                        }
+                    })
                     .collect();
 
                 match values {
@@ -363,25 +420,66 @@ impl AsmParser {
             return Err(EmuError::InternalError("Operand is empty.".to_string()));
         }
 
-        if token.starts_with('[') && token.ends_with(']') {
-            let parts = self.clean_offset_parts(token).ok_or_else(|| {
-                EmuError::InternalError(format!("Empty offset operand: {}", token))
-            })?;
+        // --- 1. Post-indexed addressing: [reg], #imm or [reg], label ---
+        if token.contains("],") {
+            // Example: [x0], #16
+            let parts: Vec<&str> = token.splitn(2, "],").map(|s| s.trim()).collect();
+            if parts.len() != 2 {
+                return Err(EmuError::InternalError(format!(
+                    "Invalid post-indexed address format: {}",
+                    token
+                )));
+            }
+            let base = parts[0].trim_start_matches('[').trim();
+            let index = parts[1].trim();
+            let reg = parse_reg(base)?;
+            let imm = self.parse_immediate(index)?;
+            return Ok(Operand::Offset(Offset::PostIndexed(reg, imm)));
+        }
 
-            let offset = match parts.as_slice() {
-                [p1] => {
-                    if is_register(p1) {
-                        Offset::Ind2(parse_reg(p1)?)
+        // --- 2. Pre-indexed addressing: [reg, #imm]! or [reg, label]! ---
+        if token.ends_with("]!") {
+            // Example: [x0, #16]!
+            let bracket_content = token.trim_end_matches("]!").trim_start_matches('[').trim();
+            let parts: Vec<&str> = bracket_content.split(',').map(|s| s.trim()).collect();
+            if parts.len() != 2 {
+                return Err(EmuError::InternalError(format!(
+                    "Invalid pre-indexed address format: {}",
+                    token
+                )));
+            }
+            let reg = parse_reg(parts[0])?;
+            let imm = self.parse_immediate(parts[1])?;
+            return Ok(Operand::Offset(Offset::PreIndexed(reg, imm)));
+        }
+
+        // --- 3. Standard bracket notation (Ind1, Ind2, Ind3, Ind4) ---
+        if token.starts_with('[') && token.ends_with(']') {
+            let inner = token.trim_matches(|c| c == '[' || c == ']').trim();
+            let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+            match parts.len() {
+                1 => {
+                    if is_register(parts[0]) {
+                        // [reg]
+                        return Ok(Operand::Offset(Offset::Ind2(parse_reg(parts[0])?)));
                     } else {
-                        Offset::Ind1(self.parse_immediate(p1)?)
+                        // [imm/label]
+                        return Ok(Operand::Offset(Offset::Ind1(
+                            self.parse_immediate(parts[0])?,
+                        )));
                     }
                 }
-                [p1, p2] => {
-                    let reg1 = parse_reg(p1)?;
-                    if is_register(p2) {
-                        Offset::Ind4(reg1, parse_reg(p2)?)
+                2 => {
+                    let reg = parse_reg(parts[0])?;
+                    if is_register(parts[1]) {
+                        // [reg, reg]
+                        return Ok(Operand::Offset(Offset::Ind4(reg, parse_reg(parts[1])?)));
                     } else {
-                        Offset::Ind3(reg1, self.parse_immediate(p2)?)
+                        // [reg, imm/label]
+                        return Ok(Operand::Offset(Offset::Ind3(
+                            reg,
+                            self.parse_immediate(parts[1])?,
+                        )));
                     }
                 }
                 _ => {
@@ -390,14 +488,20 @@ impl AsmParser {
                         token
                     )));
                 }
-            };
-            return Ok(Operand::Offset(offset));
+            }
         }
 
-        if token.starts_with('#') || is_numeric(token) || is_label(token) {
+        // --- 4. Immediate (Literal, Label, :lo12:label, =label) ---
+        if token.starts_with('#')
+            || token.starts_with('=')
+            || is_numeric(token)
+            || is_label(token)
+            || token.to_lowercase().starts_with(":lo12:")
+        {
             return Ok(Operand::Imm(self.parse_immediate(token)?));
         }
 
+        // --- 5. Register (Xn, Wn, SP, LR, XZR, WZR) ---
         if is_register(token) {
             return Ok(Operand::Reg(parse_reg(token)?));
         }
@@ -409,129 +513,180 @@ impl AsmParser {
     }
 
     /// Parses a single line of assembly (non-directive/non-label) into an InstructionIR.
+    // src/assembler/parser.rs (Inside impl AsmParser - Final, FINAL fix for instruction boundary)
+
     fn parse_instruction(&self, line: &str) -> EmuResult<InstructionIR> {
-        let cleaned_line = line.trim().replace(',', " ");
-        if cleaned_line.is_empty() {
-            return Err(EmuError::InternalError("Empty line.".to_string()));
-        }
+        let cleaned_line = line.trim();
 
-        let mut tokens: Vec<String> = Vec::new();
-        let mut current_token = String::new();
-        let mut in_offset = false;
+        // 1. Isolate the mnemonic using the first space/whitespace found.
+        // Use an iterator to handle multiple spaces cleanly.
+        let mut parts = cleaned_line.split_whitespace();
 
-        for part in cleaned_line.split_whitespace() {
-            if part.starts_with('[') {
-                if !current_token.is_empty() {
-                    tokens.push(current_token.clone());
-                    current_token.clear();
-                }
-                in_offset = true;
-                current_token.push_str(part);
-            } else if in_offset {
-                current_token.push(' ');
-                current_token.push_str(part);
+        let full_mnemonic = parts.next().unwrap_or("").to_uppercase();
 
-                if part.ends_with(']') {
-                    tokens.push(current_token.clone());
-                    current_token.clear();
-                    in_offset = false;
-                }
-            } else {
-                tokens.push(part.to_string());
-            }
-        }
-        if !current_token.is_empty() {
-            tokens.push(current_token);
-        }
-        tokens.retain(|s| !s.is_empty());
-
-        if tokens.is_empty() {
+        // Check for instruction-only scenarios FIRST, based only on the mnemonic string.
+        if full_mnemonic.is_empty() {
             return Err(EmuError::InternalError(
                 "Empty instruction line.".to_string(),
             ));
         }
 
-        let full_mnemonic = tokens[0].to_uppercase();
-        let base_mnemonic = full_mnemonic.split('.').next().unwrap().to_uppercase();
+        let rest_of_line_parts: Vec<&str> = parts.collect();
 
-        let opcode = match full_mnemonic.as_str() {
-            "MOV" => OpCode::MOV,
-            "ADD" => OpCode::ADD,
-            "SUB" => OpCode::SUB,
-            "MUL" => OpCode::MUL,
-            "UDIV" => OpCode::UDIV,
-            "SDIV" => OpCode::SDIV,
-            "ADDS" => OpCode::ADDS,
-            "SUBS" => OpCode::SUBS,
-            "MULS" => OpCode::MULS,
-            "UDIVS" => OpCode::UDIVS,
-            "SDIVS" => OpCode::SDIVS,
-            "AND" => OpCode::AND,
-            "ANDS" => OpCode::ANDS,
-            "ORR" => OpCode::ORR,
-            "EOR" => OpCode::EOR,
-            "NOT" => OpCode::NOT,
-            "LSL" => OpCode::LSL,
-            "LSR" => OpCode::LSR,
-            "ASR" => OpCode::ASR,
-            "ADR" => OpCode::ADR,
-            "LDR" => OpCode::LDR,
-            "LDP" => OpCode::LDP,
-            "LDRB" => OpCode::LDRB,
-            "LDRH" => OpCode::LDRH,
-            "LDRSB" => OpCode::LDRSB,
-            "LDRSH" => OpCode::LDRSH,
-            "STR" => OpCode::STR,
-            "STP" => OpCode::STP,
-            "STRB" => OpCode::STRB,
-            "STRH" => OpCode::STRH,
-            "BL" => OpCode::BL,
-            "BR" => OpCode::BR,
-            "B.EQ" => OpCode::B(Condition::Eq),
-            "BEQ" => OpCode::B(Condition::Eq),
-            "B.NE" => OpCode::B(Condition::Ne),
-            "BNE" => OpCode::B(Condition::Ne),
-            "B.LT" => OpCode::B(Condition::Lt),
-            "BLT" => OpCode::B(Condition::Lt),
-            "B.LE" => OpCode::B(Condition::Le),
-            "BLE" => OpCode::B(Condition::Le),
-            "B.GT" => OpCode::B(Condition::Gt),
-            "BGT" => OpCode::B(Condition::Gt),
-            "B.GE" => OpCode::B(Condition::Ge),
-            "BGE" => OpCode::B(Condition::Ge),
-            "RET" => OpCode::RET,
-            "CMP" => OpCode::CMP,
-            "CBZ" => OpCode::CBZ,
-            "CBNZ" => OpCode::CBNZ,
-            "SVC" => OpCode::SVC,
-            "NOP" => OpCode::NOP,
-
-            _ if base_mnemonic == "B" => {
-                let condition = self.parse_condition(&full_mnemonic)?;
-                OpCode::B(condition)
-            }
-
-            _ => {
+        if rest_of_line_parts.is_empty() {
+            // Handle instructions with zero operands (NOP, RET)
+            let opcode = self.full_mnemonic_to_opcode(&full_mnemonic)?;
+            if matches!(opcode, OpCode::NOP | OpCode::RET) {
+                return Ok(InstructionIR {
+                    opcode,
+                    operands: Vec::new(),
+                });
+            } else {
                 return Err(EmuError::InternalError(format!(
-                    "Unknown mnemonic: {}",
+                    "Instruction '{}' requires operands.",
                     full_mnemonic
                 )));
             }
-        };
+        }
 
+        // Reconstruct the argument string for robust parsing below.
+        let operands_str = rest_of_line_parts.join(" ");
+
+        // 2. Tokenize the operands string (e.g., "x0, x0, :lo12:var1")
+        let mut token_assembly = String::new();
+        let mut in_brackets = false;
+
+        // Use the pipe character '|' to reliably delimit tokens separated by comma or space outside brackets.
+        for c in operands_str.chars() {
+            match c {
+                '[' => {
+                    if !token_assembly.ends_with('|') {
+                        token_assembly.push('|');
+                    }
+                    in_brackets = true;
+                    token_assembly.push(c);
+                }
+                ']' => {
+                    token_assembly.push(c);
+                    in_brackets = false;
+                    token_assembly.push('|');
+                }
+                ',' if !in_brackets => {
+                    token_assembly.push('|');
+                }
+                c if c.is_whitespace() && !in_brackets => {
+                    if !token_assembly.ends_with('|') {
+                        token_assembly.push('|');
+                    }
+                }
+                _ => {
+                    token_assembly.push(c);
+                }
+            }
+        }
+
+        // 3. Split by the new delimiter and process the final tokens.
+        let tokens: Vec<String> = token_assembly
+            .split('|')
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty())
+            .collect();
+
+        // 4. Map the mnemonic to an OpCode.
+        let opcode = self.full_mnemonic_to_opcode(&full_mnemonic)?;
+
+        // 5. Parse the operands into the IR structure.
         let mut operands = Vec::new();
-        for token in &tokens[1..] {
-            operands.push(self.parse_operand(token)?);
+        for token in tokens.into_iter() {
+            operands.push(self.parse_operand(&token)?);
         }
 
         Ok(InstructionIR { opcode, operands })
+    }
+
+    /// Converts a full mnemonic (e.g., "ADD", "B.EQ") into its OpCode enum variant.
+    fn full_mnemonic_to_opcode(&self, full_mnemonic: &str) -> EmuResult<OpCode> {
+        let full_mnemonic = full_mnemonic.to_uppercase();
+        let base_mnemonic = full_mnemonic.split('.').next().unwrap().to_uppercase();
+
+        match full_mnemonic.as_str() {
+            "MOV" => Ok(OpCode::MOV),
+            "ADD" => Ok(OpCode::ADD),
+            "SUB" => Ok(OpCode::SUB),
+            "MUL" => Ok(OpCode::MUL),
+            "UDIV" => Ok(OpCode::UDIV),
+            "SDIV" => Ok(OpCode::SDIV),
+            "ADDS" => Ok(OpCode::ADDS),
+            "SUBS" => Ok(OpCode::SUBS),
+            "MULS" => Ok(OpCode::MULS),
+            "UDIVS" => Ok(OpCode::UDIVS),
+            "SDIVS" => Ok(OpCode::SDIVS),
+            "AND" => Ok(OpCode::AND),
+            "ANDS" => Ok(OpCode::ANDS),
+            "ORR" => Ok(OpCode::ORR),
+            "EOR" => Ok(OpCode::EOR),
+            "NOT" => Ok(OpCode::NOT),
+            "LSL" => Ok(OpCode::LSL),
+            "LSR" => Ok(OpCode::LSR),
+            "ASR" => Ok(OpCode::ASR),
+            "ADR" => Ok(OpCode::ADR),
+            "ADRP" => Ok(OpCode::ADRP),
+            "LDR" => Ok(OpCode::LDR),
+            "LDP" => Ok(OpCode::LDP),
+            "LDRB" => Ok(OpCode::LDRB),
+            "LDRH" => Ok(OpCode::LDRH),
+            "LDRSB" => Ok(OpCode::LDRSB),
+            "LDRSH" => Ok(OpCode::LDRSH),
+            "STR" => Ok(OpCode::STR),
+            "STP" => Ok(OpCode::STP),
+            "STRB" => Ok(OpCode::STRB),
+            "STRH" => Ok(OpCode::STRH),
+            "BL" => Ok(OpCode::BL),
+            "BR" => Ok(OpCode::BR),
+            // Conditional branches
+            "B.EQ" | "BEQ" => Ok(OpCode::B(Condition::Eq)),
+            "B.NE" | "BNE" => Ok(OpCode::B(Condition::Ne)),
+            "B.LT" | "BLT" => Ok(OpCode::B(Condition::Lt)),
+            "B.LE" | "BLE" => Ok(OpCode::B(Condition::Le)),
+            "B.GT" | "BGT" => Ok(OpCode::B(Condition::Gt)),
+            "B.GE" | "BGE" => Ok(OpCode::B(Condition::Ge)),
+            "B.AL" | "BAL" => Ok(OpCode::B(Condition::Al)),
+            "B.CS" | "BCS" | "B.HS" | "BHS" => Ok(OpCode::B(Condition::Cs)),
+            "B.CC" | "BCC" | "B.LO" | "BLO" => Ok(OpCode::B(Condition::Cc)),
+            "B.MI" | "BMI" => Ok(OpCode::B(Condition::Mi)),
+            "B.PL" | "BPL" => Ok(OpCode::B(Condition::Pl)),
+            "B.VS" | "BVS" => Ok(OpCode::B(Condition::Vs)),
+            "B.VC" | "BVC" => Ok(OpCode::B(Condition::Vc)),
+            "B.HI" | "BHI" => Ok(OpCode::B(Condition::Hi)),
+            "B.LS" | "BLS" => Ok(OpCode::B(Condition::Ls)),
+            // Other Control
+            "RET" => Ok(OpCode::RET),
+            "CMP" => Ok(OpCode::CMP),
+            "CBZ" => Ok(OpCode::CBZ),
+            "CBNZ" => Ok(OpCode::CBNZ),
+            "SVC" => Ok(OpCode::SVC),
+            "NOP" => Ok(OpCode::NOP),
+
+            _ if base_mnemonic == "B" => {
+                let condition = self.parse_condition(&full_mnemonic)?;
+                Ok(OpCode::B(condition))
+            }
+            _ => Err(EmuError::InternalError(format!(
+                "Unknown mnemonic: {}",
+                full_mnemonic
+            ))),
+        }
     }
 
     /// Main entry point for parsing assembly source lines into IR blocks.
     pub fn parse_assembly_to_ir(
         &self,
         lines: &Vec<String>,
-    ) -> EmuResult<(Vec<AssemblyBlock>, Vec<(InstructionIR, usize)>)> {
+    ) -> EmuResult<(
+        Vec<AssemblyBlock>,
+        Vec<(InstructionIR, usize)>,
+        HashSet<String>,
+    )> {
         let cleaned_source_lines = clean_source_code(lines);
 
         let mut blocks = Vec::new();
@@ -542,12 +697,13 @@ impl AsmParser {
         };
         let mut current_section = "none";
         let mut global_entry_flag = false;
-
         let mut instruction_line_map = Vec::new();
+
+        // NEW: Track externs (extern labels in this source file)
+        let mut extern_labels: HashSet<String> = HashSet::new();
 
         for (i, line) in cleaned_source_lines.iter().enumerate() {
             let original_line_number = i + 1;
-
             let line_content = line.trim();
 
             if line_content.is_empty() {
@@ -556,9 +712,8 @@ impl AsmParser {
 
             if line_content.starts_with('.') {
                 if !current_block.label.is_empty() && !current_block.label.starts_with('.') {
-                    blocks.push(current_block);
+                    blocks.push(current_block.clone());
                 }
-
                 if line_content.starts_with(".data") {
                     current_section = "data";
                 } else if line_content.starts_with(".text") {
@@ -566,7 +721,6 @@ impl AsmParser {
                 } else if line_content.starts_with(".bss") {
                     current_section = "bss";
                 }
-
                 if line_content.starts_with(".global") {
                     let label = line_content
                         .split_whitespace()
@@ -577,107 +731,124 @@ impl AsmParser {
                         global_entry_flag = true;
                     }
                 }
-
+                // --- NEW: Handle .extern directive ---
+                if line_content.starts_with(".extern") {
+                    let label = line_content
+                        .split_whitespace()
+                        .nth(1)
+                        .unwrap_or("")
+                        .to_string();
+                    if !label.is_empty() {
+                        extern_labels.insert(label);
+                    }
+                    continue; // skip block creation and normal section processing
+                }
                 current_block = AssemblyBlock {
                     label: format!(".section_{}", current_section),
                     _is_entry: global_entry_flag,
                     content: AssemblyContent::Text(Vec::new()),
                 };
             } else if line_content.contains(':') {
-                if !current_block.label.is_empty() && !current_block.label.starts_with('.') {
-                    blocks.push(current_block);
-                }
-
-                let parts: Vec<&str> = line_content.splitn(2, ':').collect();
-                let label = parts[0].trim().to_string();
-                let rest_of_line = parts.get(1).map(|s| s.trim()).unwrap_or("");
-
-                let is_entry_flag_for_new_block = global_entry_flag || label == "_start";
-
-                current_block = AssemblyBlock {
-                    label: label.clone(),
-                    _is_entry: is_entry_flag_for_new_block,
-                    content: match current_section {
-                        "text" => AssemblyContent::Text(Vec::new()),
-                        "data" => AssemblyContent::Data(Vec::new()),
-                        "bss" => AssemblyContent::Bss(0),
-                        _ => {
-                            return Err(EmuError::InternalError(format!(
-                                "Label '{}' defined outside .text or .data section.",
-                                label
-                            )));
-                        }
-                    },
-                };
-
-                // If content immediately follows the label (e.g., `vec1: .quad...`), process it here
-                if !rest_of_line.is_empty() {
+                if line_content.contains(":lo12:") {
                     match &mut current_block.content {
                         AssemblyContent::Text(insns) => {
-                            match self.parse_instruction(rest_of_line) {
+                            match self.parse_instruction(line_content) {
                                 Ok(ir) => {
                                     instruction_line_map.push((ir.clone(), original_line_number));
                                     insns.push(ir);
                                 }
-                                Err(EmuError::InternalError(msg)) => {
+                                Err(e) => return Err(e),
+                            }
+                        }
+                        _ => {
+                            return Err(EmuError::InternalError(format!(
+                                "Instruction with ':' found outside .text section: {}",
+                                line_content
+                            )));
+                        }
+                    }
+                } else {
+                    if !current_block.label.is_empty() && !current_block.label.starts_with('.') {
+                        blocks.push(current_block);
+                    }
+
+                    let parts: Vec<&str> = line_content.splitn(2, ':').collect();
+                    let label = parts[0].trim().to_string();
+                    let rest_of_line = parts.get(1).map(|s| s.trim()).unwrap_or("");
+
+                    let is_entry_flag_for_new_block = global_entry_flag || label == "_start";
+
+                    current_block = AssemblyBlock {
+                        label: label.clone(),
+                        _is_entry: is_entry_flag_for_new_block,
+                        content: match current_section {
+                            "text" => AssemblyContent::Text(Vec::new()),
+                            "data" => AssemblyContent::Data(Vec::new()),
+                            "bss" => AssemblyContent::Bss(0),
+                            _ => {
+                                return Err(EmuError::InternalError(format!(
+                                    "Label '{}' defined outside .text or .data section.",
+                                    label
+                                )));
+                            }
+                        },
+                    };
+
+                    if !rest_of_line.is_empty() {
+                        match &mut current_block.content {
+                            AssemblyContent::Text(insns) => {
+                                match self.parse_instruction(rest_of_line) {
+                                    Ok(ir) => {
+                                        instruction_line_map
+                                            .push((ir.clone(), original_line_number));
+                                        insns.push(ir);
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                            AssemblyContent::Data(data_defs) => {
+                                let parts: Vec<&str> = rest_of_line.split_whitespace().collect();
+                                if parts.len() < 2 {
                                     return Err(EmuError::InternalError(format!(
-                                        "Parsing failed on line {}: {} -> {}",
-                                        original_line_number, rest_of_line, msg
+                                        "Data definition incomplete on line {}.",
+                                        original_line_number
                                     )));
                                 }
-                                Err(e) => return Err(e),
+                                match self.parse_data_definition(rest_of_line, original_line_number)
+                                {
+                                    Ok(data) => data_defs.push(data),
+                                    Err(e) => return Err(e),
+                                }
                             }
-                        }
-                        AssemblyContent::Data(data_defs) => {
-                            let parts: Vec<&str> = rest_of_line.split_whitespace().collect();
-                            if parts.len() < 2 {
-                                return Err(EmuError::InternalError(format!(
-                                    "Data definition incomplete on line {}.",
-                                    original_line_number
-                                )));
-                            }
-
-                            match self.parse_data_definition(rest_of_line, original_line_number) {
-                                Ok(data) => data_defs.push(data),
-                                Err(e) => return Err(e),
-                            }
-                        }
-                        AssemblyContent::Bss(size) => {
-                            let parts: Vec<&str> = rest_of_line.split_whitespace().collect();
-                            if parts.is_empty() {
-                                continue;
-                            }
-
-                            if parts[0].to_lowercase() == ".skip" && parts.len() >= 2 {
-                                let skip_size = parts[1].parse::<Word>().map_err(|_| {
-                                    EmuError::InternalError(format!(
-                                        "Invalid .skip size on line {}: {}",
-                                        original_line_number, parts[1]
-                                    ))
-                                })?;
-                                *size = skip_size;
-                            } else {
-                                return Err(EmuError::InternalError(format!(
-                                    "Invalid .bss directive on line {}: {}",
-                                    original_line_number, rest_of_line
-                                )));
+                            AssemblyContent::Bss(size) => {
+                                let parts: Vec<&str> = rest_of_line.split_whitespace().collect();
+                                if parts.is_empty() {
+                                    continue;
+                                }
+                                if parts[0].to_lowercase() == ".skip" && parts.len() >= 2 {
+                                    let skip_size = parts[1].parse::<Word>().map_err(|_| {
+                                        EmuError::InternalError(format!(
+                                            "Invalid .skip size on line {}: {}",
+                                            original_line_number, parts[1]
+                                        ))
+                                    })?;
+                                    *size = skip_size;
+                                } else {
+                                    return Err(EmuError::InternalError(format!(
+                                        "Invalid .bss directive on line {}: {}",
+                                        original_line_number, rest_of_line
+                                    )));
+                                }
                             }
                         }
                     }
                 }
             } else {
-                // This block handles instructions/data definitions that span a new line
                 match &mut current_block.content {
                     AssemblyContent::Text(insns) => match self.parse_instruction(line_content) {
                         Ok(ir) => {
                             instruction_line_map.push((ir.clone(), original_line_number));
                             insns.push(ir);
-                        }
-                        Err(EmuError::InternalError(msg)) => {
-                            return Err(EmuError::InternalError(format!(
-                                "Parsing failed on line {}: {} -> {}",
-                                original_line_number, line_content, msg
-                            )));
                         }
                         Err(e) => return Err(e),
                     },
@@ -689,7 +860,6 @@ impl AsmParser {
                                 original_line_number
                             )));
                         }
-
                         match self.parse_data_definition(line_content, original_line_number) {
                             Ok(data) => data_defs.push(data),
                             Err(e) => return Err(e),
@@ -700,7 +870,6 @@ impl AsmParser {
                         if parts.is_empty() {
                             continue;
                         }
-
                         if parts[0].to_lowercase() == ".skip" && parts.len() >= 2 {
                             let skip_size = parts[1].parse::<u64>().map_err(|_| {
                                 EmuError::InternalError(format!(
@@ -724,6 +893,7 @@ impl AsmParser {
             blocks.push(current_block);
         }
 
-        Ok((blocks, instruction_line_map))
+        // --- Return externs along with standard result ---
+        Ok((blocks, instruction_line_map, extern_labels))
     }
 }

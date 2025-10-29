@@ -17,9 +17,11 @@ use std::rc::Rc;
 pub struct InterpretedProgram {
     pub instructions: Vec<InstructionIR>,
     pub label_to_ip: SymbolTable,
+    pub label_is_addr: std::collections::HashMap<String, bool>,
     pub entry_ip: usize,
     pub source_map: Vec<usize>,
     pub source_lines: Vec<String>,
+    pub extern_labels: std::collections::HashSet<String>,
 }
 
 #[derive(Clone)]
@@ -191,7 +193,8 @@ impl CpuState {
             *self.sp.borrow_mut() = value;
         } else {
             if is_w {
-                self.registers.borrow_mut()[id] = value & 0xFFFF_FFFF;
+                let masked_value = value & 0xFFFF_FFFF;
+                self.registers.borrow_mut()[id] = masked_value;
             } else {
                 self.registers.borrow_mut()[id] = value;
             }
@@ -206,12 +209,26 @@ impl CpuState {
                 println!();
             }
         }
-        println!("SP: 0x{:016X}", *self.sp.borrow());
+        println!(
+            " SP: 0x{:016X} CPSR: 0x{:08X}",
+            *self.sp.borrow(),
+            *self.cpsr.borrow()
+        );
     }
 
-    fn update_cpsr_nzcv(&mut self, result: Word, carry: bool, overflow: bool, is_sub: bool) {
+    fn update_cpsr_nzcv(
+        &mut self,
+        result: Word,
+        carry: bool,
+        overflow: bool,
+        is_sub: bool,
+        is_w: bool,
+    ) {
         let mut new_state = 0;
-        if (result >> 63) & 1 == 1 {
+
+        let sign_bit = if is_w { 31 } else { 63 }; // Check bit 31 for W-reg op, 63 for X-reg op
+
+        if (result >> sign_bit) & 1 == 1 {
             new_state |= N_FLAG;
         }
         if result == 0 {
@@ -260,12 +277,63 @@ impl CpuState {
             Operand::Reg(r) => {
                 let val = self.get_reg(r.to_id());
                 Ok(if r.is_w_register() {
-                    val & 0xFFFF_FFFF
+                    val & 0xFFFF_FFFF // Only the bottom 32 bits are relevant for W-reg source
                 } else {
-                    val
+                    val // X-registers provide the full 64 bits
                 })
             }
             Operand::Imm(Immediate::Lit(v)) => Ok(*v as Word),
+            Operand::Imm(Immediate::Lbl(label)) => {
+                let raw = match self.program.label_to_ip.get(label) {
+                    Some(x) => *x as Word,
+                    None => {
+                        if self.program.extern_labels.contains(label) {
+                            return Err(EmuError::InternalError(format!(
+                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                label
+                            )));
+                        } else {
+                            return Err(EmuError::InternalError(format!(
+                                "Undefined label: {}",
+                                label
+                            )));
+                        }
+                    }
+                };
+                let is_addr = *self.program.label_is_addr.get(label).unwrap_or(&false);
+                Ok(if is_addr {
+                    raw
+                } else {
+                    self.ip_to_virtual_addr(raw)
+                })
+            }
+            Operand::Imm(Immediate::Lo12Lbl(label)) => {
+                // ARM GNU extension: 12 lowest bits of label address (:lo12:label)
+                let raw = match self.program.label_to_ip.get(label) {
+                    Some(x) => *x as Word,
+                    None => {
+                        if self.program.extern_labels.contains(label) {
+                            return Err(EmuError::InternalError(format!(
+                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                label
+                            )));
+                        } else {
+                            return Err(EmuError::InternalError(format!(
+                                "Undefined label: {}",
+                                label
+                            )));
+                        }
+                    }
+                };
+                let is_addr = *self.program.label_is_addr.get(label).unwrap_or(&false);
+                let full_addr = if is_addr {
+                    raw
+                } else {
+                    self.ip_to_virtual_addr(raw)
+                };
+                // Mask off lower 12 bits for a literal value
+                Ok(full_addr & 0xFFF)
+            }
             _ => Err(EmuError::InternalError(format!(
                 "Unsupported source operand: {:?}",
                 operand
@@ -302,7 +370,7 @@ impl CpuState {
                 self.set_reg_with_width(rd, result, is_w);
 
                 if update_flags {
-                    self.update_cpsr_nzcv(result, carry, overflow, is_sub);
+                    self.update_cpsr_nzcv(result, carry, overflow, is_sub, is_w); // <-- NEW: Pass is_w
                 }
                 Ok(false)
             }
@@ -310,26 +378,13 @@ impl CpuState {
         }
     }
 
-    // fn execute_cmp(&mut self, operands: &[Operand]) -> EmuResult<bool> {
-    //     if let [op1, op2] = operands {
-    //         let val_n = self.resolve_operand_source(op1)?;
-    //         let val_m = self.resolve_operand_source(op2)?;
-    //         let is_w = matches!(op1, Operand::Reg(r) if r.is_w_register());
-    //         let (res, carry, overflow) = alu::sub(val_n, val_m, is_w);
-    //         self.update_cpsr_nzcv(res, carry, overflow, true);
-    //         Ok(false)
-    //     } else {
-    //         Err(EmuError::InternalError("Invalid CMP".into()))
-    //     }
-    // }
-
     fn execute_cmp(&mut self, operands: &[Operand]) -> EmuResult<bool> {
         if let [src1, src2] = operands {
             let val_n = self.resolve_operand_source(src1)?;
             let val_m = self.resolve_operand_source(src2)?;
             let is_w = matches!(src1, Operand::Reg(r) if r.is_w_register());
             let (res, carry, overflow) = alu::sub(val_n, val_m, is_w);
-            self.update_cpsr_nzcv(res, carry, overflow, true);
+            self.update_cpsr_nzcv(res, carry, overflow, true, is_w);
 
             Ok(false)
         } else {
@@ -356,7 +411,8 @@ impl CpuState {
             OpCode::ASR => self.execute_binary_op(&ir_insn.operands, alu::asr, false, false),
             OpCode::CMP => self.execute_cmp(&ir_insn.operands),
             OpCode::MOV => self.execute_mov(&ir_insn.operands),
-            OpCode::ADR => self.execute_adr(&ir_insn.operands),
+            OpCode::ADR => self.execute_adr(OpCode::ADR, &ir_insn.operands),
+            OpCode::ADRP => self.execute_adr(OpCode::ADRP, &ir_insn.operands),
             OpCode::LDR => self.execute_ldr(OpCode::LDR, &ir_insn.operands),
             OpCode::LDP => self.execute_ldr(OpCode::LDP, &ir_insn.operands),
             OpCode::LDRB => self.execute_ldr(OpCode::LDRB, &ir_insn.operands),
@@ -386,19 +442,37 @@ impl CpuState {
         match operands {
             // B / B.cond / BL
             [Operand::Imm(Immediate::Lbl(label))] => {
+                // HYBRID: Check if label is a code (index), not address
+                if *self.program.label_is_addr.get(label).unwrap_or(&false) {
+                    return Err(EmuError::InternalError(format!(
+                        "Branch to data label not allowed: {}",
+                        label
+                    )));
+                }
+
+                let target_ip = match self.program.label_to_ip.get(label) {
+                    Some(x) => *x as usize,
+                    None => {
+                        if self.program.extern_labels.contains(label) {
+                            return Err(EmuError::InternalError(format!(
+                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                label
+                            )));
+                        } else {
+                            return Err(EmuError::InternalError(format!(
+                                "Undefined label: {}",
+                                label
+                            )));
+                        }
+                    }
+                };
+
                 if let OpCode::B(condition) = opcode {
                     let take = self.check_condition(condition);
                     if !take {
                         return Ok(false);
                     }
                 }
-
-                let target_ip =
-                    *self.program.label_to_ip.get(label).ok_or_else(|| {
-                        EmuError::InternalError(format!("Undefined label: {}", label))
-                    })? as usize;
-
-                // Pre BL hook
                 if let OpCode::BL = opcode {
                     if let Some(pm_rc) = &self.plugin_manager {
                         {
@@ -408,7 +482,6 @@ impl CpuState {
                             let _ = drop(regs_snapshot);
                             let _ = drop(mem_snapshot);
                         }
-
                         let mut pm = pm_rc.borrow_mut();
                         let _ = pm.pre_bl(
                             &self.registers.borrow(),
@@ -416,15 +489,11 @@ impl CpuState {
                             target_ip as u64,
                         )?;
                     }
-
                     let return_addr = *self.ip.borrow() + 1;
                     self.set_reg(30, return_addr as Word);
                 }
-
                 *self.ip.borrow_mut() = target_ip;
                 self.did_branch.set(true);
-
-                // Post BL hook
                 if let OpCode::BL = opcode {
                     if let Some(pm_rc) = &self.plugin_manager {
                         {
@@ -434,7 +503,6 @@ impl CpuState {
                             let _ = drop(regs_snapshot);
                             let _ = drop(mem_snapshot);
                         }
-
                         let mut pm = pm_rc.borrow_mut();
                         let _ = pm.post_bl(
                             &self.registers.borrow(),
@@ -443,12 +511,18 @@ impl CpuState {
                         )?;
                     }
                 }
-
                 Ok(false)
             }
 
             // CBZ / CBNZ
             [Operand::Reg(reg), Operand::Imm(Immediate::Lbl(label))] => {
+                // HYBRID: Only allow code label
+                if *self.program.label_is_addr.get(label).unwrap_or(&false) {
+                    return Err(EmuError::InternalError(format!(
+                        "Conditional branch to data label not allowed: {}",
+                        label
+                    )));
+                }
                 let raw_val = self.get_reg(reg.to_id());
                 let reg_val = if reg.is_w_register() {
                     raw_val & 0xFFFF_FFFF
@@ -466,15 +540,25 @@ impl CpuState {
                         )));
                     }
                 };
-
                 if condition_met {
-                    let target_ip = *self.program.label_to_ip.get(label).ok_or_else(|| {
-                        EmuError::InternalError(format!("Undefined label: {}", label))
-                    })? as usize;
-
+                    let target_ip = match self.program.label_to_ip.get(label) {
+                        Some(x) => *x as usize,
+                        None => {
+                            if self.program.extern_labels.contains(label) {
+                                return Err(EmuError::InternalError(format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                )));
+                            } else {
+                                return Err(EmuError::InternalError(format!(
+                                    "Undefined label: {}",
+                                    label
+                                )));
+                            }
+                        }
+                    };
                     *self.ip.borrow_mut() = target_ip.saturating_sub(1);
                 }
-
                 Ok(false)
             }
 
@@ -601,15 +685,55 @@ impl CpuState {
         }
     }
 
-    fn execute_adr(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+    fn execute_adr(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
         match operands {
             [dest_op, Operand::Imm(Immediate::Lbl(label))] => {
                 let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
-                let target_addr = self.program.label_to_ip.get(label).ok_or_else(|| {
-                    EmuError::InternalError(format!("Undefined label: {}", label))
-                })?;
 
-                self.set_reg_with_width(rd_id, *target_addr, is_w);
+                let raw = match self.program.label_to_ip.get(label) {
+                    Some(x) => *x as Word,
+                    None => {
+                        if self.program.extern_labels.contains(label) {
+                            return Err(EmuError::InternalError(format!(
+                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                label
+                            )));
+                        } else {
+                            return Err(EmuError::InternalError(format!(
+                                "Undefined label: {}",
+                                label
+                            )));
+                        }
+                    }
+                };
+
+                let is_addr = *self.program.label_is_addr.get(label).unwrap_or(&false);
+
+                let target_addr = match opcode {
+                    OpCode::ADR => {
+                        let target_ip_addr = if is_addr {
+                            raw
+                        } else {
+                            self.ip_to_virtual_addr(raw)
+                        };
+                        target_ip_addr
+                    }
+                    OpCode::ADRP => {
+                        let target_ip_addr = if is_addr {
+                            raw
+                        } else {
+                            self.ip_to_virtual_addr(raw)
+                        };
+                        target_ip_addr & 0xFFFF_FFFF_FFFF_F000
+                    }
+                    _ => {
+                        return Err(EmuError::InternalError(format!(
+                            "Invalid ADR opcode: {:?}",
+                            opcode
+                        )));
+                    }
+                };
+                self.set_reg_with_width(rd_id, target_addr, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(format!(
@@ -619,9 +743,15 @@ impl CpuState {
         }
     }
 
+    /// Converts instruction index to a virtual address in text segment
+    fn ip_to_virtual_addr(&self, idx: Word) -> Word {
+        crate::types::TEXT_BASE + idx * 4 // Assuming 4 bytes per instruction
+    }
+
     fn execute_ldr(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
         match opcode {
             OpCode::LDR => match operands {
+                // Case 1: Standard Register/Immediate Offset Load (LDR Xt, [Xn] or [Xn, #imm])
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
@@ -629,8 +759,20 @@ impl CpuState {
                     self.set_reg_with_width(rt_id, value, is_w);
                     Ok(false)
                 }
+
+                // Case 2: Literal Load Pseudoinstruction (LDR Xt, =label)
+                [dest_op, Operand::Imm(Immediate::Lbl(label))] => {
+                    let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
+
+                    let address_value = self.resolve_label_address(label)?;
+
+                    self.set_reg_with_width(rt_id, address_value, is_w); // Load the ADDRESS
+                    Ok(false)
+                }
+
                 _ => Err(EmuError::InternalError("Invalid LDR operands".into())),
             },
+
             OpCode::LDP => match operands {
                 [dest_op1, dest_op2, Operand::Offset(offset)] => {
                     let (rt1_id, is_w1) = self.resolve_operand_dest(dest_op1)?;
@@ -644,6 +786,7 @@ impl CpuState {
                 }
                 _ => Err(EmuError::InternalError("Invalid LDP operands".into())),
             },
+
             OpCode::LDRB => match operands {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
@@ -654,6 +797,7 @@ impl CpuState {
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRB operands".into())),
             },
+
             OpCode::LDRH => match operands {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
@@ -665,6 +809,7 @@ impl CpuState {
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRH operands".into())),
             },
+
             OpCode::LDRSB => match operands {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
@@ -676,6 +821,7 @@ impl CpuState {
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRSB operands".into())),
             },
+
             OpCode::LDRSH => match operands {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
@@ -741,34 +887,123 @@ impl CpuState {
         }
     }
 
-    fn resolve_offset_address(&self, offset: &Offset) -> EmuResult<Word> {
+    fn resolve_label_address(&self, label: &str) -> EmuResult<Word> {
+        let raw = match self.program.label_to_ip.get(label) {
+            Some(x) => *x as Word,
+            None => {
+                if self.program.extern_labels.contains(label) {
+                    return Err(EmuError::InternalError(format!(
+                        "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                        label
+                    )));
+                } else {
+                    return Err(EmuError::InternalError(format!(
+                        "Undefined label: {}",
+                        label
+                    )));
+                }
+            }
+        };
+
+        let is_addr = *self.program.label_is_addr.get(label).unwrap_or(&false);
+
+        Ok(if is_addr {
+            raw
+        } else {
+            self.ip_to_virtual_addr(raw)
+        })
+    }
+
+    fn resolve_offset_address(&mut self, offset: &Offset) -> EmuResult<Word> {
+        let resolve_immediate_value = |imm: &Immediate, cpu: &mut CpuState| -> EmuResult<Word> {
+            match imm {
+                Immediate::Lit(v) => Ok(*v as Word),
+                Immediate::Lbl(label) => {
+                    let raw = match cpu.program.label_to_ip.get(label) {
+                        Some(x) => *x as Word,
+                        None => {
+                            if cpu.program.extern_labels.contains(label) {
+                                return Err(EmuError::InternalError(format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                )));
+                            } else {
+                                return Err(EmuError::InternalError(format!(
+                                    "Undefined label: {}",
+                                    label
+                                )));
+                            }
+                        }
+                    };
+
+                    let is_addr = *cpu.program.label_is_addr.get(label).unwrap_or(&false);
+                    Ok(if is_addr {
+                        raw
+                    } else {
+                        cpu.ip_to_virtual_addr(raw)
+                    })
+                }
+                Immediate::Lo12Lbl(label) => {
+                    let raw = match cpu.program.label_to_ip.get(label) {
+                        Some(x) => *x as Word,
+                        None => {
+                            if cpu.program.extern_labels.contains(label) {
+                                return Err(EmuError::InternalError(format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                )));
+                            } else {
+                                return Err(EmuError::InternalError(format!(
+                                    "Undefined label: {}",
+                                    label
+                                )));
+                            }
+                        }
+                    };
+
+                    let is_addr = *cpu.program.label_is_addr.get(label).unwrap_or(&false);
+                    let full_addr = if is_addr {
+                        raw
+                    } else {
+                        cpu.ip_to_virtual_addr(raw)
+                    };
+                    Ok(full_addr & 0xFFF)
+                }
+            }
+        };
+
         match offset {
-            Offset::Ind1(Immediate::Lbl(label)) => {
-                Ok(*self.program.label_to_ip.get(label).ok_or_else(|| {
-                    EmuError::InternalError(format!("Address label '{}' not found", label))
-                })?)
-            }
-            Offset::Ind1(Immediate::Lit(val)) => Ok(*val as Word),
-
-            Offset::Ind2(base_reg) => Ok(self.get_reg(base_reg.to_id())),
-
-            Offset::Ind3(base_reg, Immediate::Lit(offset_val)) => {
+            Offset::Ind1(imm) => resolve_immediate_value(imm, self), // [imm]
+            Offset::Ind2(base_reg) => Ok(self.get_reg(base_reg.to_id())), // [reg]
+            Offset::Ind3(base_reg, imm) => {
+                // [reg, imm]
                 let base_addr = self.get_reg(base_reg.to_id());
-                Ok(base_addr.wrapping_add(*offset_val as u64))
+                let offset_val = resolve_immediate_value(imm, self)?;
+                Ok(base_addr.wrapping_add(offset_val))
             }
-
-            Offset::Ind3(base_reg, Immediate::Lbl(label)) => {
-                let base_addr = self.get_reg(base_reg.to_id());
-                let lbl_addr = *self.program.label_to_ip.get(label).ok_or_else(|| {
-                    EmuError::InternalError(format!("Label '{}' not found in offset", label))
-                })?;
-                Ok(base_addr.wrapping_add(lbl_addr))
-            }
-
             Offset::Ind4(base_reg, index_reg) => {
+                // [reg, reg]
                 let base_addr = self.get_reg(base_reg.to_id());
                 let idx_val = self.get_reg(index_reg.to_id());
                 Ok(base_addr.wrapping_add(idx_val))
+            }
+            Offset::PreIndexed(base_reg, imm) => {
+                // [reg, imm]! <-- ADDED LOGIC
+                let reg_id = base_reg.to_id();
+                let base_addr = self.get_reg(reg_id);
+                let offset_val = resolve_immediate_value(imm, self)?;
+                let new_base = base_addr.wrapping_add(offset_val);
+                self.set_reg(reg_id, new_base); // Writeback
+                Ok(new_base) // Effective address is the new base
+            }
+            Offset::PostIndexed(base_reg, imm) => {
+                // [reg], imm <-- ADDED LOGIC
+                let reg_id = base_reg.to_id();
+                let base_addr = self.get_reg(reg_id);
+                let offset_val = resolve_immediate_value(imm, self)?;
+                let new_base = base_addr.wrapping_add(offset_val);
+                self.set_reg(reg_id, new_base); // Writeback
+                Ok(base_addr) // Effective address is the *original* base
             }
         }
     }

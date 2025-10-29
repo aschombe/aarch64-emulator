@@ -115,10 +115,11 @@ Example command to run with multiple plugins:
 
 **Architecture**:
 - [ ] SIMD/FP support
+- [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
 
 **Instructions**:
 - [ ] Add more AArch64 instruction support
-    - ADRP
+    - Make sure ADRP, LDP, STP, LDR= [example](./examples/cheater.s) is working
     - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
     - .byte, .single/.float, .double
