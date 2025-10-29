@@ -308,7 +308,6 @@ impl CpuState {
                 })
             }
             Operand::Imm(Immediate::Lo12Lbl(label)) => {
-                // ARM GNU extension: 12 lowest bits of label address (:lo12:label)
                 let raw = match self.program.label_to_ip.get(label) {
                     Some(x) => *x as Word,
                     None => {
@@ -603,7 +602,6 @@ impl CpuState {
         }
 
         *self.ip.borrow_mut() = lr_value as usize;
-        // self.did_branch = true;
         self.did_branch.set(true);
 
         // Post RET hook
@@ -988,7 +986,7 @@ impl CpuState {
                 Ok(base_addr.wrapping_add(idx_val))
             }
             Offset::PreIndexed(base_reg, imm) => {
-                // [reg, imm]! <-- ADDED LOGIC
+                // [reg, imm]!
                 let reg_id = base_reg.to_id();
                 let base_addr = self.get_reg(reg_id);
                 let offset_val = resolve_immediate_value(imm, self)?;
@@ -997,7 +995,7 @@ impl CpuState {
                 Ok(new_base) // Effective address is the new base
             }
             Offset::PostIndexed(base_reg, imm) => {
-                // [reg], imm <-- ADDED LOGIC
+                // [reg], imm
                 let reg_id = base_reg.to_id();
                 let base_addr = self.get_reg(reg_id);
                 let offset_val = resolve_immediate_value(imm, self)?;

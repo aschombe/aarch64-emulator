@@ -391,6 +391,35 @@ impl AsmParser {
                 }
             }
 
+            ".fill" => {
+                // .fill <repeat>, <size>, <value>
+                let fill_args_line = parts[1..].join(" ");
+                let fill_args: Vec<&str> = fill_args_line.split(',').map(str::trim).collect();
+
+                let repeat = fill_args
+                    .get(0)
+                    .and_then(|x| x.parse::<usize>().ok())
+                    .unwrap_or(0);
+                let size = fill_args
+                    .get(1)
+                    .and_then(|x| x.parse::<usize>().ok())
+                    .unwrap_or(1);
+                let value = fill_args
+                    .get(2)
+                    .and_then(|x| x.parse::<u8>().ok())
+                    .unwrap_or(0);
+
+                let total_bytes = repeat * size;
+                // Fill the array
+                let mut arr = Vec::with_capacity(total_bytes);
+                for _ in 0..repeat {
+                    for _ in 0..size {
+                        arr.push(value);
+                    }
+                }
+                Ok(Data::ByteArr(arr))
+            }
+
             ".space" => {
                 if parts.len() < 2 {
                     return Err(EmuError::InternalError(format!(

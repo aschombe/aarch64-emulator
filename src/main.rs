@@ -131,7 +131,6 @@ fn main() -> Result<(), EmuError> {
     };
 
     println!("\n--- Starting Execution ---");
-    // println!("Entry IP: {}", cpu.borrow().program.entry_ip);
 
     let result = if config.debug {
         debugger::run_debugger(&mut cpu.borrow_mut())
