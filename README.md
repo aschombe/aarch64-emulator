@@ -137,11 +137,6 @@ Example command to run with multiple plugins:
 - [ ] Expand syscall coverage (see syscalls.txt)
 
 **Debugger (TUI)**:
-- [ ] Improve display:
-    - Current issues:
-        - Glues files together in order of input and just throws the whole thing into source view
-    - Real GDB with a multi-file run (one is source, one is data) does NOT show data sections in source view at all
-    - Real GDB with a single file run (source + data in one file) shows the context of only the current file and not every file glued together
 - [ ] Fix delayed instruction indicator
 - [ ] Synchronize highlight scrolling
 
