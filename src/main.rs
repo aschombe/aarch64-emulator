@@ -111,18 +111,12 @@ fn main() -> Result<(), EmuError> {
 
             plugin_manager
                 .borrow_mut()
-                .load_lua_plugin(plugin_path, Rc::clone(&cpu), plugin_name)
+                .load_lua_plugin(plugin_path, plugin_name)
                 .expect("Failed to load Lua plugin");
         }
 
         // call on_plugin_load for each plugin
-        {
-            let regs_snapshot = *cpu.borrow().registers.borrow();
-            let mem_snapshot = cpu.borrow().memory.borrow().clone();
-            plugin_manager
-                .borrow_mut()
-                .on_plugin_load(&regs_snapshot, mem_snapshot)?;
-        }
+        plugin_manager.borrow_mut().on_plugin_load(&cpu.borrow())?;
     } else {
         cpu = Rc::new(RefCell::new(CpuState::new(program, None, vfs)));
 
@@ -161,11 +155,9 @@ fn main() -> Result<(), EmuError> {
         {
             println!("\n--- Unloading Plugins ---");
 
-            let regs_snapshot = *cpu.borrow().registers.borrow();
-            let mem_snapshot = cpu.borrow().memory.borrow().clone();
             plugin_manager
                 .borrow_mut()
-                .on_plugin_unload(&regs_snapshot, mem_snapshot)?;
+                .on_plugin_unload(&cpu.borrow())?;
 
             println!("--- Plugins Unloaded ---");
         }

@@ -10,6 +10,12 @@ local cc_violations = {} -- Global registry
 local initial_sp = nil
 local sp_before_instruction = nil
 
+local log_buffer = {}
+
+local function buffered_log(msg)
+	table.insert(log_buffer, msg)
+end
+
 local function snapshot(regs)
 	local s = {}
 	for _, r in ipairs(regs) do
@@ -27,13 +33,19 @@ local function record_violation(reg, depth, reg_type, detail)
 	cc_violations[reg].count = cc_violations[reg].count + 1
 end
 
+local function safeint(x)
+	return math.tointeger(tonumber(x) or 0) or 0
+end
+
 local function diff(before, after, regs, label, depth_override)
 	local use_depth = depth_override or depth
 	for _, r in ipairs(regs) do
-		if before[r] ~= after[r] then
+		local v_before = safeint(before[r])
+		local v_after = safeint(after[r])
+		if v_before ~= v_after then
 			local msg =
-				string.format("[Depth %d] %s x%d changed (0x%X → 0x%X)", use_depth, label, r, before[r], after[r])
-			cpu:log(msg)
+				string.format("[Depth %d] %s x%d changed (0x%X → 0x%X)", use_depth, label, r, v_before, v_after)
+			buffered_log(msg)
 			record_violation(r, use_depth, label, msg)
 		end
 	end
@@ -43,8 +55,7 @@ function on_plugin_load()
 	depth = 0
 	call_stack = {}
 	cc_violations = {}
-	initial_sp = cpu:get_reg(sp_reg)
-	cpu:log("CC Checker initialized with detailed result tracking.")
+	log_buffer = {}
 end
 
 function pre_pc_increment()
@@ -60,7 +71,7 @@ function post_pc_increment()
 			sp_before_instruction,
 			sp_after
 		)
-		cpu:log("[INSTR] " .. msg)
+		buffered_log("[INSTR] " .. msg)
 		record_violation("SP", depth, "Stack-pointer", msg)
 	end
 end
@@ -81,7 +92,6 @@ function post_bl()
 		return
 	end
 	local caller = call_stack[depth - 1]
-
 	if caller then
 		local caller_after = snapshot(caller_saved_regs)
 		diff(caller.caller_saved_in, caller_after, caller_saved_regs, "Caller-saved", depth - 1)
@@ -110,7 +120,7 @@ function post_ret()
 
 	if lr_now ~= frame.lr_in then
 		local msg = string.format("[Depth %d] LR mismatch on RET (0x%X → 0x%X)", depth, frame.lr_in, lr_now)
-		cpu:log(msg)
+		buffered_log(msg)
 		record_violation(lr_reg, depth, "Link-register", msg)
 	end
 
@@ -121,30 +131,28 @@ end
 function on_plugin_unload()
 	local current_sp = cpu:get_reg(sp_reg)
 	if current_sp ~= initial_sp then
-		-- local msg =
-		-- 	string.format("Stack pointer mismatch at unload! Initial: 0x%X Current: 0x%X", initial_sp, current_sp)
-		-- cpu:log(msg)
+		local msg = string.format(
+			"Stack pointer mismatch at unload! Initial: 0x%X Current: 0x%X",
+			tonumber(initial_sp) or 0,
+			tonumber(current_sp) or 0
+		)
+		buffered_log(msg)
 		record_violation("SP", 0, "Stack-pointer", msg)
 	end
 
-	cpu:log("=== Calling Convention Check Summary ===")
-	local any = false
-	for reg, data in pairs(cc_violations) do
-		any = true
-		-- cpu:log(string.format("x%-2s had %d violations", tostring(reg), data.count))
-		-- if the register is SP or LR, then don't put an 'x' before initial_reg
-		local initial_reg = tostring(reg)
-		if reg ~= "SP" and reg ~= tostring(lr_reg) then
-			initial_reg = "x" .. initial_reg
-		end
-		cpu:log(string.format("%-4s had %d violations", initial_reg, data.count))
-		for _, details in ipairs(data.entries) do
-			cpu:log("   → " .. details)
+	local found_any = false
+	for _, data in pairs(cc_violations) do
+		if data.count > 0 then
+			found_any = true
+			break
 		end
 	end
-	if not any then
-		cpu:log("No violations detected. All preserved registers maintained correctly.")
+
+	if found_any then
+		for _, msg in ipairs(log_buffer) do
+			cpu:log(msg)
+		end
 	else
-		cpu:log("=== End of Report (Review violations above) ===")
+		cpu:log("No calling convention violations detected.")
 	end
 end

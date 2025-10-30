@@ -60,6 +60,14 @@ impl Memory {
         mem
     }
 
+    /// Construct Memory from a RAM Vec (for plugin snapshots)
+    pub fn from_ram(ram: Vec<u8>) -> Self {
+        let mut mem = Memory::new();
+        // Copy the RAM bytes (retaining region layout etc.)
+        mem.ram = ram;
+        mem
+    }
+
     // In Memory implementation
     pub fn read_c_string(&self, addr: Word) -> Result<String, EmuError> {
         let mut buf = Vec::new();

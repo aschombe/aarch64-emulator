@@ -118,21 +118,8 @@ impl CpuState {
         while *self.ip.borrow() < total_insns {
             // Pre PC increment hook
             if let Some(pm_rc) = &self.plugin_manager {
-                {
-                    let regs_snapshot = *self.registers.borrow();
-                    let mem_snapshot = self.memory.borrow().clone();
-
-                    let _ = drop(regs_snapshot);
-                    let _ = drop(mem_snapshot);
-                }
-
                 let mut pm = pm_rc.borrow_mut();
-                let skip =
-                    pm.pre_pc_increment(&self.registers.borrow(), self.memory.borrow().clone())?;
-                if skip {
-                    *self.ip.borrow_mut() += 1;
-                    continue;
-                }
+                pm.pre_pc_increment(self)?;
             }
 
             let current_ip = *self.ip.borrow();
@@ -160,16 +147,8 @@ impl CpuState {
 
             // Post PC increment hook
             if let Some(pm_rc) = &self.plugin_manager {
-                {
-                    let regs_snapshot = *self.registers.borrow();
-                    let mem_snapshot = self.memory.borrow().clone();
-
-                    let _ = drop(regs_snapshot);
-                    let _ = drop(mem_snapshot);
-                }
-
                 let mut pm = pm_rc.borrow_mut();
-                pm.post_pc_increment(&self.registers.borrow(), self.memory.borrow().clone())?;
+                pm.post_pc_increment(self)?;
             }
         }
 
@@ -477,41 +456,22 @@ impl CpuState {
                     }
                 }
                 if let OpCode::BL = opcode {
+                    // Pre BL hook
                     if let Some(pm_rc) = &self.plugin_manager {
-                        {
-                            let regs_snapshot = *self.registers.borrow();
-                            let mem_snapshot = self.memory.borrow().clone();
-
-                            let _ = drop(regs_snapshot);
-                            let _ = drop(mem_snapshot);
-                        }
                         let mut pm = pm_rc.borrow_mut();
-                        let _ = pm.pre_bl(
-                            &self.registers.borrow(),
-                            self.memory.borrow().clone(),
-                            target_ip as u64,
-                        )?;
+                        pm.run_hooks("pre_bl", self)?;
                     }
+
                     let return_addr = *self.ip.borrow() + 1;
                     self.set_reg(30, return_addr as Word);
                 }
                 *self.ip.borrow_mut() = target_ip;
                 self.did_branch.set(true);
                 if let OpCode::BL = opcode {
+                    // Post BL hook
                     if let Some(pm_rc) = &self.plugin_manager {
-                        {
-                            let regs_snapshot = *self.registers.borrow();
-                            let mem_snapshot = self.memory.borrow().clone();
-
-                            let _ = drop(regs_snapshot);
-                            let _ = drop(mem_snapshot);
-                        }
                         let mut pm = pm_rc.borrow_mut();
-                        let _ = pm.post_bl(
-                            &self.registers.borrow(),
-                            self.memory.borrow().clone(),
-                            target_ip as u64,
-                        )?;
+                        pm.run_hooks("post_bl", self)?;
                     }
                 }
                 Ok(false)
@@ -545,6 +505,7 @@ impl CpuState {
                 };
                 if condition_met {
                     let target_ip = match self.program.label_to_ip.get(label) {
+                        // pm.run_hooks("pre_pc_increment", self)?;
                         Some(x) => *x as usize,
                         None => {
                             if self.program.extern_labels.contains(label) {
@@ -583,19 +544,8 @@ impl CpuState {
     fn execute_ret(&mut self) -> EmuResult<bool> {
         // Pre RET hook
         if let Some(pm_rc) = &self.plugin_manager {
-            {
-                let regs_snapshot = *self.registers.borrow();
-                let mem_snapshot = self.memory.borrow().clone();
-
-                let _ = drop(regs_snapshot);
-                let _ = drop(mem_snapshot);
-            }
-
             let mut pm = pm_rc.borrow_mut();
-            let skip = pm.pre_ret(&self.registers.borrow(), self.memory.borrow().clone())?;
-            if skip {
-                return Ok(false);
-            }
+            pm.run_hooks("pre_ret", self)?;
         }
 
         let lr_value = self.get_reg(30);
@@ -610,63 +560,28 @@ impl CpuState {
 
         // Post RET hook
         if let Some(pm_rc) = &self.plugin_manager {
-            {
-                let regs_snapshot = *self.registers.borrow();
-                let mem_snapshot = self.memory.borrow().clone();
-
-                let _ = drop(regs_snapshot);
-                let _ = drop(mem_snapshot);
-            }
-
             let mut pm = pm_rc.borrow_mut();
-            pm.post_ret(&self.registers.borrow(), self.memory.borrow().clone())?;
+            pm.run_hooks("post_ret", self)?;
         }
 
         Ok(false)
     }
 
     pub fn execute_svc(&mut self, _ops: &[Operand]) -> EmuResult<bool> {
-        let sys_call_num = self.get_reg(8);
+        // let sys_call_num = self.get_reg(8);
 
         // Pre syscall hook
         if let Some(pm_rc) = &self.plugin_manager {
-            {
-                let regs_snapshot = *self.registers.borrow();
-                let mem_snapshot = self.memory.borrow().clone();
-
-                let _ = drop(regs_snapshot);
-                let _ = drop(mem_snapshot);
-            }
-
             let mut pm = pm_rc.borrow_mut();
-            let skip_syscall = pm.pre_syscall(
-                &self.registers.borrow(),
-                self.memory.borrow().clone(),
-                sys_call_num,
-            )?;
-            if skip_syscall {
-                return Ok(false);
-            }
+            pm.run_hooks("pre_syscall", self)?;
         }
 
         let halt = syscall::handle_syscall(self)?;
 
         // Post syscall hook
         if let Some(pm_rc) = &self.plugin_manager {
-            {
-                let regs_snapshot = *self.registers.borrow();
-                let mem_snapshot = self.memory.borrow().clone();
-
-                let _ = drop(regs_snapshot);
-                let _ = drop(mem_snapshot);
-            }
-
             let mut pm = pm_rc.borrow_mut();
-            pm.post_syscall(
-                &self.registers.borrow(),
-                self.memory.borrow().clone(),
-                sys_call_num,
-            )?;
+            pm.run_hooks("post_syscall", self)?;
         }
 
         Ok(halt)

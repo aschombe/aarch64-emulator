@@ -139,6 +139,7 @@ Example command to run with multiple plugins:
 - [ ] Synchronize highlight scrolling
 
 **Plugins**:
+- [ ] Allow pre and post svc hooks know the syscall number
 - [ ] Add and test calling convention (CC) plugin
 - [ ] Add more hooks as needed
 - [ ] Add more API functions to Lua CPU object
