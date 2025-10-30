@@ -457,6 +457,54 @@ impl AsmParser {
         }
 
         match directive.as_str() {
+            ".byte" => {
+                let values_str = parts[1..].join(" ");
+                let values: Result<Vec<u8>, _> = values_str
+                    .split(',')
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|s| s.trim().parse::<u8>())
+                    .collect();
+                match values {
+                    Ok(v) => Ok(Data::ByteArr(v)),
+                    Err(_) => Err(EmuError::InternalError(format!(
+                        "Invalid .byte values on line {}: {}",
+                        original_line_number, line_content
+                    ))),
+                }
+            }
+
+            ".single" | ".float" => {
+                let values_str = parts[1..].join(" ");
+                let values: Result<Vec<f32>, _> = values_str
+                    .split(',')
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|s| s.trim().parse::<f32>())
+                    .collect();
+                match values {
+                    Ok(v) => Ok(Data::FloatArr(v)),
+                    Err(_) => Err(EmuError::InternalError(format!(
+                        "Invalid .single/.float values on line {}: {}",
+                        original_line_number, line_content
+                    ))),
+                }
+            }
+
+            ".double" | ".doubleword" => {
+                let values_str = parts[1..].join(" ");
+                let values: Result<Vec<f64>, _> = values_str
+                    .split(',')
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|s| s.trim().parse::<f64>())
+                    .collect();
+                match values {
+                    Ok(v) => Ok(Data::DoubleArr(v)),
+                    Err(_) => Err(EmuError::InternalError(format!(
+                        "Invalid .double/.doubleword values on line {}: {}",
+                        original_line_number, line_content
+                    ))),
+                }
+            }
+
             ".quad" | ".dword" => {
                 // Get the string containing all values after the directive, preserving spaces between values
                 let values_str = parts[1..].join(" ");
@@ -583,6 +631,22 @@ impl AsmParser {
                     ))
                 })?;
                 Ok(Data::ByteArr(vec![0u8; size]))
+            }
+
+            ".balign" => {
+                if parts.len() < 2 {
+                    return Err(EmuError::InternalError(format!(
+                        ".balign directive requires an alignment argument on line {}.",
+                        original_line_number
+                    )));
+                }
+                let alignment = parts[1].parse::<usize>().map_err(|_| {
+                    EmuError::InternalError(format!(
+                        "Invalid .balign alignment argument on line {}: {}",
+                        original_line_number, parts[1]
+                    ))
+                })?;
+                Ok(Data::Align(alignment))
             }
 
             _ => Err(EmuError::InternalError(format!(

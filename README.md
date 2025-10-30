@@ -122,10 +122,8 @@ Example command to run with multiple plugins:
     - Make sure ADRP, LDP, STP, LDR= [example](./examples/cheater.s) is working
     - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
-    - .byte, .single/.float, .double
-    - .balign 
+    - Test: .byte, .single/.float, .double, .balign
     - .rept and .endr
-    - .extern
 
 **Virtual File System**:
 - [ ] Test file I/O (open/read/write/lseek)

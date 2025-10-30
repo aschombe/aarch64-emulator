@@ -157,6 +157,7 @@ fn flatten_and_resolve(
                 let block_size: Word = items
                     .iter()
                     .map(|d| match d {
+                        Data::Align(usz) => *usz as Word,
                         Data::Quad(_) => 8,
                         Data::Word(_) => 4,
                         Data::Byte(_) => 1,
@@ -164,6 +165,8 @@ fn flatten_and_resolve(
                         Data::WordArr(v) => (v.len() * 4) as Word,
                         Data::IntArr(v) => (v.len() * 4) as Word,
                         Data::ByteArr(v) => v.len() as Word,
+                        Data::DoubleArr(v) => (v.len() * 8) as Word,
+                        Data::FloatArr(v) => (v.len() * 4) as Word,
                     })
                     .sum();
                 current_data_addr += block_size;

@@ -268,6 +268,7 @@ pub struct InstructionIR {
 /// Enum representing different types of data in the data section
 #[derive(Debug, Clone)]
 pub enum Data {
+    Align(usize),
     Quad(Quad),
     QuadArr(Vec<Quad>),
     Word(Wword),
@@ -275,6 +276,8 @@ pub enum Data {
     Byte(u8),
     ByteArr(Vec<u8>),
     IntArr(Vec<i32>),
+    DoubleArr(Vec<f64>),
+    FloatArr(Vec<f32>),
 }
 
 /// Enum representing the content of an assembly block, which can be either text (instructions) or
