@@ -13,60 +13,108 @@ mod tests;
 use crate::cpu::InterpretedProgram;
 use asm_types::{AssemblyBlock, AssemblyContent, Data, InstructionIR, SymbolTable};
 use parser::AsmParser;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
+
+// Holds lines per file, for TEXT section only
+#[derive(Clone)]
+pub struct FileSource {
+    pub filename: String,
+    pub lines: Vec<String>,
+}
+
+// IP maps to file/line for source rendering
+#[derive(Clone)]
+pub struct SourceMapEntry {
+    pub ip: usize,
+    pub filename: String,
+    pub line: usize,
+}
 
 /// The main entry point for assembling multiple source files.
 /// This function coordinates parsing, symbol resolution, and flattening.
 pub fn assemble_multiple_files(
     file_paths: &[String],
 ) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock>)> {
-    let mut all_ir_blocks = Vec::new();
-    let mut all_raw_lines = Vec::new();
-    let mut ir_to_line_map = Vec::new(); // Collects (IR, Line Number) tuples
+    let mut all_ir_blocks: Vec<AssemblyBlock> = Vec::new();
+    let mut all_raw_lines: Vec<String> = Vec::new();
+    let mut ir_to_line_map: Vec<(InstructionIR, usize)> = Vec::new();
     let mut all_extern_labels: HashSet<String> = HashSet::new();
 
-    // 1. Process and Merge All Files
+    // Store file sources in a Vec
+    let mut file_sources: Vec<FileSource> = Vec::new();
+    let mut file_offsets: Vec<(String, usize)> = Vec::new(); // filename, start_offset
+
     for path in file_paths {
         let raw_content = fs::read_to_string(path)
             .map_err(|e| EmuError::IoError(format!("Failed to open {}: {}", path, e)))?;
         let current_raw_lines: Vec<String> = raw_content.lines().map(|s| s.to_string()).collect();
 
-        let line_offset = all_raw_lines.len(); // Current line count before merging
+        // Save text lines for UI source panel
+        file_offsets.push((path.clone(), all_raw_lines.len()));
+        file_sources.push(FileSource {
+            filename: path.clone(),
+            lines: current_raw_lines.clone(),
+        });
 
-        // Parse the current file (returns IR blocks and temporary line map)
+        let line_offset = all_raw_lines.len();
+
         let (current_ir_blocks, current_line_map, current_extern_labels) =
             AsmParser.parse_assembly_to_ir(&current_raw_lines)?;
-
         all_extern_labels.extend(current_extern_labels);
 
-        // Merge lines for the final program structure
         all_raw_lines.extend(current_raw_lines);
 
-        // Offset and merge the IR blocks and line map
         for (ir, line_num) in current_line_map {
             ir_to_line_map.push((ir, line_num + line_offset));
         }
-
         all_ir_blocks.extend(current_ir_blocks);
     }
 
-    // 2. Resolve Symbols and Flatten (Single Pass over Merged IR)
     let (instructions, label_to_ip, label_is_addr, entry_ip, data_blocks, source_map) =
         flatten_and_resolve(&all_ir_blocks, &ir_to_line_map)?;
 
-    println!(
-        "Assembly complete. {} instructions generated.",
-        instructions.len()
-    );
+    // Map global line numbers to per-file <filename, local_line>
+    let mut file_map: Vec<(String, usize, usize)> = Vec::new();
+    for (fname, start) in &file_offsets {
+        let len = file_sources
+            .iter()
+            .find(|fs| &fs.filename == fname)
+            .unwrap()
+            .lines
+            .len();
+        file_map.push((fname.clone(), *start, len));
+    }
+    let ip_map: Vec<SourceMapEntry> = source_map
+        .iter()
+        .enumerate()
+        .map(|(ip, line_num)| {
+            let mut mapped = None;
+            for (fname, start, len) in &file_map {
+                if *line_num >= *start && *line_num < (*start + *len) {
+                    mapped = Some(SourceMapEntry {
+                        ip,
+                        filename: fname.clone(),
+                        line: *line_num - *start,
+                    });
+                    break;
+                }
+            }
+            mapped.unwrap_or(SourceMapEntry {
+                ip,
+                filename: "<unknown>".to_string(),
+                line: *line_num,
+            })
+        })
+        .collect();
 
     let program = InterpretedProgram {
         instructions,
         label_to_ip,
         label_is_addr,
         entry_ip,
-        source_map,
-        source_lines: all_raw_lines,
+        files: file_sources,
+        ip_map,
         extern_labels: all_extern_labels,
     };
 

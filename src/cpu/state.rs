@@ -4,6 +4,7 @@
 use crate::assembler::asm_types::{
     Condition, Immediate, InstructionIR, Offset, OpCode, Operand, SymbolTable,
 };
+use crate::assembler::{FileSource, SourceMapEntry};
 use crate::cpu::alu;
 use crate::memory::Memory;
 use crate::plugin::PluginManager;
@@ -19,9 +20,12 @@ pub struct InterpretedProgram {
     pub label_to_ip: SymbolTable,
     pub label_is_addr: std::collections::HashMap<String, bool>,
     pub entry_ip: usize,
-    pub source_map: Vec<usize>,
-    pub source_lines: Vec<String>,
+    // pub source_map: Vec<usize>,
+    // pub source_lines: Vec<String>,
     pub extern_labels: std::collections::HashSet<String>,
+
+    pub files: Vec<FileSource>,
+    pub ip_map: Vec<SourceMapEntry>,
 }
 
 #[derive(Clone)]

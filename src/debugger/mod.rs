@@ -40,7 +40,7 @@ pub struct DebuggerState {
     pub breakpoints: HashSet<usize>,
     pub last_command: LastCommand,
     pub last_executed_insn: Option<InstructionIR>,
-    pub memory_diff_history: Vec<MemoryDiffEntry>, // NEW
+    pub memory_diff_history: Vec<MemoryDiffEntry>,
 }
 
 impl DebuggerState {
@@ -166,26 +166,48 @@ impl DebuggerUIState {
 }
 
 fn render_source<'a>(cpu: &'a CpuState, dbg: &'a DebuggerState) -> Vec<ListItem<'a>> {
-    let src = &cpu.program.source_lines;
-    let map = &cpu.program.source_map;
     let ip = *cpu.ip.borrow();
-    src.iter()
-        .enumerate()
-        .map(|(i, line)| {
-            let num = i + 1;
-            let bp = if dbg.breakpoints.contains(&num) {
-                "B "
-            } else {
-                "  "
-            };
-            let ptr = if map.get(ip) == Some(&num) {
-                "> "
-            } else {
-                "  "
-            };
-            ListItem::new(format!("{bp}{ptr}{num:4} {line}"))
-        })
-        .collect()
+    let src_context = cpu.program.ip_map.get(ip);
+
+    if let Some(entry) = src_context {
+        let file = cpu
+            .program
+            .files
+            .iter()
+            .find(|f| f.filename == entry.filename);
+        if let Some(filesource) = file {
+            let total_lines = filesource.lines.len();
+            // Always highlight only the line for the IP-mapped instruction
+            let highlight_line = entry.line.saturating_sub(1); // entry.line is 1-based
+
+            // Clamp the view around the highlight line for a nice window
+            let win = 5_usize;
+            let start = highlight_line.saturating_sub(win);
+            let end = (highlight_line + win + 1).min(total_lines);
+
+            (start..end)
+                .map(|abs_index| {
+                    let display_line = abs_index + 1;
+                    let bp = if dbg.breakpoints.contains(&display_line) {
+                        "B "
+                    } else {
+                        "  "
+                    };
+                    let ptr = if abs_index == highlight_line {
+                        "> "
+                    } else {
+                        "  "
+                    };
+                    let line_text = &filesource.lines[abs_index];
+                    ListItem::new(format!("{bp}{ptr}{display_line:4} {line_text}"))
+                })
+                .collect()
+        } else {
+            vec![ListItem::new("(file not found for IP)")]
+        }
+    } else {
+        vec![ListItem::new("(no source mapping for IP)")]
+    }
 }
 
 fn render_registers<'a>(cpu: &'a CpuState) -> Vec<Span<'a>> {
@@ -596,9 +618,10 @@ pub fn run_debugger(cpu: &mut CpuState) -> EmuResult<()> {
                                     let current_ip = *cpu.ip.borrow();
                                     let line_number = cpu
                                         .program
-                                        .source_map
-                                        .get(current_ip)
-                                        .copied()
+                                        .ip_map
+                                        .iter()
+                                        .find(|entry| entry.ip == current_ip)
+                                        .map(|entry| entry.line)
                                         .unwrap_or(0); // fallback if unmapped
                                     dbg.memory_diff_history.push(MemoryDiffEntry {
                                         line_number,
@@ -643,16 +666,28 @@ pub fn run_debugger(cpu: &mut CpuState) -> EmuResult<()> {
                         }
                         KeyCode::Tab => ui.toggle_focus(hist.len(), memdiff.len(), false),
                         KeyCode::BackTab => ui.toggle_focus(hist.len(), memdiff.len(), true),
-                        KeyCode::Up => ui.scroll_up((
-                            cpu.program.source_lines.len(),
-                            hist.len(),
-                            memdiff.len(),
-                        )),
-                        KeyCode::Down => ui.scroll_down((
-                            cpu.program.source_lines.len(),
-                            hist.len(),
-                            memdiff.len(),
-                        )),
+                        KeyCode::Up | KeyCode::Down => {
+                            // Get current file's source line count (or fallback to 0)
+                            let current_ip = *cpu.ip.borrow();
+                            let source_len = cpu
+                                .program
+                                .ip_map
+                                .iter()
+                                .find(|entry| entry.ip == current_ip)
+                                .and_then(|entry| {
+                                    cpu.program
+                                        .files
+                                        .iter()
+                                        .find(|f| f.filename == entry.filename)
+                                        .map(|fs| fs.lines.len())
+                                })
+                                .unwrap_or(0);
+                            if k.code == KeyCode::Up {
+                                ui.scroll_up((source_len, hist.len(), memdiff.len()));
+                            } else {
+                                ui.scroll_down((source_len, hist.len(), memdiff.len()));
+                            }
+                        }
                         _ => {}
                     }
                 }
