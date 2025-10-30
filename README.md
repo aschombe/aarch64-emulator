@@ -114,7 +114,6 @@ Example command to run with multiple plugins:
 ## TODO
 
 **Architecture**:
-- [ ] NAME MANGLING!!!!
 - [ ] SIMD/FP support
 - [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
 
@@ -124,7 +123,6 @@ Example command to run with multiple plugins:
     - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
     - .byte, .single/.float, .double
-    - .fill
     - .balign 
     - .rept and .endr
     - .extern

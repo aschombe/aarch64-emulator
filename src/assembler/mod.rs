@@ -13,8 +13,6 @@ mod tests;
 use crate::cpu::InterpretedProgram;
 use asm_types::{AssemblyBlock, AssemblyContent, Data, InstructionIR, SymbolTable};
 use parser::AsmParser;
-use std::collections::{HashMap, HashSet};
-use std::fs;
 
 // Holds lines per file, for TEXT section only
 #[derive(Clone)]
@@ -36,100 +34,69 @@ pub struct SourceMapEntry {
 pub fn assemble_multiple_files(
     file_paths: &[String],
 ) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock>)> {
-    let mut all_ir_blocks: Vec<AssemblyBlock> = Vec::new();
-    let mut all_raw_lines: Vec<String> = Vec::new();
-    let mut ir_to_line_map: Vec<(InstructionIR, usize)> = Vec::new();
-    let mut all_extern_labels: HashSet<String> = HashSet::new();
+    use std::collections::HashSet;
+    use std::fs;
 
-    // Store file sources in a Vec
-    let mut file_sources: Vec<FileSource> = Vec::new();
-    let mut file_offsets: Vec<(String, usize)> = Vec::new(); // filename, start_offset
-
+    // --- Pass 1: collect all .global labels across all files ---
+    let mut global_labels: HashSet<String> = HashSet::new();
+    let mut file_sources: Vec<(String, Vec<String>)> = Vec::new();
     for path in file_paths {
         let raw_content = fs::read_to_string(path)
             .map_err(|e| EmuError::IoError(format!("Failed to open {}: {}", path, e)))?;
-        let current_raw_lines: Vec<String> = raw_content.lines().map(|s| s.to_string()).collect();
-
-        // Save text lines for UI source panel
-        file_offsets.push((path.clone(), all_raw_lines.len()));
-        file_sources.push(FileSource {
-            filename: path.clone(),
-            lines: current_raw_lines.clone(),
-        });
-
-        let line_offset = all_raw_lines.len();
-
-        let (current_ir_blocks, current_line_map, current_extern_labels) =
-            AsmParser.parse_assembly_to_ir(&current_raw_lines)?;
-        all_extern_labels.extend(current_extern_labels);
-
-        all_raw_lines.extend(current_raw_lines);
-
-        for (ir, line_num) in current_line_map {
-            ir_to_line_map.push((ir, line_num + line_offset));
-        }
-        all_ir_blocks.extend(current_ir_blocks);
-    }
-
-    let (instructions, label_to_ip, label_is_addr, entry_ip, data_blocks, source_map) =
-        flatten_and_resolve(&all_ir_blocks, &ir_to_line_map)?;
-
-    // Map global line numbers to per-file <filename, local_line>
-    let mut file_map: Vec<(String, usize, usize)> = Vec::new();
-    for (fname, start) in &file_offsets {
-        let len = file_sources
-            .iter()
-            .find(|fs| &fs.filename == fname)
-            .unwrap()
-            .lines
-            .len();
-        file_map.push((fname.clone(), *start, len));
-    }
-    let ip_map: Vec<SourceMapEntry> = source_map
-        .iter()
-        .enumerate()
-        .map(|(ip, line_num)| {
-            let mut mapped = None;
-            for (fname, start, len) in &file_map {
-                if *line_num >= *start && *line_num < (*start + *len) {
-                    mapped = Some(SourceMapEntry {
-                        ip,
-                        filename: fname.clone(),
-                        line: *line_num - *start,
-                    });
-                    break;
+        let lines: Vec<String> = raw_content.lines().map(|s| s.to_string()).collect();
+        for line in &lines {
+            let line_content = line.trim();
+            if line_content.starts_with(".global") {
+                if let Some(label) = line_content.split_whitespace().nth(1) {
+                    global_labels.insert(label.to_string());
                 }
             }
-            mapped.unwrap_or(SourceMapEntry {
-                ip,
-                filename: "<unknown>".to_string(),
-                line: *line_num,
-            })
-        })
-        .collect();
+        }
+        file_sources.push((path.clone(), lines));
+    }
+
+    let mut all_ir_blocks = Vec::new();
+    let mut ir_to_line_map = Vec::new();
+    let mut files = Vec::new();
+    let mut all_extern_labels: HashSet<String> = HashSet::new();
+
+    // --- Pass 2: parse IR with access to all globals ---
+    for (path, lines) in &file_sources {
+        let (ir_blocks, line_map, extern_labels) =
+            AsmParser.parse_assembly_to_ir(lines, path, &global_labels)?;
+        all_ir_blocks.extend(ir_blocks);
+        ir_to_line_map.extend(line_map);
+        all_extern_labels.extend(extern_labels);
+        files.push(FileSource {
+            filename: path.clone(),
+            lines: lines.clone(),
+        });
+    }
+
+    // Now use the same flatten logic as before
+    let (instructions, label_to_ip, label_is_addr, entry_ip, data_blocks, source_map) =
+        flatten_and_resolve(&all_ir_blocks, &ir_to_line_map)?;
 
     let program = InterpretedProgram {
         instructions,
         label_to_ip,
         label_is_addr,
         entry_ip,
-        files: file_sources,
-        ip_map,
+        files,
+        ip_map: source_map
+            .iter()
+            .enumerate()
+            .map(|(ip, line_num)| SourceMapEntry {
+                ip,
+                filename: String::new(),
+                line: *line_num,
+            })
+            .collect(),
         extern_labels: all_extern_labels,
     };
 
     Ok((program, data_blocks))
 }
-
-/// Returns the size in bytes of a given data item.
-// fn get_data_size(data_item: &Data) -> Word {
-//     match data_item {
-//         Data::Quad(_) => 8,
-//         Data::Word(_) => 4,
-//         Data::Byte(_) => 1,
-//         _ => 0,
-//     }
-// }
 
 /// Flattens blocks, calculates Instruction Pointer (IP) indices, and extracts source map data.
 fn flatten_and_resolve(
@@ -138,7 +105,7 @@ fn flatten_and_resolve(
 ) -> EmuResult<(
     Vec<InstructionIR>,
     SymbolTable,
-    std::collections::HashMap<String, bool>, // HYBRID: map label to 'is_addr'
+    std::collections::HashMap<String, bool>,
     usize,
     Vec<AssemblyBlock>,
     Vec<usize>,
@@ -155,7 +122,7 @@ fn flatten_and_resolve(
     let mut instructions = Vec::new();
     let mut data_blocks = Vec::new();
     let mut label_to_ip = SymbolTable::new();
-    let mut label_is_addr = std::collections::HashMap::new(); // HYBRID: extra map
+    let mut label_is_addr = std::collections::HashMap::new();
     let mut ip_to_line_map = Vec::new();
 
     let mut current_ip = 0usize;
@@ -174,7 +141,7 @@ fn flatten_and_resolve(
             // TEXT SECTION: code label, not address
             AssemblyContent::Text(instrs) => {
                 label_to_ip.insert(block.label.clone(), current_ip as Word);
-                label_is_addr.insert(block.label.clone(), false); // HYBRID
+                label_is_addr.insert(block.label.clone(), false);
                 if block.label == "_start" {
                     entry_ip = current_ip;
                 } else if block._is_entry && entry_ip == 0 {
@@ -186,7 +153,7 @@ fn flatten_and_resolve(
             // DATA SECTION: address
             AssemblyContent::Data(items) => {
                 label_to_ip.insert(block.label.clone(), current_data_addr);
-                label_is_addr.insert(block.label.clone(), true); // HYBRID
+                label_is_addr.insert(block.label.clone(), true);
                 let block_size: Word = items
                     .iter()
                     .map(|d| match d {
@@ -206,7 +173,7 @@ fn flatten_and_resolve(
             // BSS SECTION: address
             AssemblyContent::Bss(size) => {
                 label_to_ip.insert(block.label.clone(), current_data_addr);
-                label_is_addr.insert(block.label.clone(), true); // HYBRID
+                label_is_addr.insert(block.label.clone(), true);
                 current_data_addr += *size;
             }
         }
@@ -232,7 +199,7 @@ fn flatten_and_resolve(
     Ok((
         instructions,
         label_to_ip,
-        label_is_addr, // HYBRID
+        label_is_addr,
         entry_ip,
         data_blocks,
         ip_to_line_map,
