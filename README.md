@@ -117,6 +117,7 @@ Example command to run with multiple plugins:
 - [ ] SIMD/FP support
 - [ ] SME and SVE support?
 - [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
+- [ ] Check out https://thinkingeek.com/categories/aarch64/
 
 **Instructions**:
 - [ ] Add more AArch64 instruction support
