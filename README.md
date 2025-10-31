@@ -115,6 +115,7 @@ Example command to run with multiple plugins:
 
 **Architecture**:
 - [ ] SIMD/FP support
+- [ ] SME and SVE support?
 - [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
 
 **Instructions**:
