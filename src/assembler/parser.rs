@@ -771,7 +771,7 @@ impl AsmParser {
                 } else if line_content.starts_with(".bss") {
                     current_section = "bss";
                 }
-                if line_content.starts_with(".global") {
+                if line_content.starts_with(".global") || line_content.starts_with(".globl") {
                     let _label = line_content
                         .split_whitespace()
                         .nth(1)

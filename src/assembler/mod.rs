@@ -46,7 +46,7 @@ pub fn assemble_multiple_files(
         let lines: Vec<String> = raw_content.lines().map(|s| s.to_string()).collect();
         for line in &lines {
             let line_content = line.trim();
-            if line_content.starts_with(".global") {
+            if line_content.starts_with(".global") || line_content.starts_with(".globl") {
                 if let Some(label) = line_content.split_whitespace().nth(1) {
                     global_labels.insert(label.to_string());
                 }
