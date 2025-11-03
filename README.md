@@ -123,7 +123,6 @@ Example command to run with multiple plugins:
 - [ ] Add more AArch64 instruction support
     - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
-    - Test: .byte, .single/.float, .double, .balign
     - .rept and .endr
 
 **Virtual File System**:
