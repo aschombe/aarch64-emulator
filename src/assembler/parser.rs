@@ -501,6 +501,40 @@ impl AsmParser {
         }
     }
 
+    fn preprocess_rept_blocks(lines: &[String]) -> Vec<String> {
+        let mut output = Vec::new();
+        let mut i = 0;
+        while i < lines.len() {
+            let line = lines[i].trim();
+            if line.starts_with(".rept") {
+                // Parse N
+                let n: usize = line
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(1);
+                // Collect block lines
+                let mut block = Vec::new();
+                i += 1;
+                while i < lines.len() && !lines[i].trim().starts_with(".endr") {
+                    block.push(lines[i].clone());
+                    i += 1;
+                }
+                // Repeat block N times
+                for _ in 0..n {
+                    output.extend(block.iter().cloned());
+                }
+                // skip the ".endr" line
+                i += 1;
+                continue;
+            } else {
+                output.push(lines[i].clone());
+                i += 1;
+            }
+        }
+        output
+    }
+
     /// Parses data definition directives (.quad, .string, .ascii, .asciiz, .skip, .int, etc.)
     fn parse_data_definition(
         &self,
@@ -522,24 +556,26 @@ impl AsmParser {
         match directive.as_str() {
             ".byte" => {
                 let values_str = parts[1..].join(" ");
+
                 let values: Result<Vec<u8>, _> = values_str
                     .split(',')
                     .filter(|s| !s.trim().is_empty())
                     .map(|s| {
-                        AsmParser::eval_literal_expr(s.trim(), location_counter, label_map)
-                            .and_then(|n| {
-                                u8::try_from(n).map_err(|_| {
-                                    EmuError::InternalError(format!(
-                                        "Invalid .byte value (out of range) on line {}: {}",
-                                        original_line_number, s
-                                    ))
-                                })
-                            })
+                        let s = s.trim();
+                        if s.starts_with("0x") || s.starts_with("0X") {
+                            u8::from_str_radix(&s[2..], 16)
+                        } else {
+                            s.parse::<u8>()
+                        }
                     })
                     .collect();
+
                 match values {
                     Ok(v) => Ok(Data::ByteArr(v)),
-                    Err(e) => Err(e),
+                    Err(_) => Err(EmuError::InternalError(format!(
+                        "Invalid .byte values on line {}: {}",
+                        original_line_number, line_content
+                    ))),
                 }
             }
 
@@ -626,24 +662,26 @@ impl AsmParser {
 
             ".word" | ".int" => {
                 let values_str = parts[1..].join(" ");
-                let values: Result<Vec<i32>, _> =
-                    values_str
-                        .split(',')
-                        .filter(|s| !s.is_empty())
-                        .map(|s| {
-                            AsmParser::eval_literal_expr(s.trim(), location_counter, label_map)
-                                .and_then(|n| {
-                                    i32::try_from(n).map_err(|_| EmuError::InternalError(format!(
-                        "Invalid .word/.int value (out of range) on line {}: {}",
-                        original_line_number, s
-                    )))
-                                })
-                        })
-                        .collect();
+
+                let values: Result<Vec<i32>, _> = values_str
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(|s| {
+                        let s = s.trim();
+                        if s.starts_with("0x") || s.starts_with("0X") {
+                            i32::from_str_radix(&s[2..], 16)
+                        } else {
+                            s.parse::<i32>()
+                        }
+                    })
+                    .collect();
 
                 match values {
                     Ok(v) => Ok(Data::IntArr(v)),
-                    Err(e) => Err(e),
+                    Err(_) => Err(EmuError::InternalError(format!(
+                        "Invalid .word/.int values on line {}: {}",
+                        original_line_number, line_content
+                    ))),
                 }
             }
 
@@ -807,14 +845,16 @@ impl AsmParser {
         Vec<(InstructionIR, usize)>,
         HashSet<String>,
     )> {
-        let cleaned_source_lines = clean_source_code(lines);
+        let preprocessed_lines = AsmParser::preprocess_rept_blocks(lines);
+
+        let cleaned_source_lines = clean_source_code(&preprocessed_lines);
         let mut blocks = Vec::new();
         let mut current_block = AssemblyBlock {
             label: "".to_string(),
             _is_entry: false,
             content: AssemblyContent::Text(Vec::new()),
         };
-        let mut current_section = "text"; // DEFAULT STARTS AS .text, not "none"
+        let mut current_section = "text"; // DEFAULT STARTS AS .text
         let mut global_entry_flag = false;
         let mut instruction_line_map = Vec::new();
         let mut extern_labels: HashSet<String> = HashSet::new();
@@ -915,37 +955,33 @@ impl AsmParser {
                             }
                         }
                         AssemblyContent::Data(data_defs) => {
-                            let parts: Vec<&str> = rest_of_line.split_whitespace().collect();
+                            let parts: Vec<&str> = line_content.split_whitespace().collect();
                             if parts.len() < 2 {
-                                return Err(EmuError::InternalError(format!(
-                                    "Data definition incomplete on line {}.",
-                                    original_line_number
-                                )));
+                                continue; // ignore invalid/incomplete line
                             }
                             match AsmParser::parse_data_definition(
                                 self,
-                                rest_of_line,
+                                line_content,
                                 original_line_number,
                                 data_location_counter,
                                 &data_label_map,
                             ) {
                                 Ok(data) => {
                                     let data_size = match &data {
-                                        Data::Quad(_) => 8,
-                                        Data::Word(_) => 4,
-                                        Data::Byte(_) => 1,
-                                        Data::WordArr(v) => v.len() * 4,
+                                        Data::QuadArr(v) => v.len() * 8,
+                                        Data::IntArr(v) => v.len() * 4,
                                         Data::ByteArr(v) => v.len(),
                                         Data::FloatArr(v) => v.len() * 4,
                                         Data::DoubleArr(v) => v.len() * 8,
-                                        Data::QuadArr(v) => v.len() * 8,
-                                        Data::IntArr(v) => v.len() * 4,
                                         Data::Align(a) => *a,
+                                        _ => 0,
                                     };
                                     data_location_counter += data_size;
                                     data_defs.push(data);
                                 }
-                                Err(e) => return Err(e),
+                                Err(e) => {
+                                    return Err(e);
+                                }
                             }
                         }
                         AssemblyContent::Bss(size) => {
