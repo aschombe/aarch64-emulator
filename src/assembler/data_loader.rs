@@ -73,6 +73,24 @@ pub fn load_data_into_cpu(cpu: &mut CpuState, data_blocks: &[AssemblyBlock]) -> 
                                 .write_bytes(base_addr + offset, &[*b])?;
                             offset += 1;
                         }
+                        Data::FloatArr(vals) => {
+                            for v in vals {
+                                let val = v.to_le_bytes();
+                                cpu.memory
+                                    .borrow_mut()
+                                    .write_bytes(base_addr + offset, &val)?;
+                                offset += 4;
+                            }
+                        }
+                        Data::DoubleArr(vals) => {
+                            for v in vals {
+                                let val = v.to_le_bytes();
+                                cpu.memory
+                                    .borrow_mut()
+                                    .write_bytes(base_addr + offset, &val)?;
+                                offset += 8;
+                            }
+                        }
                         _ => {}
                     }
                 }
