@@ -6,7 +6,7 @@ use crate::assembler::asm_types::{
     Operand, Reg,
 };
 use crate::types::{EmuError, EmuResult, Word};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Mangle local labels with filename prefix, but keep global labels unmangled
 fn mangle_label(label: &str, filename: &str, is_global: bool) -> String {
@@ -112,6 +112,7 @@ fn is_numeric(s: &str) -> bool {
         || s.starts_with("0x")
         || s.starts_with("0b")
         || s.starts_with("0o")
+        || (s.starts_with('\'') && s.ends_with('\'') && s.len() == 3)
 }
 
 fn is_label(s: &str) -> bool {
@@ -179,7 +180,17 @@ impl AsmParser {
                 )));
             }
         }
+
         let clean_token = token.trim_start_matches(|c| c == '#' || c == '=').trim();
+
+        // Match char literal as either 'A' or #'A'
+        if (clean_token.starts_with('\'') && clean_token.ends_with('\'')) && clean_token.len() == 3
+        {
+            let ch = clean_token.chars().nth(1).unwrap();
+            return Ok(Immediate::Lit(ch as i64));
+        }
+
+        // Numeric
         if is_numeric(clean_token) {
             let val = if clean_token.starts_with("0x") || clean_token.starts_with("0X") {
                 i64::from_str_radix(&clean_token[2..], 16)
@@ -453,11 +464,50 @@ impl AsmParser {
         Ok(bytes)
     }
 
+    fn eval_literal_expr(
+        expr: &str,
+        location_counter: usize,
+        label_map: &HashMap<String, usize>,
+    ) -> EmuResult<i64> {
+        let expr = expr.trim();
+
+        // Simple . - label expressions:
+        if let Some(rest) = expr.strip_prefix(". - ") {
+            let label = rest.trim();
+            if let Some(&label_offset) = label_map.get(label) {
+                return Ok(location_counter as i64 - label_offset as i64);
+            } else {
+                return Err(EmuError::InternalError(format!(
+                    "Unknown label in . - label: {}",
+                    label
+                )));
+            }
+        }
+
+        // Literal '.'
+        if expr == "." {
+            return Ok(location_counter as i64);
+        }
+
+        // Fallback: regular integer parse
+        if expr.starts_with("0x") || expr.starts_with("0X") {
+            i64::from_str_radix(&expr[2..], 16).map_err(|_| {
+                EmuError::InternalError(format!("Invalid hex literal expression: {}", expr))
+            })
+        } else {
+            expr.parse::<i64>().map_err(|_| {
+                EmuError::InternalError(format!("Invalid literal expression: {}", expr))
+            })
+        }
+    }
+
     /// Parses data definition directives (.quad, .string, .ascii, .asciiz, .skip, .int, etc.)
     fn parse_data_definition(
         &self,
         line_content: &str,
         original_line_number: usize,
+        location_counter: usize,
+        label_map: &std::collections::HashMap<String, usize>,
     ) -> EmuResult<Data> {
         let parts: Vec<&str> = line_content.split_whitespace().collect();
         let directive = parts[0].to_lowercase();
@@ -475,14 +525,21 @@ impl AsmParser {
                 let values: Result<Vec<u8>, _> = values_str
                     .split(',')
                     .filter(|s| !s.trim().is_empty())
-                    .map(|s| s.trim().parse::<u8>())
+                    .map(|s| {
+                        AsmParser::eval_literal_expr(s.trim(), location_counter, label_map)
+                            .and_then(|n| {
+                                u8::try_from(n).map_err(|_| {
+                                    EmuError::InternalError(format!(
+                                        "Invalid .byte value (out of range) on line {}: {}",
+                                        original_line_number, s
+                                    ))
+                                })
+                            })
+                    })
                     .collect();
                 match values {
                     Ok(v) => Ok(Data::ByteArr(v)),
-                    Err(_) => Err(EmuError::InternalError(format!(
-                        "Invalid .byte values on line {}: {}",
-                        original_line_number, line_content
-                    ))),
+                    Err(e) => Err(e),
                 }
             }
 
@@ -519,45 +576,27 @@ impl AsmParser {
             }
 
             ".quad" | ".dword" => {
-                // Get the string containing all values after the directive, preserving spaces between values
                 let values_str = parts[1..].join(" ");
-
-                // Split by comma, aggressively trimming each resulting value.
                 let values: Result<Vec<i64>, _> = values_str
                     .split(',')
                     .filter(|s| !s.trim().is_empty())
-                    .map(|s| {
-                        let trimmed = s.trim();
-
-                        if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
-                            // Parse as hexadecimal (base 16) after stripping the "0x" prefix
-                            i64::from_str_radix(&trimmed[2..], 16)
-                        } else {
-                            // Parse as decimal (base 10)
-                            trimmed.parse::<i64>()
-                        }
-                    })
+                    .map(|s| AsmParser::eval_literal_expr(s.trim(), location_counter, label_map))
                     .collect();
 
                 match values {
                     Ok(v) => Ok(Data::QuadArr(v)),
-                    Err(_) => Err(EmuError::InternalError(format!(
-                        "Invalid .quad values on line {}: {}",
-                        original_line_number, line_content
-                    ))),
+                    Err(e) => Err(e),
                 }
             }
 
-            // Handle string directives (.string, .asciiz) by extracting the literal substring starting at first quote
             ".string" | ".ascii" | ".asciiz" | ".asciz" => {
-                // Find index of first quote to get exact literal including spaces
                 let quote_pos = line_content.find('"').ok_or_else(|| {
                     EmuError::InternalError(format!(
                         "Missing opening quote on line {}",
                         original_line_number
                     ))
                 })?;
-                let literal = &line_content[quote_pos..]; // from first quote to end
+                let literal = &line_content[quote_pos..];
 
                 let mut bytes = self.parse_string_literal(literal)?;
                 if directive == ".asciiz" || directive == ".asciz" || directive == ".string" {
@@ -573,54 +612,62 @@ impl AsmParser {
                         original_line_number
                     )));
                 }
-                // Parse size and optional fill byte (default 0)
-                let size = parts[1].parse::<usize>().map_err(|_| {
-                    EmuError::InternalError(format!(
-                        "Invalid .skip size argument on line {}: {}",
-                        original_line_number, parts[1]
-                    ))
-                })?;
-
-                // For now, just zero-fill the skip space as a byte array
+                let size = AsmParser::eval_literal_expr(parts[1], location_counter, label_map)
+                    .and_then(|n| {
+                        usize::try_from(n).map_err(|_| {
+                            EmuError::InternalError(format!(
+                                "Invalid .skip size argument on line {}: {}",
+                                original_line_number, parts[1]
+                            ))
+                        })
+                    })?;
                 Ok(Data::ByteArr(vec![0u8; size]))
             }
 
             ".word" | ".int" => {
                 let values_str = parts[1..].join(" ");
-                let values: Result<Vec<i32>, _> = values_str
-                    .split(',')
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.trim().parse::<i32>())
-                    .collect();
+                let values: Result<Vec<i32>, _> =
+                    values_str
+                        .split(',')
+                        .filter(|s| !s.is_empty())
+                        .map(|s| {
+                            AsmParser::eval_literal_expr(s.trim(), location_counter, label_map)
+                                .and_then(|n| {
+                                    i32::try_from(n).map_err(|_| EmuError::InternalError(format!(
+                        "Invalid .word/.int value (out of range) on line {}: {}",
+                        original_line_number, s
+                    )))
+                                })
+                        })
+                        .collect();
+
                 match values {
                     Ok(v) => Ok(Data::IntArr(v)),
-                    Err(_) => Err(EmuError::InternalError(format!(
-                        "Invalid .word/.int values on line {}: {}",
-                        original_line_number, line_content
-                    ))),
+                    Err(e) => Err(e),
                 }
             }
 
             ".fill" => {
-                // .fill <repeat>, <size>, <value>
                 let fill_args_line = parts[1..].join(" ");
                 let fill_args: Vec<&str> = fill_args_line.split(',').map(str::trim).collect();
 
                 let repeat = fill_args
                     .get(0)
-                    .and_then(|x| x.parse::<usize>().ok())
-                    .unwrap_or(0);
+                    .map(|x| AsmParser::eval_literal_expr(x, location_counter, label_map))
+                    .transpose()?
+                    .unwrap_or(0) as usize;
                 let size = fill_args
                     .get(1)
-                    .and_then(|x| x.parse::<usize>().ok())
-                    .unwrap_or(1);
+                    .map(|x| AsmParser::eval_literal_expr(x, location_counter, label_map))
+                    .transpose()?
+                    .unwrap_or(1) as usize;
                 let value = fill_args
                     .get(2)
-                    .and_then(|x| x.parse::<u8>().ok())
-                    .unwrap_or(0);
+                    .map(|x| AsmParser::eval_literal_expr(x, location_counter, label_map))
+                    .transpose()?
+                    .unwrap_or(0) as u8;
 
                 let total_bytes = repeat * size;
-                // Fill the array
                 let mut arr = Vec::with_capacity(total_bytes);
                 for _ in 0..repeat {
                     for _ in 0..size {
@@ -637,12 +684,15 @@ impl AsmParser {
                         original_line_number
                     )));
                 }
-                let size = parts[1].parse::<usize>().map_err(|_| {
-                    EmuError::InternalError(format!(
-                        "Invalid .space size argument on line {}: {}",
-                        original_line_number, parts[1]
-                    ))
-                })?;
+                let size = AsmParser::eval_literal_expr(parts[1], location_counter, label_map)
+                    .and_then(|n| {
+                        usize::try_from(n).map_err(|_| {
+                            EmuError::InternalError(format!(
+                                "Invalid .space size argument on line {}: {}",
+                                original_line_number, parts[1]
+                            ))
+                        })
+                    })?;
                 Ok(Data::ByteArr(vec![0u8; size]))
             }
 
@@ -653,12 +703,15 @@ impl AsmParser {
                         original_line_number
                     )));
                 }
-                let alignment = parts[1].parse::<usize>().map_err(|_| {
-                    EmuError::InternalError(format!(
-                        "Invalid .balign alignment argument on line {}: {}",
-                        original_line_number, parts[1]
-                    ))
-                })?;
+                let alignment = AsmParser::eval_literal_expr(parts[1], location_counter, label_map)
+                    .and_then(|n| {
+                        usize::try_from(n).map_err(|_| {
+                            EmuError::InternalError(format!(
+                                "Invalid .balign alignment argument on line {}: {}",
+                                original_line_number, parts[1]
+                            ))
+                        })
+                    })?;
                 Ok(Data::Align(alignment))
             }
 
@@ -766,6 +819,11 @@ impl AsmParser {
         let mut instruction_line_map = Vec::new();
         let mut extern_labels: HashSet<String> = HashSet::new();
 
+        // -- Data directives autocalculation context --
+        let mut data_location_counter: usize = 0;
+        let mut data_label_map: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+
         for (i, line) in cleaned_source_lines.iter().enumerate() {
             let original_line_number = i + 1;
             let line_content = line.trim();
@@ -779,6 +837,9 @@ impl AsmParser {
                 }
                 if line_content.starts_with(".data") {
                     current_section = "data";
+                    // Reset section context for .data
+                    data_location_counter = 0;
+                    data_label_map.clear();
                 } else if line_content.starts_with(".text") {
                     current_section = "text";
                 } else if line_content.starts_with(".bss") {
@@ -809,7 +870,12 @@ impl AsmParser {
                 current_block = AssemblyBlock {
                     label: format!(".section_{}", current_section),
                     _is_entry: global_entry_flag,
-                    content: AssemblyContent::Text(Vec::new()),
+                    content: match current_section {
+                        "text" => AssemblyContent::Text(Vec::new()),
+                        "data" => AssemblyContent::Data(Vec::new()),
+                        "bss" => AssemblyContent::Bss(0),
+                        _ => AssemblyContent::Text(Vec::new()),
+                    },
                 };
                 continue;
             }
@@ -823,6 +889,10 @@ impl AsmParser {
                 let label = mangle_label(&raw_label, filename, is_global);
                 let rest_of_line = parts.get(1).map(|s| s.trim()).unwrap_or("");
                 let is_entry_flag_for_new_block = global_entry_flag || raw_label == "_start";
+                // -- record .data label offsets --
+                if current_section == "data" {
+                    data_label_map.insert(raw_label.clone(), data_location_counter);
+                }
                 current_block = AssemblyBlock {
                     label: label.clone(),
                     _is_entry: is_entry_flag_for_new_block,
@@ -830,10 +900,7 @@ impl AsmParser {
                         "text" => AssemblyContent::Text(Vec::new()),
                         "data" => AssemblyContent::Data(Vec::new()),
                         "bss" => AssemblyContent::Bss(0),
-                        _ => {
-                            // Safest fallback: treat as .text
-                            AssemblyContent::Text(Vec::new())
-                        }
+                        _ => AssemblyContent::Text(Vec::new()),
                     },
                 };
                 if !rest_of_line.is_empty() {
@@ -855,8 +922,29 @@ impl AsmParser {
                                     original_line_number
                                 )));
                             }
-                            match self.parse_data_definition(rest_of_line, original_line_number) {
-                                Ok(data) => data_defs.push(data),
+                            match AsmParser::parse_data_definition(
+                                self,
+                                rest_of_line,
+                                original_line_number,
+                                data_location_counter,
+                                &data_label_map,
+                            ) {
+                                Ok(data) => {
+                                    let data_size = match &data {
+                                        Data::Quad(_) => 8,
+                                        Data::Word(_) => 4,
+                                        Data::Byte(_) => 1,
+                                        Data::WordArr(v) => v.len() * 4,
+                                        Data::ByteArr(v) => v.len(),
+                                        Data::FloatArr(v) => v.len() * 4,
+                                        Data::DoubleArr(v) => v.len() * 8,
+                                        Data::QuadArr(v) => v.len() * 8,
+                                        Data::IntArr(v) => v.len() * 4,
+                                        Data::Align(a) => *a,
+                                    };
+                                    data_location_counter += data_size;
+                                    data_defs.push(data);
+                                }
                                 Err(e) => return Err(e),
                             }
                         }
@@ -902,8 +990,29 @@ impl AsmParser {
                             original_line_number
                         )));
                     }
-                    match self.parse_data_definition(line_content, original_line_number) {
-                        Ok(data) => data_defs.push(data),
+                    match AsmParser::parse_data_definition(
+                        self,
+                        line_content,
+                        original_line_number,
+                        data_location_counter,
+                        &data_label_map,
+                    ) {
+                        Ok(data) => {
+                            let data_size = match &data {
+                                Data::Quad(_) => 8,
+                                Data::Word(_) => 4,
+                                Data::Byte(_) => 1,
+                                Data::WordArr(v) => v.len() * 4,
+                                Data::ByteArr(v) => v.len(),
+                                Data::FloatArr(v) => v.len() * 4,
+                                Data::DoubleArr(v) => v.len() * 8,
+                                Data::QuadArr(v) => v.len() * 8,
+                                Data::IntArr(v) => v.len() * 4,
+                                Data::Align(a) => *a,
+                            };
+                            data_location_counter += data_size;
+                            data_defs.push(data);
+                        }
                         Err(e) => return Err(e),
                     }
                 }

@@ -121,10 +121,7 @@ Example command to run with multiple plugins:
 
 **Instructions**:
 - [ ] Add more AArch64 instruction support
-    - Make sure ADRP [example](./examples/cheater.s) is working
     - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
-    - Allow character literals in instructions (e.g., MOV X0, #'A')
-    - Allow the use of # before 'char' literals (e.g., #'0' for ASCII value)
 - [ ] Add directives:
     - Test: .byte, .single/.float, .double, .balign
     - .rept and .endr

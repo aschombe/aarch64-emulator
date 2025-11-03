@@ -7,10 +7,9 @@ use std::fs;
 use std::sync::atomic::Ordering;
 
 use super::Plugin;
-use super::lua_api::{LuaCpuSnapshot, create_snapshot, initialize_lua_environment};
-use crate::memory;
-use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED, Word};
-use mlua::{Function, Lua};
+use super::lua_api::{create_snapshot, initialize_lua_environment};
+use crate::types::{EmuError, EmuResult, VERBOSE_ENABLED};
+use mlua::Lua;
 
 type ScriptHookMap = HashMap<String, String>;
 
