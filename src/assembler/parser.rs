@@ -219,22 +219,14 @@ impl AsmParser {
         if token.is_empty() {
             return Err(EmuError::InternalError("Operand is empty.".to_string()));
         }
-        if token.contains("],") {
-            let parts: Vec<&str> = token.splitn(2, "],").map(|s| s.trim()).collect();
-            if parts.len() != 2 {
-                return Err(EmuError::InternalError(format!(
-                    "Invalid post-indexed address format: {}",
-                    token
-                )));
-            }
-            let base = parts[0].trim_start_matches('[').trim();
-            let index = parts[1].trim();
-            let reg = parse_reg(base)?;
-            let imm = self.parse_immediate(index, filename, global_labels)?;
-            return Ok(Operand::Offset(Offset::PostIndexed(reg, imm)));
-        }
-        if token.ends_with("]!") {
-            let bracket_content = token.trim_end_matches("]!").trim_start_matches('[').trim();
+
+        // Matches [reg, imm]! exactly
+        if token.ends_with('!') && token.starts_with('[') {
+            // Remove trailing '!' safely, and parse inside the brackets
+            let bracket_end = token.rfind(']').ok_or_else(|| {
+                EmuError::InternalError(format!("Malformed pre-indexed token: {}", token))
+            })?;
+            let bracket_content = &token[1..bracket_end];
             let parts: Vec<&str> = bracket_content.split(',').map(|s| s.trim()).collect();
             if parts.len() != 2 {
                 return Err(EmuError::InternalError(format!(
@@ -246,6 +238,8 @@ impl AsmParser {
             let imm = self.parse_immediate(parts[1], filename, global_labels)?;
             return Ok(Operand::Offset(Offset::PreIndexed(reg, imm)));
         }
+
+        // [reg], [reg, imm], [reg, reg]
         if token.starts_with('[') && token.ends_with(']') {
             let inner = token.trim_matches(|c| c == '[' || c == ']').trim();
             let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
@@ -315,6 +309,7 @@ impl AsmParser {
                 "Empty instruction line.".to_string(),
             ));
         }
+
         let rest_of_line_parts: Vec<&str> = parts.collect();
         if rest_of_line_parts.is_empty() {
             let opcode = self.full_mnemonic_to_opcode(&full_mnemonic)?;
@@ -330,45 +325,63 @@ impl AsmParser {
                 )));
             }
         }
+
         let operands_str = rest_of_line_parts.join(" ");
-        let mut token_assembly = String::new();
-        let mut in_brackets = false;
-        for c in operands_str.chars() {
+        let mut tokens: Vec<String> = Vec::new();
+        let mut cur = String::new();
+        let mut in_brackets = 0;
+        let mut chars = operands_str.chars().peekable();
+        while let Some(c) = chars.next() {
             match c {
                 '[' => {
-                    if !token_assembly.ends_with('|') {
-                        token_assembly.push('|');
-                    }
-                    in_brackets = true;
-                    token_assembly.push(c);
+                    in_brackets += 1;
+                    cur.push(c);
                 }
                 ']' => {
-                    token_assembly.push(c);
-                    in_brackets = false;
-                    token_assembly.push('|');
-                }
-                ',' if !in_brackets => {
-                    token_assembly.push('|');
-                }
-                c if c.is_whitespace() && !in_brackets => {
-                    if !token_assembly.ends_with('|') {
-                        token_assembly.push('|');
+                    in_brackets -= 1;
+                    cur.push(c);
+                    if let Some('!') = chars.peek() {
+                        // Attach trailing exclamation mark "!" if present
+                        cur.push(chars.next().unwrap());
                     }
                 }
+                ',' if in_brackets == 0 => {
+                    if !cur.trim().is_empty() {
+                        tokens.push(cur.trim().to_string());
+                    }
+                    cur.clear();
+                }
                 _ => {
-                    token_assembly.push(c);
+                    cur.push(c);
                 }
             }
         }
-        let tokens: Vec<String> = token_assembly
-            .split('|')
-            .map(|t| t.trim().to_string())
-            .filter(|t| !t.is_empty())
-            .collect();
+        if !cur.trim().is_empty() {
+            tokens.push(cur.trim().to_string());
+        }
+
         let opcode = self.full_mnemonic_to_opcode(&full_mnemonic)?;
         let mut operands = Vec::new();
-        for token in tokens.into_iter() {
-            operands.push(self.parse_operand(&token, filename, global_labels)?);
+        let mut i = 0;
+        while i < tokens.len() {
+            // Handle post-indexed addressing: [reg], imm
+            if tokens[i].starts_with('[') && tokens[i].ends_with(']') && i + 1 < tokens.len() {
+                let base_inner = tokens[i]
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .trim();
+                if is_register(base_inner)
+                    && (tokens[i + 1].starts_with('#') || is_numeric(&tokens[i + 1]))
+                {
+                    let reg = parse_reg(base_inner)?;
+                    let imm = self.parse_immediate(&tokens[i + 1], filename, global_labels)?;
+                    operands.push(Operand::Offset(Offset::PostIndexed(reg, imm)));
+                    i += 2;
+                    continue;
+                }
+            }
+            operands.push(self.parse_operand(&tokens[i], filename, global_labels)?);
+            i += 1;
         }
         Ok(InstructionIR { opcode, operands })
     }
@@ -536,7 +549,7 @@ impl AsmParser {
             }
 
             // Handle string directives (.string, .asciiz) by extracting the literal substring starting at first quote
-            ".string" | ".ascii" | ".asciiz" => {
+            ".string" | ".ascii" | ".asciiz" | ".asciz" => {
                 // Find index of first quote to get exact literal including spaces
                 let quote_pos = line_content.find('"').ok_or_else(|| {
                     EmuError::InternalError(format!(
