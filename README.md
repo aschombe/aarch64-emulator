@@ -126,7 +126,7 @@ Example command to run with multiple plugins:
 - [ ] Add more AArch64 instruction support
     - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
-    - DEBUG .rept and .endr
+    - Readd and DEBUG .rept and .endr
 
 **Virtual File System**:
 - [ ] Come up with more things to add
