@@ -10,6 +10,7 @@ pub fn parse_immediate(
     token: &str,
     filename: &str,
     global_labels: &HashSet<String>,
+    equ_map: &std::collections::HashMap<String, i64>,
 ) -> EmuResult<Immediate> {
     if let Some(label) = token.strip_prefix(":lo12:") {
         if is_label(label) {
@@ -24,7 +25,9 @@ pub fn parse_immediate(
         }
     }
     let clean_token = token.trim_start_matches(|c| c == '#' || c == '=').trim();
-    if is_numeric(clean_token) {
+    if equ_map.contains_key(clean_token) {
+        Ok(Immediate::Lit(*equ_map.get(clean_token).unwrap()))
+    } else if is_numeric(clean_token) {
         let val = if clean_token.starts_with("0x") || clean_token.starts_with("0X") {
             i64::from_str_radix(&clean_token[2..], 16)
         } else if clean_token.starts_with("0b") || clean_token.starts_with("0B") {
@@ -42,7 +45,6 @@ pub fn parse_immediate(
             ))),
         }
     } else if is_label(clean_token) {
-        // Always mangle, just like block creation
         let is_global = global_labels.contains(clean_token);
         let mangled = mangle_label(clean_token, filename, is_global);
         Ok(Immediate::Lbl(mangled))

@@ -8,6 +8,7 @@ pub mod parser;
 
 use crate::assembler::label_pass::collect_labels;
 use crate::types::{EmuError, EmuResult, Word};
+use std::collections::HashMap;
 
 #[cfg(test)]
 mod tests;
@@ -42,6 +43,9 @@ pub fn assemble_multiple_files(
     // ============= Pass 1: Gather all global labels and collect accurate label map using the parser ================
     let mut global_labels: HashSet<String> = HashSet::new();
     let mut file_sources: Vec<(String, Vec<String>)> = Vec::new();
+
+    let mut equ_map: HashMap<String, i64> = HashMap::new();
+
     for path in file_paths {
         let raw_content = fs::read_to_string(path)
             .map_err(|e| EmuError::IoError(format!("Failed to open {}: {}", path, e)))?;
@@ -61,7 +65,7 @@ pub fn assemble_multiple_files(
     // Global label map for all files/sections/labels (with accurate offsets)
     let mut all_label_map = std::collections::HashMap::new();
     for (path, lines) in &file_sources {
-        let label_map = collect_labels(lines, path, &global_labels);
+        let label_map = collect_labels(lines, path, &global_labels, &equ_map);
         all_label_map.extend(label_map);
     }
 

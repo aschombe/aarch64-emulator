@@ -10,6 +10,7 @@ pub fn parse_instruction(
     line: &str,
     filename: &str,
     global_labels: &HashSet<String>,
+    equ_map: &std::collections::HashMap<String, i64>,
 ) -> EmuResult<InstructionIR> {
     let cleaned_line = line.trim();
     let mut parts = cleaned_line.split_whitespace();
@@ -72,7 +73,7 @@ pub fn parse_instruction(
     let opcode = full_mnemonic_to_opcode(&full_mnemonic)?;
     let mut operands = Vec::new();
     for token in tokens.into_iter() {
-        operands.push(parse_operand(&token, filename, global_labels)?);
+        operands.push(parse_operand(&token, filename, global_labels, equ_map)?);
     }
     Ok(InstructionIR { opcode, operands })
 }

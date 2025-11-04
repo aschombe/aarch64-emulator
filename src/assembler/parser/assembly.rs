@@ -31,6 +31,21 @@ impl AsmParser {
         //     println!("Preprocessed line [{}]: '{}'", idx, line);
         // }
 
+        let mut equ_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+        for line in lines.iter() {
+            let trimmed = line.trim();
+            // Handle .equ directives
+            if trimmed.starts_with(".equ") {
+                // .equ NAME, VALUE
+                let tokens: Vec<&str> = trimmed.split_whitespace().collect();
+                if tokens.len() >= 3 {
+                    let name = tokens[1].trim_matches(',');
+                    let val = tokens[2].trim_matches(',').parse::<i64>().unwrap_or(0);
+                    equ_map.insert(name.to_string(), val);
+                }
+            }
+        }
+
         let cleaned_source_lines = clean_source_code(&lines);
         let mut blocks = Vec::new();
         let mut instruction_line_map = Vec::new();
@@ -156,7 +171,7 @@ impl AsmParser {
 
             // DATA SECTION data line
             if current_section == "data" && current_label.is_some() {
-                match parse_data_definition(line_content, original_line_number) {
+                match parse_data_definition(line_content, original_line_number, &equ_map) {
                     Ok(data_item) => current_data.push(data_item),
                     Err(e) => return Err(e),
                 }
@@ -165,7 +180,7 @@ impl AsmParser {
 
             // TEXT SECTION code line
             if current_section == "text" && current_label.is_some() {
-                match parse_instruction(line_content, filename, global_labels) {
+                match parse_instruction(line_content, filename, global_labels, &equ_map) {
                     Ok(ir) => {
                         instruction_line_map.push((ir.clone(), original_line_number));
                         current_text.push(ir);

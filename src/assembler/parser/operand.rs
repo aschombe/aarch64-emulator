@@ -11,6 +11,7 @@ pub fn parse_operand(
     token: &str,
     filename: &str,
     global_labels: &HashSet<String>,
+    equ_map: &std::collections::HashMap<String, i64>,
 ) -> EmuResult<Operand> {
     let token = token.trim();
     if token.is_empty() {
@@ -27,7 +28,7 @@ pub fn parse_operand(
         let base = parts[0].trim_start_matches('[').trim();
         let index = parts[1].trim();
         let reg = parse_reg(base)?;
-        let imm = parse_immediate(index, filename, global_labels)?;
+        let imm = parse_immediate(index, filename, global_labels, &equ_map)?;
         return Ok(Operand::Offset(Offset::PostIndexed(reg, imm)));
     }
     if token.ends_with("]!") {
@@ -40,7 +41,7 @@ pub fn parse_operand(
             )));
         }
         let reg = parse_reg(parts[0])?;
-        let imm = parse_immediate(parts[1], filename, global_labels)?;
+        let imm = parse_immediate(parts[1], filename, global_labels, &equ_map)?;
         return Ok(Operand::Offset(Offset::PreIndexed(reg, imm)));
     }
     if token.starts_with('[') && token.ends_with(']') {
@@ -55,6 +56,7 @@ pub fn parse_operand(
                         parts[0],
                         filename,
                         global_labels,
+                        &equ_map,
                     )?)));
                 }
             }
@@ -65,7 +67,7 @@ pub fn parse_operand(
                 } else {
                     return Ok(Operand::Offset(Offset::Ind3(
                         reg,
-                        parse_immediate(parts[1], filename, global_labels)?,
+                        parse_immediate(parts[1], filename, global_labels, &equ_map)?,
                     )));
                 }
             }
@@ -87,6 +89,7 @@ pub fn parse_operand(
             token,
             filename,
             global_labels,
+            &equ_map,
         )?));
     }
     if is_register(token) {

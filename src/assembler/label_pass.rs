@@ -11,6 +11,7 @@ pub fn collect_labels(
     lines: &[String],
     filename: &str,
     global_labels: &HashSet<String>,
+    equ_map: &HashMap<String, i64>,
 ) -> HashMap<String, (String, usize)> {
     let mut map = HashMap::new();
     let mut section = "text";
@@ -40,7 +41,7 @@ pub fn collect_labels(
             // If label + data on same line, calculate size
             let rest_of_line = parts.get(1).map(|s| s.trim()).unwrap_or("");
             if section == "data" && !rest_of_line.is_empty() {
-                if let Ok(data) = parse_data_definition(rest_of_line, i + 1) {
+                if let Ok(data) = parse_data_definition(rest_of_line, i + 1, &equ_map) {
                     offset += data_size(&data);
                 }
             }
@@ -49,7 +50,7 @@ pub fn collect_labels(
             && !line_content.starts_with('.')
             && !line_content.ends_with(':')
         {
-            if let Ok(data) = parse_data_definition(line_content, i + 1) {
+            if let Ok(data) = parse_data_definition(line_content, i + 1, &equ_map) {
                 offset += data_size(&data);
             }
         }

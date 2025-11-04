@@ -37,7 +37,11 @@ pub fn parse_string_literal(literal: &str) -> EmuResult<Vec<u8>> {
     Ok(bytes)
 }
 
-pub fn parse_data_definition(line_content: &str, original_line_number: usize) -> EmuResult<Data> {
+pub fn parse_data_definition(
+    line_content: &str,
+    original_line_number: usize,
+    equ_map: &std::collections::HashMap<String, i64>,
+) -> EmuResult<Data> {
     // Remove anything after a comment (// or ;)
     let line_content = line_content
         .split("//")
@@ -58,12 +62,16 @@ pub fn parse_data_definition(line_content: &str, original_line_number: usize) ->
     // .byte with only one value, e.g. ".byte 65"
     if directive == ".byte" && parts.len() == 2 {
         let value_str = parts[1].trim();
-        let value = value_str.parse::<u8>().map_err(|_| {
-            EmuError::InternalError(format!(
-                "Invalid .byte value on line {}: {}",
-                original_line_number, line_content
-            ))
-        })?;
+        let value = if let Some(val) = equ_map.get(value_str) {
+            *val as u8
+        } else {
+            value_str.parse::<u8>().map_err(|_| {
+                EmuError::InternalError(format!(
+                    "Invalid .byte value on line {}: {}",
+                    original_line_number, line_content
+                ))
+            })?
+        };
         return Ok(Data::ByteArr(vec![value]));
     }
 
@@ -73,13 +81,21 @@ pub fn parse_data_definition(line_content: &str, original_line_number: usize) ->
             directive, original_line_number
         )));
     }
+
     match directive.as_str() {
         ".byte" => {
             let values_str = parts[1..].join(" ");
             let values: Result<Vec<u8>, _> = values_str
                 .split(',')
                 .filter(|s| !s.trim().is_empty())
-                .map(|s| s.trim().parse::<u8>())
+                .map(|s| {
+                    let s_trim = s.trim();
+                    if let Some(val) = equ_map.get(s_trim) {
+                        Ok(*val as u8)
+                    } else {
+                        s_trim.parse::<u8>()
+                    }
+                })
                 .collect();
             match values {
                 Ok(v) => Ok(Data::ByteArr(v)),
@@ -126,7 +142,9 @@ pub fn parse_data_definition(line_content: &str, original_line_number: usize) ->
                 .filter(|s| !s.trim().is_empty())
                 .map(|s| {
                     let trimmed = s.trim();
-                    if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
+                    if let Some(val) = equ_map.get(trimmed) {
+                        Ok(*val)
+                    } else if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
                         i64::from_str_radix(&trimmed[2..], 16)
                     } else {
                         trimmed.parse::<i64>()
@@ -156,19 +174,18 @@ pub fn parse_data_definition(line_content: &str, original_line_number: usize) ->
             }
             Ok(Data::ByteArr(bytes))
         }
-        ".skip" => {
-            if parts.len() < 2 {
-                return Err(EmuError::InternalError(format!(
-                    ".skip directive requires a size argument on line {}.",
-                    original_line_number
-                )));
-            }
-            let size = parts[1].parse::<usize>().map_err(|_| {
-                EmuError::InternalError(format!(
-                    "Invalid .skip size argument on line {}: {}",
-                    original_line_number, parts[1]
-                ))
-            })?;
+        ".skip" | ".space" => {
+            let arg = parts[1].trim();
+            let size = if let Some(val) = equ_map.get(arg) {
+                *val as usize
+            } else {
+                arg.parse::<usize>().map_err(|_| {
+                    EmuError::InternalError(format!(
+                        "Invalid directive size on line {}: {}",
+                        original_line_number, arg
+                    ))
+                })?
+            };
             Ok(Data::ByteArr(vec![0u8; size]))
         }
         ".word" | ".int" => {
@@ -176,7 +193,14 @@ pub fn parse_data_definition(line_content: &str, original_line_number: usize) ->
             let values: Result<Vec<i32>, _> = values_str
                 .split(',')
                 .filter(|s| !s.is_empty())
-                .map(|s| s.trim().parse::<i32>())
+                .map(|s| {
+                    let s_trim = s.trim();
+                    if let Some(val) = equ_map.get(s_trim) {
+                        Ok(*val as i32)
+                    } else {
+                        s_trim.parse::<i32>()
+                    }
+                })
                 .collect();
             match values {
                 Ok(v) => Ok(Data::IntArr(v)),
@@ -191,16 +215,31 @@ pub fn parse_data_definition(line_content: &str, original_line_number: usize) ->
             let fill_args: Vec<&str> = fill_args_line.split(',').map(str::trim).collect();
             let repeat = fill_args
                 .get(0)
-                .and_then(|x| x.parse::<usize>().ok())
-                .unwrap_or(0);
+                .and_then(|x| {
+                    equ_map
+                        .get(*x)
+                        .copied()
+                        .or_else(|| x.parse::<usize>().ok().map(|n| n as i64))
+                })
+                .unwrap_or(0) as usize;
             let size = fill_args
                 .get(1)
-                .and_then(|x| x.parse::<usize>().ok())
-                .unwrap_or(1);
+                .and_then(|x| {
+                    equ_map
+                        .get(*x)
+                        .copied()
+                        .or_else(|| x.parse::<usize>().ok().map(|n| n as i64))
+                })
+                .unwrap_or(1) as usize;
             let value = fill_args
                 .get(2)
-                .and_then(|x| x.parse::<u8>().ok())
-                .unwrap_or(0);
+                .and_then(|x| {
+                    equ_map
+                        .get(*x)
+                        .copied()
+                        .or_else(|| x.parse::<u8>().ok().map(|n| n as i64))
+                })
+                .unwrap_or(0) as u8;
             let total_bytes = repeat * size;
             let mut arr = Vec::with_capacity(total_bytes);
             for _ in 0..repeat {
@@ -210,34 +249,18 @@ pub fn parse_data_definition(line_content: &str, original_line_number: usize) ->
             }
             Ok(Data::ByteArr(arr))
         }
-        ".space" => {
-            if parts.len() < 2 {
-                return Err(EmuError::InternalError(format!(
-                    ".space directive requires a size argument on line {}.",
-                    original_line_number
-                )));
-            }
-            let size = parts[1].parse::<usize>().map_err(|_| {
-                EmuError::InternalError(format!(
-                    "Invalid .space size argument on line {}: {}",
-                    original_line_number, parts[1]
-                ))
-            })?;
-            Ok(Data::ByteArr(vec![0u8; size]))
-        }
         ".balign" => {
-            if parts.len() < 2 {
-                return Err(EmuError::InternalError(format!(
-                    ".balign directive requires an alignment argument on line {}.",
-                    original_line_number
-                )));
-            }
-            let alignment = parts[1].parse::<usize>().map_err(|_| {
-                EmuError::InternalError(format!(
-                    "Invalid .balign alignment argument on line {}: {}",
-                    original_line_number, parts[1]
-                ))
-            })?;
+            let arg = parts[1].trim();
+            let alignment = if let Some(val) = equ_map.get(arg) {
+                *val as usize
+            } else {
+                arg.parse::<usize>().map_err(|_| {
+                    EmuError::InternalError(format!(
+                        "Invalid .balign alignment argument on line {}: {}",
+                        original_line_number, arg
+                    ))
+                })?
+            };
             Ok(Data::Align(alignment))
         }
         _ => Err(EmuError::InternalError(format!(
