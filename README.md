@@ -37,10 +37,13 @@ cargo run -- --help
     cargo run -- [OPTIONS] <input_file>
 
 Options:  
-  -d, --debug             Start TUI debugger  
-  --verbose               Enable verbose output and tracing  
-  --plugins <files>       Comma-separated Lua plugin file paths  
-  --filesystem <path>     Mount a host folder as a virtual filesystem  
+  -v, --verbose           Enables verbose execution tracing and syscall debug messages in run mode
+  -d, --debug             Enables the GDB-like interactive TUI debugger. Cannot be used with plugins
+  -p, --plugins <files>   Comma-separated list of Lua plugin file paths to load. Cannot be used with debug
+  -f, --filesystem <path> Folder path to give the emulated program access to the files within. Mounts to VFS root ('/')
+  -e, --entry <label>     Specify a custom entry point label [default: _start]
+  -h, --help              Print help information
+  -V, --version           Print version information
 
 Example:  
     cargo run -- --debug --plugins ./plugins/logger.lua examples/hello_world.s  

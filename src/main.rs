@@ -27,21 +27,19 @@ struct EmuConfig {
     #[clap(short, long)]
     verbose: bool,
 
-    /// Enables the GDB-like interactive debugging mode (step-by-step).
-    /// Cannot be used together with --plugins.
+    /// Enables the GDB-like interactive TUI debugger. Cannot be used with plugins
     #[clap(short, long, conflicts_with = "plugins")]
     debug: bool,
 
-    /// Comma-separated list of Lua plugin file paths to load.
-    /// Cannot be used together with --debug.
-    #[clap(long, value_delimiter = ',', conflicts_with = "debug")]
+    /// Comma-separated list of Lua plugin file paths to load. Cannot be used with debug
+    #[clap(short, long, value_delimiter = ',', conflicts_with = "debug")]
     plugins: Vec<String>,
 
-    /// Folder path to give the emulated program access to the files within.
+    /// Folder path to give the emulated program access to the files within. Mounts to VFS root ('/')
     #[clap(short, long)]
     filesystem: Option<String>,
 
-    /// Specify a custom entry point label (default: "_start")
+    /// Specify a custom entry point label
     #[clap(short, long, default_value = "_start")]
     entry: String,
 }
@@ -75,7 +73,6 @@ fn main() -> Result<(), EmuError> {
         println!("AArch64 Interpreter starting up.");
     }
 
-    // Assemble input assembly files
     // Assemble input assembly files
     let (mut program, data_blocks) = if !config.assembly_files.is_empty() {
         assemble_multiple_files(&config.assembly_files, &config.entry)?
