@@ -129,7 +129,7 @@ Example command to run with multiple plugins:
     - DEBUG .rept and .endr
 
 **Virtual File System**:
-- [ ] Test file I/O (open/read/write/lseek)
+- [ ] Come up with more things to add
 
 **Syscall Layer**:
 - [ ] Expand syscall coverage (see syscalls.txt)
@@ -140,7 +140,7 @@ Example command to run with multiple plugins:
 
 **Plugins**:
 - [ ] Allow pre and post svc hooks know the syscall number
-- [ ] Add and test calling convention (CC) plugin
+- [ ] Test calling convention (CC) plugin
 - [ ] Add more hooks as needed
 - [ ] Add more API functions to Lua CPU object
 

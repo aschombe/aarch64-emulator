@@ -114,7 +114,7 @@ pub fn parse_data_definition(line_content: &str, original_line_number: usize) ->
                 ))),
             }
         }
-        ".string" | ".ascii" | ".asciiz" => {
+        ".string" | ".ascii" | ".asciiz" | ".asciz" => {
             let quote_pos = line_content.find('"').ok_or_else(|| {
                 EmuError::InternalError(format!(
                     "Missing opening quote on line {}",
@@ -123,6 +123,7 @@ pub fn parse_data_definition(line_content: &str, original_line_number: usize) ->
             })?;
             let literal = &line_content[quote_pos..];
             let mut bytes = parse_string_literal(literal)?;
+            // Add null terminator for .asciiz/.asciz/.string
             if directive == ".asciiz" || directive == ".asciz" || directive == ".string" {
                 bytes.push(0);
             }
