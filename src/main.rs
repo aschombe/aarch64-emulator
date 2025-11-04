@@ -40,6 +40,10 @@ struct EmuConfig {
     /// Folder path to give the emulated program access to the files within.
     #[clap(short, long)]
     filesystem: Option<String>,
+
+    /// Specify a custom entry point label (default: "_start")
+    #[clap(short, long, default_value = "_start")]
+    entry: String,
 }
 
 impl EmuConfig {
@@ -72,13 +76,35 @@ fn main() -> Result<(), EmuError> {
     }
 
     // Assemble input assembly files
-    let (program, data_blocks) = if !config.assembly_files.is_empty() {
-        assemble_multiple_files(&config.assembly_files)?
+    // Assemble input assembly files
+    let (mut program, data_blocks) = if !config.assembly_files.is_empty() {
+        assemble_multiple_files(&config.assembly_files, &config.entry)?
     } else {
         return Err(EmuError::InternalError(
             "No input file specified. Use assembly file(s).".to_string(),
         ));
     };
+
+    // Override entry point if custom entry label is specified
+    if config.entry != "_start" {
+        let custom_entry_ip = program
+            .label_to_ip
+            .get(&config.entry)
+            .copied()
+            .ok_or_else(|| {
+                EmuError::InternalError(format!(
+                    "Custom entry point '{}' not found in assembled program",
+                    config.entry
+                ))
+            })?;
+        program.entry_ip = custom_entry_ip as usize;
+        if config.verbose {
+            println!(
+                "Using custom entry point: {} at IP {}",
+                config.entry, custom_entry_ip
+            );
+        }
+    }
 
     let vfs = match &config.filesystem {
         Some(fs_path) => Some(VirtualFileSystem::new(fs_path)),

@@ -18,6 +18,7 @@ impl AsmParser {
         filename: &str,
         global_labels: &HashSet<String>,
         _global_label_map: &HashMap<String, (String, usize)>,
+        entry_label: &str,
     ) -> EmuResult<(
         Vec<AssemblyBlock>,
         Vec<(InstructionIR, usize)>,
@@ -59,7 +60,7 @@ impl AsmParser {
                         .nth(1)
                         .unwrap_or("")
                         .to_string();
-                    if _label == "_start" {
+                    if _label == entry_label {
                         global_entry_flag = true;
                     }
                 }
@@ -91,7 +92,7 @@ impl AsmParser {
                 let is_global = global_labels.contains(&raw_label);
                 let label = mangle_label(&raw_label, filename, is_global);
                 let rest_of_line = parts.get(1).map(|s| s.trim()).unwrap_or("");
-                let is_entry_flag_for_new_block = global_entry_flag || raw_label == "_start";
+                let is_entry_flag_for_new_block = global_entry_flag || raw_label == entry_label;
                 current_block = AssemblyBlock {
                     label: label.clone(),
                     _is_entry: is_entry_flag_for_new_block,

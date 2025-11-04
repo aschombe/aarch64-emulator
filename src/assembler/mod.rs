@@ -32,9 +32,9 @@ pub struct SourceMapEntry {
 }
 
 /// The main entry point for assembling multiple source files.
-/// This function coordinates parsing, symbol resolution, and flattening.
 pub fn assemble_multiple_files(
     file_paths: &[String],
+    entry_label: &str,
 ) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock>)> {
     use std::collections::HashSet;
     use std::fs;
@@ -72,8 +72,13 @@ pub fn assemble_multiple_files(
 
     // ============= Pass 2: Parse IR w/ access to all globals ================
     for (path, lines) in &file_sources {
-        let (ir_blocks, line_map, extern_labels) =
-            parser.parse_assembly_to_ir(&lines, path, &global_labels, &all_label_map)?;
+        let (ir_blocks, line_map, extern_labels) = parser.parse_assembly_to_ir(
+            &lines,
+            path,
+            &global_labels,
+            &all_label_map,
+            entry_label,
+        )?;
         all_ir_blocks.extend(ir_blocks);
         ir_to_line_map.extend(line_map);
         all_extern_labels.extend(extern_labels);
@@ -84,7 +89,7 @@ pub fn assemble_multiple_files(
     }
 
     let (instructions, label_to_ip, label_is_addr, entry_ip, data_blocks, source_map) =
-        flatten_and_resolve(&all_ir_blocks, &ir_to_line_map)?;
+        flatten_and_resolve(&all_ir_blocks, &ir_to_line_map, entry_label)?;
 
     let program = InterpretedProgram {
         instructions,
@@ -111,6 +116,7 @@ pub fn assemble_multiple_files(
 fn flatten_and_resolve(
     ir_blocks: &Vec<AssemblyBlock>,
     ir_to_line_map: &Vec<(InstructionIR, usize)>,
+    entry_label: &str,
 ) -> EmuResult<(
     Vec<InstructionIR>,
     SymbolTable,
@@ -151,9 +157,7 @@ fn flatten_and_resolve(
             AssemblyContent::Text(instrs) => {
                 label_to_ip.insert(block.label.clone(), current_ip as Word);
                 label_is_addr.insert(block.label.clone(), false);
-                if block.label == "_start" {
-                    entry_ip = current_ip;
-                } else if block._is_entry && entry_ip == 0 {
+                if block._is_entry {
                     entry_ip = current_ip;
                 }
                 current_ip += instrs.len();
@@ -191,16 +195,14 @@ fn flatten_and_resolve(
         }
     }
 
-    // Set entry point
-    if label_to_ip.contains_key("_start") {
-        entry_ip = *label_to_ip.get("_start").unwrap() as usize;
-    } else if entry_ip == 0 && !label_to_ip.is_empty() {
-        if let Some(first_text) = sorted_blocks
-            .iter()
-            .find(|b| matches!(b.content, AssemblyContent::Text(_)))
-        {
-            entry_ip = *label_to_ip.get(&first_text.label).unwrap_or(&0) as usize;
-        }
+    // Set entry point to the specified entry label
+    if label_to_ip.contains_key(entry_label) {
+        entry_ip = *label_to_ip.get(entry_label).unwrap() as usize;
+    } else if entry_ip == 0 {
+        return Err(EmuError::InternalError(format!(
+            "Entry point label '{}' not found in program",
+            entry_label
+        )));
     }
 
     for (ir, line_num) in ir_to_line_map {
