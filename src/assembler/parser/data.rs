@@ -38,8 +38,35 @@ pub fn parse_string_literal(literal: &str) -> EmuResult<Vec<u8>> {
 }
 
 pub fn parse_data_definition(line_content: &str, original_line_number: usize) -> EmuResult<Data> {
+    // Remove anything after a comment (// or ;)
+    let line_content = line_content
+        .split("//")
+        .next()
+        .unwrap_or("")
+        .split(";")
+        .next()
+        .unwrap_or("")
+        .trim();
+
     let parts: Vec<&str> = line_content.split_whitespace().collect();
-    let directive = parts[0].to_lowercase();
+    let directive = if !parts.is_empty() {
+        parts[0].to_lowercase()
+    } else {
+        "".to_string()
+    };
+
+    // .byte with only one value, e.g. ".byte 65"
+    if directive == ".byte" && parts.len() == 2 {
+        let value_str = parts[1].trim();
+        let value = value_str.parse::<u8>().map_err(|_| {
+            EmuError::InternalError(format!(
+                "Invalid .byte value on line {}: {}",
+                original_line_number, line_content
+            ))
+        })?;
+        return Ok(Data::ByteArr(vec![value]));
+    }
+
     if parts.len() < 2 {
         return Err(EmuError::InternalError(format!(
             "Data directive '{}' requires arguments on line {}.",

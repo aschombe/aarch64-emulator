@@ -8,7 +8,12 @@ pub fn mangle_label(label: &str, filename: &str, is_global: bool) -> String {
     if is_global {
         label.to_string()
     } else {
-        let safe = filename.replace(['/', '\\', '.'], "_");
+        // Use just the file stem (no directories, no extensions)
+        let safe = std::path::Path::new(filename)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(filename)
+            .to_string();
         format!("{}_{}", safe, label)
     }
 }
@@ -146,3 +151,33 @@ pub fn clean_source_code(lines: &[String]) -> Vec<String> {
     }
     cleaned_lines
 }
+
+// pub fn preprocess_rept(lines: &[String]) -> Vec<String> {
+//     let mut out: Vec<String> = Vec::new();
+//     let mut i = 0;
+//     while i < lines.len() {
+//         let line = lines[i].trim();
+//         if line.starts_with(".rept") {
+//             let tokens: Vec<&str> = line.split_whitespace().collect();
+//             let count: usize = tokens
+//                 .get(1)
+//                 .and_then(|tok| tok.parse::<usize>().ok())
+//                 .unwrap_or(1);
+//             let mut rept_block = Vec::new();
+//             i += 1;
+//             while i < lines.len() && !lines[i].trim().starts_with(".endr") {
+//                 rept_block.push(lines[i].clone());
+//                 i += 1;
+//             }
+//             // Skip over the .endr
+//             i += 1;
+//             for _ in 0..count {
+//                 out.extend(rept_block.clone());
+//             }
+//         } else {
+//             out.push(lines[i].clone());
+//             i += 1;
+//         }
+//     }
+//     out
+// }

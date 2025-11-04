@@ -42,6 +42,7 @@ pub fn parse_immediate(
             ))),
         }
     } else if is_label(clean_token) {
+        // Always mangle, just like block creation
         let is_global = global_labels.contains(clean_token);
         let mangled = mangle_label(clean_token, filename, is_global);
         Ok(Immediate::Lbl(mangled))
