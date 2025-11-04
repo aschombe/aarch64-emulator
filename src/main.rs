@@ -17,7 +17,7 @@ use std::sync::atomic::Ordering;
 
 /// Command-line argument structure for the AArch64 interpreter.
 #[derive(Parser, Debug)]
-#[clap(author, version, about = "AArch64 Assembly Interpreter", long_about = None)]
+#[clap(author, version, about = "AArch64 Assembly Interpreter", long_about = None, disable_version_flag = true)]
 struct EmuConfig {
     /// Assembly files (.s) to interpret
     #[clap(value_parser, required = true)]
