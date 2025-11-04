@@ -3,8 +3,10 @@
 
 pub mod asm_types;
 pub mod data_loader;
+pub mod label_pass;
 pub mod parser;
 
+use crate::assembler::label_pass::collect_labels;
 use crate::types::{EmuError, EmuResult, Word};
 
 #[cfg(test)]
@@ -37,7 +39,7 @@ pub fn assemble_multiple_files(
     use std::collections::HashSet;
     use std::fs;
 
-    // --- Pass 1: collect all .global labels across all files ---
+    // ============= Pass 1: Gather all global labels and collect accurate label map using the parser ================
     let mut global_labels: HashSet<String> = HashSet::new();
     let mut file_sources: Vec<(String, Vec<String>)> = Vec::new();
     for path in file_paths {
@@ -55,15 +57,23 @@ pub fn assemble_multiple_files(
         file_sources.push((path.clone(), lines));
     }
 
+    let parser = AsmParser;
+    // Global label map for all files/sections/labels (with accurate offsets)
+    let mut all_label_map = std::collections::HashMap::new();
+    for (path, lines) in &file_sources {
+        let label_map = collect_labels(lines, path, &global_labels);
+        all_label_map.extend(label_map);
+    }
+
     let mut all_ir_blocks = Vec::new();
     let mut ir_to_line_map = Vec::new();
     let mut files = Vec::new();
     let mut all_extern_labels: HashSet<String> = HashSet::new();
 
-    // --- Pass 2: parse IR with access to all globals ---
+    // ============= Pass 2: Parse IR w/ access to all globals ================
     for (path, lines) in &file_sources {
         let (ir_blocks, line_map, extern_labels) =
-            AsmParser.parse_assembly_to_ir(lines, path, &global_labels)?;
+            parser.parse_assembly_to_ir(&lines, path, &global_labels, &all_label_map)?;
         all_ir_blocks.extend(ir_blocks);
         ir_to_line_map.extend(line_map);
         all_extern_labels.extend(extern_labels);
@@ -73,7 +83,6 @@ pub fn assemble_multiple_files(
         });
     }
 
-    // Now use the same flatten logic as before
     let (instructions, label_to_ip, label_is_addr, entry_ip, data_blocks, source_map) =
         flatten_and_resolve(&all_ir_blocks, &ir_to_line_map)?;
 

@@ -127,7 +127,6 @@ Example command to run with multiple plugins:
 
 **Virtual File System**:
 - [ ] Test file I/O (open/read/write/lseek)
-- [ ] Validate flag and permission mapping
 
 **Syscall Layer**:
 - [ ] Expand syscall coverage (see syscalls.txt)
