@@ -1,9 +1,1 @@
-build/
-aarch64eml
-.cache/
-examples/
-
-
-# Added by cargo
-
 target/
