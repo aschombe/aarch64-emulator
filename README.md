@@ -115,6 +115,8 @@ Example command to run with multiple plugins:
 ---
 
 ## TODO
+**Github**:
+- Set up pipeline to autorelease on commit (the releases have to work on Linux, MacOS, Windows, and support ARM and x86_64)
 
 **Architecture**:
 - [ ] SIMD/FP support
