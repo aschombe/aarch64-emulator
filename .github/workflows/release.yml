@@ -15,7 +15,7 @@ jobs:
   # Parallel compilation for all targets
   build:
     strategy:
-      # Allows other builds to continue if one fails
+      # Allows other builds to continue if one fails, but the overall job will fail
       fail-fast: false
       matrix:
         include:
@@ -55,15 +55,16 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
-      # 2. Build the application (uses cargo or cross, depending on matrix.use-cross)
+      # 2. Build the application
       - name: Build
         uses: houseabsolute/actions-rust-cross@v1
         with:
           command: build
-          args: --release --target=${{ matrix.target }}
-          use-cross: ${{ matrix.use-cross }}
-
-      # 3. Prepare and upload artifact
+          args: --release
+          target: ${{ matrix.target }}
+          force-use-cross: ${{ matrix.use-cross }}
+          
+      # 3. Prepare and upload the compiled binary as an artifact
       - name: Prepare and Upload Artifact
         shell: bash
         run: |
@@ -89,7 +90,7 @@ jobs:
           name: ${{ env.FINAL_ASSET_NAME }}
           path: ${{ env.STAGING_PATH }}
 
-  # Create release and upload binaries and changelog
+  # Create release and upload assets/changelog
   release:
     # Only run after all compilation jobs are successful
     needs: build
@@ -103,14 +104,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetches full history for accurate changelog generation
+          fetch-depth: 0 # fetches full history for accurate changelog generation
 
-      # 1. Generate the changelog from git history
+      # 1. Generate the Changelog from Git History
       - name: Generate Changelog
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v1
         with:
-          # Uses the optional config file for clean grouping (if you created it)
           configuration: .github/release-changelog-config.yml 
           toTag: ${{ github.ref }} 
         env:
@@ -132,10 +132,9 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          # Downloads all files with the binary name prefix
           pattern: ${{ env.BINARY_NAME }}-*
           path: .
-          merge-multiple: true # Merges all artifacts into the current directory
+          merge-multiple: true 
 
       # 4. Upload all artifacts to the created release
       - name: Upload binaries to Release
