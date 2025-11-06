@@ -19,7 +19,16 @@ It features a modular CPU core, assembler, Linux syscall emulation, Ratatui-base
 ## Installation
 
 ### Prebuilt Binaries
-Prebuilt binaries are available on the [Releases](https://github.com/aschombe/aarch64-emulator/releases) page.
+Prebuilt binaries are available on the [Releases](https://github.com/aschombe/aarch64-emulator/releases) page.  
+There is only one download for Windows and its x86/amd64.  
+If you are on macOS:  
+- How to check if you have an Intel or Apple Silicon Mac:  
+  ```bash
+  uname -m
+  ```
+- For Intel Macs, download the x86/amd64 build.  
+- For Apple Silicon Macs, download the aarch64/arm64 build.  
+If you are on Linux, I bet you already know which one to download.  
 
 ### From Source
 Requires:
