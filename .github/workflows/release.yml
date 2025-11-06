@@ -1,0 +1,147 @@
+name: Release Binaries
+
+on:
+  push:
+    # Triggers on tags matching vX.Y.Z
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  # Allows manual triggering from the GitHub Actions tab
+  workflow_dispatch:
+
+env:
+  BINARY_NAME: aarch64-emulator
+
+jobs:
+  # Parallel compilation for all targets
+  build:
+    strategy:
+      # Allows other builds to continue if one fails
+      fail-fast: false
+      matrix:
+        include:
+          # Linux targets (Cross-compile from Ubuntu via 'cross' for ARM)
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+            use-cross: false # Native build on Ubuntu (x86_64)
+            asset_name: linux-amd64
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-latest
+            use-cross: true # Use 'cross' tool for ARM Linux build
+            asset_name: linux-arm64
+          # macOS targets (Native runners required)
+          - target: x86_64-apple-darwin
+            runner: macos-latest
+            use-cross: false # Native build on Intel Mac runner
+            asset_name: macos-intel
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+            use-cross: false # Native build on Apple Silicon (ARM) Mac runner
+            asset_name: macos-arm64
+          # Windows target (Native runner)
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            use-cross: false
+            asset_name: windows-amd64
+    
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Install Rust toolchain and target
+      - name: Install Rust Toolchain and Target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      # 2. Build the application (uses cargo or cross, depending on matrix.use-cross)
+      - name: Build
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          args: --release --target=${{ matrix.target }}
+          use-cross: ${{ matrix.use-cross }}
+
+      # 3. Prepare and upload artifact
+      - name: Prepare and Upload Artifact
+        shell: bash
+        run: |
+          # Set the file extension based on the OS
+          if [[ "${{ matrix.runner }}" == "windows-latest" ]]; then
+            BIN_EXT=".exe"
+          else
+            BIN_EXT=""
+          fi
+
+          BIN_PATH="target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}${BIN_EXT}"
+          FINAL_ASSET_NAME="${{ env.BINARY_NAME }}-${{ matrix.asset_name }}${BIN_EXT}"
+
+          # Stage the binary for upload
+          mkdir -p staging
+          cp $BIN_PATH staging/$FINAL_ASSET_NAME
+
+          echo "FINAL_ASSET_NAME=$FINAL_ASSET_NAME" >> $GITHUB_ENV
+          echo "STAGING_PATH=staging/$FINAL_ASSET_NAME" >> $GITHUB_ENV
+          
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FINAL_ASSET_NAME }}
+          path: ${{ env.STAGING_PATH }}
+
+  # Create release and upload binaries and changelog
+  release:
+    # Only run after all compilation jobs are successful
+    needs: build
+    runs-on: ubuntu-latest
+    # Only run this job if the workflow was triggered by a tag push
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write # Needed for creating the release and uploading assets
+      pull-requests: read # Needed for linking PRs in the changelog
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches full history for accurate changelog generation
+
+      # 1. Generate the changelog from git history
+      - name: Generate Changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v1
+        with:
+          # Uses the optional config file for clean grouping (if you created it)
+          configuration: .github/release-changelog-config.yml 
+          toTag: ${{ github.ref }} 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Create a GitHub release with the generated notes
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          # Injects the automatically generated changelog as the release body
+          body: ${{ steps.changelog.outputs.changelog }} 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      # 3. Download all compiled binaries from the 'build' job
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # Downloads all files with the binary name prefix
+          pattern: ${{ env.BINARY_NAME }}-*
+          path: .
+          merge-multiple: true # Merges all artifacts into the current directory
+
+      # 4. Upload all artifacts to the created release
+      - name: Upload binaries to Release
+        uses: softprops/action-gh-release/assets@v1
+        with:
+          files: ${{ env.BINARY_NAME }}-*
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
