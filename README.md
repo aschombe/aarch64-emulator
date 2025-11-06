@@ -28,7 +28,7 @@ If you are on macOS:
   ```
 - For Intel Macs, download the x86/amd64 build.  
 - For Apple Silicon Macs, download the aarch64/arm64 build.  
-If you are on Linux, I bet you already know which one to download.  
+- If you are on Linux, I bet you already know which one to download.  
 
 ### From Source
 Requires:
