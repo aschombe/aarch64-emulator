@@ -117,14 +117,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 2. Create a GitHub release with the generated notes
-      - name: Create Release
+      # This step attempts to create the release. If it exists, the next step handles assets.
+      - name: Create or Update Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
           name: Release ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref_name, '-') }}
           # Injects the automatically generated changelog as the release body
-          body: ${{ steps.changelog.outputs.changelog }} 
+          body: ${{ steps.changelog.outputs.changelog }}
+          # Allows the action to update the body if the release already exists.
+          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
@@ -136,11 +139,14 @@ jobs:
           path: .
           merge-multiple: true 
 
-      # 4. Upload all artifacts to the created release
+      # 4. Upload all artifacts to the created release (This step is where the assets attach)
       - name: Upload binaries to Release
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ env.BINARY_NAME }}-*
-          tag_name: ${{ github.ref }}
+          # Pass the tag_name so the action knows which existing release to target
+          tag_name: ${{ github.ref_name }}
+          # This ensures files are uploaded and replace old ones on re-run
+          overwrite: true 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
