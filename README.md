@@ -18,11 +18,15 @@ It features a modular CPU core, assembler, Linux syscall emulation, Ratatui-base
 
 ## Installation
 
+### Prebuilt Binaries
+Prebuilt binaries are available on the [Releases](https://github.com/aschombe/aarch64-emulator/releases) page.
+
+### From Source
 Requires:
 - Rust 1.90+ with Cargo  
 - Linux or macOS (Haven't tested on Windows yet)
 
-Build and run:
+Build and run from source:
 ```bash
 git clone https://github.com/aschombe/aarch64-emulator.git
 cd aarch64-emulator
