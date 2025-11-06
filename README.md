@@ -128,10 +128,8 @@ Example command to run with multiple plugins:
 ---
 
 ## TODO
-**Github**:
-- Set up pipeline to autorelease on commit (the releases have to work on Linux, MacOS, Windows, and support ARM and x86_64)
-
 **Architecture**:
+- [ ] Somethings broken again, test w/ project 1
 - [ ] SIMD/FP support
 - [ ] SME and SVE support?
 - [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
