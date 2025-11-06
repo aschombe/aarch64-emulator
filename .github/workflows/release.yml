@@ -138,7 +138,7 @@ jobs:
 
       # 4. Upload all artifacts to the created release
       - name: Upload binaries to Release
-        uses: softprops/action-gh-release/assets@v1
+        uses: softprops/action-gh-release@v1
         with:
           files: ${{ env.BINARY_NAME }}-*
           tag_name: ${{ github.ref }}
