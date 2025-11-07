@@ -40,7 +40,7 @@ pub fn assemble_multiple_files(
     use std::collections::HashSet;
     use std::fs;
 
-    // ============= Pass 1: Gather all global labels and collect accurate label map using the parser ================
+    // Pass 1: Collect global labels from all files
     let mut global_labels: HashSet<String> = HashSet::new();
     let mut file_sources: Vec<(String, Vec<String>)> = Vec::new();
 
@@ -74,7 +74,7 @@ pub fn assemble_multiple_files(
     let mut files = Vec::new();
     let mut all_extern_labels: HashSet<String> = HashSet::new();
 
-    // ============= Pass 2: Parse IR w/ access to all globals ================
+    // Pass 2: Parse each file into IR blocks
     for (path, lines) in &file_sources {
         let (ir_blocks, line_map, extern_labels) = parser.parse_assembly_to_ir(
             &lines,

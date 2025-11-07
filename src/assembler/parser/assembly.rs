@@ -208,7 +208,7 @@ impl AsmParser {
             }
         }
 
-        // Final block flush (important!)
+        // Final block flush
         if let Some(label) = current_label.take() {
             match current_section {
                 "data" => {

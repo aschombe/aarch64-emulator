@@ -1,0 +1,19 @@
+changelogTitle: "# Release Notes"
+
+groups:
+  - title: "Features"
+    labels:
+      - "feat"
+    
+  - title: "Bug Fixes"
+    labels:
+      - "fix"
+      
+  - title: "Chore/Internal"
+    labels:
+      - "chore"
+      - "refactor"
+      
+  - title: "Documentation"
+    labels:
+      - "docs"

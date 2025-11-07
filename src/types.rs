@@ -30,8 +30,8 @@ pub type Word = u64; // 64-bit data/address word
 pub enum EmuError {
     /// PC tried to access memory outside the defined RAM boundary
     MemoryAccessViolation(Word),
-    /// Stack smashing detected
-    StackSmashDetected(Word),
+    // /// Stack smashing detected
+    // StackSmashDetected(Word),
     /// Division by zero detected
     DivisionByZero,
     ///// An instruction IR was invalid or unimplemented
@@ -53,9 +53,9 @@ impl fmt::Display for EmuError {
             EmuError::MemoryAccessViolation(addr) => {
                 write!(f, "Memory Access Violation at 0x{:X}", addr)
             }
-            EmuError::StackSmashDetected(addr) => {
-                write!(f, "Stack Smash Detected at 0x{:X}", addr)
-            }
+            // EmuError::StackSmashDetected(addr) => {
+            //     write!(f, "Stack Smash Detected at 0x{:X}", addr)
+            // }
             EmuError::DivisionByZero => write!(f, "Division by zero"),
             // EmuError::InvalidInstructionIR(msg) => write!(f, "Invalid Instruction IR: {}", msg),
             EmuError::UnimplementedSyscall(num) => write!(f, "Unimplemented Syscall: {}", num),
