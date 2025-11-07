@@ -129,7 +129,10 @@ Example command to run with multiple plugins:
 
 ## TODO
 **Architecture**:
-- [ ] Web frontend (using WASM) so it can run in browsers?
+- [ ] Use AWS Lambda and API gateway to provide an online emulator service
+    - HTML/CSS/JS frontend that allows users to upload assembly files or select options
+    - Backend runs the emulator and streams output back to the frontend
+    - How will plugins or the filesystem or debugger work in this scenario?
 - [ ] SIMD/FP support
 - [ ] SME and SVE support?
 - [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
