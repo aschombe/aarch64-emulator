@@ -136,10 +136,21 @@ Example command to run with multiple plugins:
 - [ ] SIMD/FP support
 - [ ] SME and SVE support?
 - [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
-- [ ] Check out https://thinkingeek.com/categories/aarch64/
+- Do you have to explicitly define a label as extern to call it from another file?
+- Allow the use of real c library/other library functions?
 
 **Instructions**:
+- Test negative offsets with ldr/str instructions
+- [ ] Better error messages akin to aarch64-linux-gnu-as/ld
+- [ ] Add the ability to use shifting with instructions (add, sub, str, ldr, etc. that support it)
 - [ ] Add more AArch64 instruction support
+    - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
+    - ror, orn, bic, eon
+    - uxtb, sxtb, uxth, sxth, uxtw, sxtw, etc. (includes <extend> <shift>)
+    - tst
+    - csel
+    - umull, smull, umlal, smlal, smulh, umulh
+    - mvn
     - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
     - Readd and DEBUG .rept and .endr
