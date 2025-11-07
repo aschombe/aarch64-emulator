@@ -650,6 +650,7 @@ impl CpuState {
                         )));
                     }
                 };
+
                 self.set_reg_with_width(rd_id, target_addr, is_w);
                 Ok(false)
             }

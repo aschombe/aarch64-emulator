@@ -71,14 +71,12 @@ impl AsmParser {
                 if let Some(label) = current_label.take() {
                     match current_section {
                         "data" => {
-                            if !current_data.is_empty() {
-                                blocks.push(AssemblyBlock {
-                                    label,
-                                    _is_entry: current_is_entry_flag,
-                                    content: AssemblyContent::Data(current_data.clone()),
-                                });
-                                current_data.clear();
-                            }
+                            blocks.push(AssemblyBlock {
+                                label,
+                                _is_entry: current_is_entry_flag,
+                                content: AssemblyContent::Data(current_data.clone()),
+                            });
+                            current_data.clear();
                         }
                         "text" => {
                             if !current_text.is_empty() {
@@ -87,8 +85,20 @@ impl AsmParser {
                                     _is_entry: current_is_entry_flag,
                                     content: AssemblyContent::Text(current_text.clone()),
                                 });
-                                current_text.clear();
                             }
+                            current_text.clear();
+                        }
+                        "bss" => {
+                            if !current_data.is_empty() {
+                                let size: usize =
+                                    current_data.iter().map(|d| d.size_in_bytes()).sum();
+                                blocks.push(AssemblyBlock {
+                                    label,
+                                    _is_entry: current_is_entry_flag,
+                                    content: AssemblyContent::Bss(size as u64),
+                                });
+                            }
+                            current_data.clear();
                         }
                         _ => {}
                     }
@@ -132,40 +142,47 @@ impl AsmParser {
             }
 
             // LABEL line
-            if line_content.ends_with(':') && !line_content.contains(":lo12:") {
+            if line_content.contains(':') && !line_content.contains(":lo12:") {
                 // Push prior block
                 if let Some(label) = current_label.take() {
                     match current_section {
                         "data" => {
-                            if !current_data.is_empty() {
-                                blocks.push(AssemblyBlock {
-                                    label,
-                                    _is_entry: current_is_entry_flag,
-                                    content: AssemblyContent::Data(current_data.clone()),
-                                });
-                                current_data.clear();
-                            }
+                            blocks.push(AssemblyBlock {
+                                label,
+                                _is_entry: current_is_entry_flag,
+                                content: AssemblyContent::Data(current_data.clone()),
+                            });
+                            current_data.clear();
                         }
                         "text" => {
-                            if !current_text.is_empty() {
-                                blocks.push(AssemblyBlock {
-                                    label,
-                                    _is_entry: current_is_entry_flag,
-                                    content: AssemblyContent::Text(current_text.clone()),
-                                });
-                                current_text.clear();
-                            }
+                            blocks.push(AssemblyBlock {
+                                label,
+                                _is_entry: current_is_entry_flag,
+                                content: AssemblyContent::Text(current_text.clone()),
+                            });
+                            current_text.clear();
                         }
+                        // Add bss if needed
                         _ => {}
                     }
                 }
-                // Set new label context
-                let raw_label = line_content.trim_end_matches(':').trim().to_string();
+                // Split label and immediate data
+                let parts: Vec<&str> = line_content.splitn(2, ':').collect();
+                let raw_label = parts[0].trim().to_string();
                 let is_global = global_labels.contains(&raw_label);
                 let label = mangle_label(&raw_label, filename, is_global);
                 let is_entry_flag_for_new_block = global_entry_flag || raw_label == entry_label;
                 current_label = Some(label);
                 current_is_entry_flag = is_entry_flag_for_new_block;
+
+                let rest_of_line = parts.get(1).map(|s| s.trim()).unwrap_or("");
+                if current_section == "data" && !rest_of_line.is_empty() {
+                    if let Ok(data) =
+                        parse_data_definition(rest_of_line, original_line_number, &equ_map)
+                    {
+                        current_data.push(data);
+                    }
+                }
                 continue;
             }
 
@@ -189,8 +206,6 @@ impl AsmParser {
                 }
                 continue;
             }
-
-            // BSS or other handling as needed...
         }
 
         // Final block flush (important!)

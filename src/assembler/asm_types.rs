@@ -280,6 +280,24 @@ pub enum Data {
     FloatArr(Vec<f32>),
 }
 
+impl Data {
+    /// Returns the size in bytes of the data item
+    pub fn size_in_bytes(&self) -> usize {
+        match self {
+            Data::Align(_) => 0, // Alignment does not occupy space
+            Data::Quad(_) => 8,
+            Data::QuadArr(arr) => arr.len() * 8,
+            Data::Word(_) => 4,
+            Data::WordArr(arr) => arr.len() * 4,
+            Data::Byte(_) => 1,
+            Data::ByteArr(arr) => arr.len(),
+            Data::IntArr(arr) => arr.len() * 4,
+            Data::DoubleArr(arr) => arr.len() * 8,
+            Data::FloatArr(arr) => arr.len() * 4,
+        }
+    }
+}
+
 /// Enum representing the content of an assembly block, which can be either text (instructions) or
 /// data
 #[derive(Debug, Clone)]

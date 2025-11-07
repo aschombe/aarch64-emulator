@@ -129,7 +129,7 @@ Example command to run with multiple plugins:
 
 ## TODO
 **Architecture**:
-- [ ] Somethings broken again, test w/ project 1
+- [ ] Web frontend (using WASM) so it can run in browsers?
 - [ ] SIMD/FP support
 - [ ] SME and SVE support?
 - [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
