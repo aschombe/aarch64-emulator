@@ -372,6 +372,26 @@ impl CpuState {
         }
     }
 
+    fn execute_neg(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool> {
+        match operands {
+            [dest, src] => {
+                let (rdid, isw) = self.resolve_operand_dest(dest)?;
+                let srcval = self.resolve_operand_source(src)?;
+                // Perform subtraction: result = 0 - srcval
+                let (result, carry, overflow) = alu::sub(0, srcval, isw);
+                self.set_reg_with_width(rdid, result, isw);
+                if update_flags {
+                    self.update_cpsr_nzcv(result, carry, overflow, true, isw);
+                }
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(format!(
+                "Invalid operands for NEG/NEGS: {:?}",
+                operands
+            ))),
+        }
+    }
+
     pub fn execute_instruction_ir(&mut self, ir_insn: &InstructionIR) -> EmuResult<bool> {
         match &ir_insn.opcode {
             OpCode::ADD => self.execute_binary_op(&ir_insn.operands, alu::add, false, false),
@@ -386,6 +406,8 @@ impl CpuState {
             OpCode::SMULH => self.execute_binary_op(&ir_insn.operands, alu::smulh, false, false),
             OpCode::UDIV => self.execute_binary_op(&ir_insn.operands, alu::udiv, false, false),
             OpCode::SDIV => self.execute_binary_op(&ir_insn.operands, alu::sdiv, false, false),
+            OpCode::NEG => self.execute_neg(&ir_insn.operands, false),
+            OpCode::NEGS => self.execute_neg(&ir_insn.operands, true),
             OpCode::AND => self.execute_binary_op(&ir_insn.operands, alu::and, false, false),
             OpCode::ANDS => self.execute_binary_op(&ir_insn.operands, alu::and, true, false),
             OpCode::ORR => self.execute_binary_op(&ir_insn.operands, alu::orr, false, false),

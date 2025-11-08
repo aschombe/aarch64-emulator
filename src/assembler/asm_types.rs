@@ -225,6 +225,8 @@ pub enum MovType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OpCode {
     MOV(MovType),
+    NEG,
+    NEGS,
     ADR,
     ADRP,
     ADD,

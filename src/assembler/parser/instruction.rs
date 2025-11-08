@@ -117,6 +117,9 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
         "MOVK" => Ok(OpCode::MOV(MovType::K)),
         "MOVZ" => Ok(OpCode::MOV(MovType::Z)),
         "MOVN" => Ok(OpCode::MOV(MovType::N)),
+        "NEG" => Ok(OpCode::NEG),
+        "NEGS" => Ok(OpCode::NEGS),
+
         "ADD" => Ok(OpCode::ADD),
         "SUB" => Ok(OpCode::SUB),
         "MUL" => Ok(OpCode::MUL),

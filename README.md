@@ -147,7 +147,6 @@ Example command to run with multiple plugins:
     - sxtb, sxth, sxtw
     - uxtb, uxth, uxtw
 - [ ] Add more AArch64 instruction support
-    - neg, negs
     - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
     - ror, orn, bic, eon
     - tst
