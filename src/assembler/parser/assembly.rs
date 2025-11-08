@@ -162,7 +162,18 @@ impl AsmParser {
                             });
                             current_text.clear();
                         }
-                        // Add bss if needed
+                        "bss" => {
+                            if !current_data.is_empty() {
+                                let size: usize =
+                                    current_data.iter().map(|d| d.size_in_bytes()).sum();
+                                blocks.push(AssemblyBlock {
+                                    label,
+                                    _is_entry: current_is_entry_flag,
+                                    content: AssemblyContent::Bss(size as u64),
+                                });
+                                current_data.clear();
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -176,7 +187,10 @@ impl AsmParser {
                 current_is_entry_flag = is_entry_flag_for_new_block;
 
                 let rest_of_line = parts.get(1).map(|s| s.trim()).unwrap_or("");
-                if current_section == "data" && !rest_of_line.is_empty() {
+                // if current_section == "data" && !rest_of_line.is_empty() {
+                if (current_section == "data" || current_section == "bss")
+                    && !rest_of_line.is_empty()
+                {
                     if let Ok(data) =
                         parse_data_definition(rest_of_line, original_line_number, &equ_map)
                     {
@@ -187,7 +201,7 @@ impl AsmParser {
             }
 
             // DATA SECTION data line
-            if current_section == "data" && current_label.is_some() {
+            if (current_section == "data" || current_section == "bss") && current_label.is_some() {
                 match parse_data_definition(line_content, original_line_number, &equ_map) {
                     Ok(data_item) => current_data.push(data_item),
                     Err(e) => return Err(e),
@@ -226,6 +240,16 @@ impl AsmParser {
                             label,
                             _is_entry: current_is_entry_flag,
                             content: AssemblyContent::Text(current_text.clone()),
+                        });
+                    }
+                }
+                "bss" => {
+                    if !current_data.is_empty() {
+                        let size: usize = current_data.iter().map(|d| d.size_in_bytes()).sum();
+                        blocks.push(AssemblyBlock {
+                            label,
+                            _is_entry: current_is_entry_flag,
+                            content: AssemblyContent::Bss(size as u64),
                         });
                     }
                 }
