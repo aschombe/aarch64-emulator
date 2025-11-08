@@ -213,15 +213,27 @@ pub enum Condition {
     Ls,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MovType {
+    Normal,
+    K, // MOVK
+    Z, // MOVZ
+    N, // MOVN
+}
+
 /// Enum representing the various operation codes (opcodes) for instructions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OpCode {
-    MOV,
+    MOV(MovType),
     ADR,
     ADRP,
     ADD,
     SUB,
     MUL,
+    UMULL,
+    SMULL,
+    UMULH,
+    SMULH,
     UDIV,
     SDIV,
     ADDS,

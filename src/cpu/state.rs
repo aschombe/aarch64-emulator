@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 use crate::assembler::asm_types::{
-    Condition, Immediate, InstructionIR, Offset, OpCode, Operand, SymbolTable,
+    Condition, Immediate, InstructionIR, MovType, Offset, OpCode, Operand, SymbolTable,
 };
 use crate::assembler::{FileSource, SourceMapEntry};
 use crate::cpu::alu;
@@ -373,13 +373,17 @@ impl CpuState {
     }
 
     pub fn execute_instruction_ir(&mut self, ir_insn: &InstructionIR) -> EmuResult<bool> {
-        match ir_insn.opcode {
+        match &ir_insn.opcode {
             OpCode::ADD => self.execute_binary_op(&ir_insn.operands, alu::add, false, false),
             OpCode::ADDS => self.execute_binary_op(&ir_insn.operands, alu::add, true, false),
             OpCode::SUB => self.execute_binary_op(&ir_insn.operands, alu::sub, false, true),
             OpCode::SUBS => self.execute_binary_op(&ir_insn.operands, alu::sub, true, true),
             OpCode::MUL => self.execute_binary_op(&ir_insn.operands, alu::mul, false, false),
             OpCode::MULS => self.execute_binary_op(&ir_insn.operands, alu::mul, true, false),
+            OpCode::UMULL => self.execute_binary_op(&ir_insn.operands, alu::umull, false, false),
+            OpCode::SMULL => self.execute_binary_op(&ir_insn.operands, alu::smull, false, false),
+            OpCode::UMULH => self.execute_binary_op(&ir_insn.operands, alu::umulh, false, false),
+            OpCode::SMULH => self.execute_binary_op(&ir_insn.operands, alu::smulh, false, false),
             OpCode::UDIV => self.execute_binary_op(&ir_insn.operands, alu::udiv, false, false),
             OpCode::SDIV => self.execute_binary_op(&ir_insn.operands, alu::sdiv, false, false),
             OpCode::AND => self.execute_binary_op(&ir_insn.operands, alu::and, false, false),
@@ -390,7 +394,7 @@ impl CpuState {
             OpCode::LSR => self.execute_binary_op(&ir_insn.operands, alu::lsr, false, false),
             OpCode::ASR => self.execute_binary_op(&ir_insn.operands, alu::asr, false, false),
             OpCode::CMP => self.execute_cmp(&ir_insn.operands),
-            OpCode::MOV => self.execute_mov(&ir_insn.operands),
+            OpCode::MOV(kind) => self.execute_mov(OpCode::MOV(*kind), &ir_insn.operands),
             OpCode::ADR => self.execute_adr(OpCode::ADR, &ir_insn.operands),
             OpCode::ADRP => self.execute_adr(OpCode::ADRP, &ir_insn.operands),
             OpCode::LDR => self.execute_ldr(OpCode::LDR, &ir_insn.operands),
@@ -403,7 +407,7 @@ impl CpuState {
             OpCode::STP => self.execute_str(OpCode::STP, &ir_insn.operands),
             OpCode::STRB => self.execute_str(OpCode::STRB, &ir_insn.operands),
             OpCode::STRH => self.execute_str(OpCode::STRH, &ir_insn.operands),
-            OpCode::B(cond) => self.execute_branch(OpCode::B(cond), &ir_insn.operands),
+            OpCode::B(condition) => self.execute_branch(OpCode::B(*condition), &ir_insn.operands),
             OpCode::BL => self.execute_branch(OpCode::BL, &ir_insn.operands),
             OpCode::BR => self.execute_branch(OpCode::BR, &ir_insn.operands),
             OpCode::CBZ => self.execute_branch(OpCode::CBZ, &ir_insn.operands),
@@ -585,17 +589,88 @@ impl CpuState {
         Ok(halt)
     }
 
-    fn execute_mov(&mut self, operands: &[Operand]) -> EmuResult<bool> {
-        match operands {
-            [dest_op, src_op] => {
-                let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
-                let src_val = self.resolve_operand_source(src_op)?;
-                self.set_reg_with_width(rd_id, src_val, is_w);
-                Ok(false)
-            }
+    fn execute_mov(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
+        match opcode {
+            OpCode::MOV(MovType::Normal) => match operands {
+                [dest_op, src_op] => {
+                    let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let src_val = self.resolve_operand_source(src_op)?;
+                    self.set_reg_with_width(rd_id, src_val, is_w);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError(format!(
+                    "Invalid MOV operands: {:?}",
+                    operands
+                ))),
+            },
+            OpCode::MOV(MovType::K) => match operands {
+                [dest_op, Operand::Imm(Immediate::Lit(v))] => {
+                    let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let value = if is_w {
+                        *v as Word & 0xFFFF_FFFF
+                    } else {
+                        *v as Word
+                    };
+                    self.set_reg_with_width(rd_id, value, is_w);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError(format!(
+                    "Invalid MOV K operands: {:?}",
+                    operands
+                ))),
+            },
+            OpCode::MOV(MovType::Z) => match operands {
+                [dest_op, Operand::Imm(Immediate::Lit(v))] => {
+                    let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let value = if is_w {
+                        *v as Word & 0xFFFF_FFFF
+                    } else {
+                        *v as Word
+                    };
+                    self.set_reg_with_width(rd_id, value, is_w);
+                    // Update Z flag
+                    let mut cpsr = *self.cpsr.borrow();
+                    if value == 0 {
+                        cpsr |= Z_FLAG;
+                    } else {
+                        cpsr &= !Z_FLAG;
+                    }
+                    *self.cpsr.borrow_mut() = cpsr;
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError(format!(
+                    "Invalid MOV Z operands: {:?}",
+                    operands
+                ))),
+            },
+            OpCode::MOV(MovType::N) => match operands {
+                [dest_op, Operand::Imm(Immediate::Lit(v))] => {
+                    let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let value = if is_w {
+                        *v as Word & 0xFFFF_FFFF
+                    } else {
+                        *v as Word
+                    };
+                    self.set_reg_with_width(rd_id, value, is_w);
+                    // Update N flag
+                    let mut cpsr = *self.cpsr.borrow();
+                    let sign_bit = if is_w { 31 } else { 63 };
+                    if (value >> sign_bit) & 1 == 1 {
+                        cpsr |= N_FLAG;
+                    } else {
+                        cpsr &= !N_FLAG;
+                    }
+                    *self.cpsr.borrow_mut() = cpsr;
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError(format!(
+                    "Invalid MOV N operands: {:?}",
+                    operands
+                ))),
+            },
             _ => Err(EmuError::InternalError(format!(
-                "Invalid MOV operands: {:?}",
-                operands
+                "Invalid MOV opcode: {:?}",
+                opcode
             ))),
         }
     }

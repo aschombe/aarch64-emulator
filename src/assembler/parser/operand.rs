@@ -95,6 +95,7 @@ pub fn parse_operand(
     if is_register(token) {
         return Ok(Operand::Reg(parse_reg(token)?));
     }
+
     Err(EmuError::InternalError(format!(
         "Unrecognized token/operand: {}",
         token

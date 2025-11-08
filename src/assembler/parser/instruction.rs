@@ -2,10 +2,11 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 use super::operand::parse_operand;
-use crate::assembler::asm_types::{Condition, InstructionIR, OpCode};
+use crate::assembler::asm_types::{Condition, InstructionIR, MovType, OpCode};
 use crate::types::{EmuError, EmuResult};
 use std::collections::HashSet;
 
+/// Parses a line of assembly code into an InstructionIR structure.
 pub fn parse_instruction(
     line: &str,
     filename: &str,
@@ -75,6 +76,7 @@ pub fn parse_instruction(
     for token in tokens.into_iter() {
         operands.push(parse_operand(&token, filename, global_labels, equ_map)?);
     }
+
     Ok(InstructionIR { opcode, operands })
 }
 
@@ -111,10 +113,17 @@ pub fn parse_condition(full_mnemonic: &str) -> EmuResult<Condition> {
 pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
     let full_mnemonic = full_mnemonic.to_uppercase();
     match full_mnemonic.as_str() {
-        "MOV" => Ok(OpCode::MOV),
+        "MOV" => Ok(OpCode::MOV(MovType::Normal)),
+        "MOVK" => Ok(OpCode::MOV(MovType::K)),
+        "MOVZ" => Ok(OpCode::MOV(MovType::Z)),
+        "MOVN" => Ok(OpCode::MOV(MovType::N)),
         "ADD" => Ok(OpCode::ADD),
         "SUB" => Ok(OpCode::SUB),
         "MUL" => Ok(OpCode::MUL),
+        "UMULL" => Ok(OpCode::UMULL),
+        "SMULL" => Ok(OpCode::SMULL),
+        "UMULH" => Ok(OpCode::UMULH),
+        "SMULH" => Ok(OpCode::SMULH),
         "UDIV" => Ok(OpCode::UDIV),
         "SDIV" => Ok(OpCode::SDIV),
         "ADDS" => Ok(OpCode::ADDS),
