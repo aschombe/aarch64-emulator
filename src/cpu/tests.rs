@@ -3,7 +3,9 @@
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::assembler::asm_types::{Condition, Immediate, OpCode, Operand};
+    use crate::cpu::alu::{add as op_add_logic, sub as op_sub_logic};
+    use crate::cpu::exec_control::InstructionControl; // Import trait to enable execute_branch
     use crate::cpu::state::CpuState;
 
     #[test]

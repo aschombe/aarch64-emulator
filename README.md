@@ -141,6 +141,7 @@ Example command to run with multiple plugins:
 - Allow the use of real c library/other library functions?
 
 **Instructions**:
+- https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf
 - Test negative offsets with ldr/str instructions
 - [ ] Shifting and extending support
     - lsl, lsr, asr, ror
