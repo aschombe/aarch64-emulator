@@ -437,7 +437,8 @@ impl CpuState {
             OpCode::RET => self.execute_ret(),
             OpCode::SVC => self.execute_svc(&ir_insn.operands),
             OpCode::NOP => Ok(false),
-            _ => Err(EmuError::UnimplementedSyscall(format!(
+            // _ => Err(EmuError::UnimplementedSyscall(format!(
+            _ => Err(EmuError::InvalidInstructionIR(format!(
                 "{:?}",
                 ir_insn.opcode
             ))),
