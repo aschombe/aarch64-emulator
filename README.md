@@ -137,13 +137,11 @@ Example command to run with multiple plugins:
 - [ ] SME and SVE support?
 - [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
 - [ ] Allow labels to start with '.' (currently reserved for directives)
-- [ ] Allow char arguments (also allow prefixed with # (e.g., mov x0, #'A'))
 - Do you have to explicitly define a label as extern to call it from another file?
 - Allow the use of real c library/other library functions?
 
 **Instructions**:
 - Test negative offsets with ldr/str instructions
-- [ ] Better error messages akin to aarch64-linux-gnu-as/ld
 - [ ] Shifting and extending support
     - lsl, lsr, asr, ror
     - sxtb, sxth, sxtw

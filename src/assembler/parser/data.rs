@@ -4,6 +4,35 @@
 use crate::assembler::asm_types::Data;
 use crate::types::{EmuError, EmuResult};
 
+fn parse_char_literal(s: &str) -> Option<i64> {
+    let t = s.trim();
+    let stripped = if t.starts_with("'") && t.ends_with("'") && t.len() >= 3 {
+        &t[1..t.len() - 1]
+    } else {
+        ""
+    };
+    if !stripped.is_empty() {
+        Some(if stripped.len() == 1 {
+            stripped.chars().next().unwrap() as i64
+        } else if stripped.starts_with("\\") && stripped.len() == 2 {
+            match &stripped[1..] {
+                "n" => b'\n' as i64,
+                "r" => b'\r' as i64,
+                "t" => b'\t' as i64,
+                "0" => b'\0' as i64,
+                "'" => b'\'' as i64,
+                "\"" => b'"' as i64,
+                "\\" => b'\\' as i64,
+                _ => return None,
+            }
+        } else {
+            return None;
+        })
+    } else {
+        None
+    }
+}
+
 pub fn parse_string_literal(literal: &str) -> EmuResult<Vec<u8>> {
     let literal = literal.trim().trim_matches('"');
     let mut bytes = Vec::new();
@@ -59,11 +88,12 @@ pub fn parse_data_definition(
         "".to_string()
     };
 
-    // .byte with only one value, e.g. ".byte 65"
     if directive == ".byte" && parts.len() == 2 {
         let value_str = parts[1].trim();
         let value = if let Some(val) = equ_map.get(value_str) {
             *val as u8
+        } else if let Some(c) = parse_char_literal(value_str) {
+            c as u8
         } else {
             value_str.parse::<u8>().map_err(|_| {
                 EmuError::InternalError(format!(
@@ -92,6 +122,8 @@ pub fn parse_data_definition(
                     let s_trim = s.trim();
                     if let Some(val) = equ_map.get(s_trim) {
                         Ok(*val as u8)
+                    } else if let Some(c) = parse_char_literal(s_trim) {
+                        Ok(c as u8)
                     } else {
                         s_trim.parse::<u8>()
                     }
@@ -144,6 +176,8 @@ pub fn parse_data_definition(
                     let trimmed = s.trim();
                     if let Some(val) = equ_map.get(trimmed) {
                         Ok(*val)
+                    } else if let Some(c) = parse_char_literal(trimmed) {
+                        Ok(c as i64)
                     } else if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
                         i64::from_str_radix(&trimmed[2..], 16)
                     } else {
@@ -197,6 +231,8 @@ pub fn parse_data_definition(
                     let s_trim = s.trim();
                     if let Some(val) = equ_map.get(s_trim) {
                         Ok(*val as i32)
+                    } else if let Some(c) = parse_char_literal(s_trim) {
+                        Ok(c as i32)
                     } else {
                         s_trim.parse::<i32>()
                     }

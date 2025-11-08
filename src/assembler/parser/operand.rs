@@ -79,6 +79,15 @@ pub fn parse_operand(
             }
         }
     }
+    // Support char immediates and any parse_immediate-supporting tokens
+    if token.starts_with('\'') && token.ends_with('\'') && token.len() >= 3 {
+        return Ok(Operand::Imm(parse_immediate(
+            token,
+            filename,
+            global_labels,
+            &equ_map,
+        )?));
+    }
     if token.starts_with('#')
         || token.starts_with('=')
         || is_numeric(token)

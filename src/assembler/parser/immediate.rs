@@ -25,6 +25,48 @@ pub fn parse_immediate(
         }
     }
     let clean_token = token.trim_start_matches(|c| c == '#' || c == '=').trim();
+
+    // Char literal support (e.g., 'A', #'A', '\n', #'\\')
+    let stripped = if clean_token.starts_with("'")
+        && clean_token.ends_with("'")
+        && clean_token.len() >= 3
+    {
+        &clean_token[1..clean_token.len() - 1]
+    } else if clean_token.starts_with("#'") && clean_token.ends_with("'") && clean_token.len() >= 4
+    {
+        &clean_token[2..clean_token.len() - 1]
+    } else {
+        ""
+    };
+    if !stripped.is_empty() {
+        // Rudimentary escape support
+        let ch = if stripped.len() == 1 {
+            stripped.chars().next().unwrap()
+        } else if stripped.starts_with("\\") && stripped.len() == 2 {
+            match &stripped[1..] {
+                "n" => '\n',
+                "r" => '\r',
+                "t" => '\t',
+                "0" => '\0',
+                "'" => '\'',
+                "\"" => '"',
+                "\\" => '\\',
+                other => {
+                    return Err(EmuError::InternalError(format!(
+                        "Invalid char escape: \\{} in immediate '{}'",
+                        other, token
+                    )));
+                }
+            }
+        } else {
+            return Err(EmuError::InternalError(format!(
+                "Invalid char literal (too many chars): '{}'",
+                token
+            )));
+        };
+        return Ok(Immediate::Lit(ch as i64));
+    }
+
     if equ_map.contains_key(clean_token) {
         Ok(Immediate::Lit(*equ_map.get(clean_token).unwrap()))
     } else if is_numeric(clean_token) {

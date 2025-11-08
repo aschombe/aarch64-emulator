@@ -57,8 +57,15 @@ impl EmuConfig {
     }
 }
 
+fn main() {
+    if let Err(e) = start() {
+        eprintln!("{}", e);
+        std::process::exit(1);
+    }
+}
+
 /// Entry point for the AArch64 interpreter.
-fn main() -> Result<(), EmuError> {
+fn start() -> Result<(), EmuError> {
     // Parse command-line arguments
     let config = EmuConfig::parse();
     config.validate()?;
@@ -167,7 +174,7 @@ fn main() -> Result<(), EmuError> {
             if e.to_string().contains("Halt command received.") {
                 return Ok(());
             }
-            eprintln!("\nExecution failed with error: {:?}\n", e);
+            eprintln!("\nExecution failed with error: {}\n", e);
             cpu.borrow().dump_state_full();
             Err(e)
         }
