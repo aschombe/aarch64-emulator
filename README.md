@@ -147,8 +147,6 @@ Example command to run with multiple plugins:
         - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
     - Exception Generation and return (C3.1.5):
         - brk, hlt, hvc, smc, eret
-    - Swap (C3.2.13.2):
-        - swp, swpb, swph, swpp
     - Arithmetic (immediate) (C3.5.1):
         - cmn
     - Integer minimum and maximum (immediate) (C3.5.2):
