@@ -141,20 +141,55 @@ Example command to run with multiple plugins:
 - Allow the use of real c library/other library functions?
 
 **Instructions**:
-- https://developer.arm.com/documentation/ddi0487/latest
+- https://developer.arm.com/documentation/ddi0487/latest:
+    - ADD SUPPORT FOR SHIFT AND EXTEND MODIFIERS WHERE APPLICABLE
+    - Address (C1.3):
+        - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
+    - Conditional Branching (C.3.1.1):
+        - tbz, tbnz
+    - Unconditional branch (register) (C.3.1.3):
+        - blr
+    - Exception Generation and return (C3.1.5):
+        - brk, hlt, hvc, smc, eret
+    - Load/store registers (C.3.2.1):
+        - ldrsw
+    - Load/store register (unscaled offset) (C.3.2.2):
+        - ldur, ldurb, ldursb, ldurh, ldursh, ldursw
+        - stur, sturb, sturh
+    - Load/store pair (C3.2.3):
+        - ldpsw
+    - Swap (C3.2.13.2):
+        - swp, swpb, swph, swpp
+    - Arithmetic (immediate) (C3.5.1):
+        - cmn
+    - Integer minimum and maximum (immediate) (C3.5.2):
+        - smax, smin, umax, umin
+    - Logical (immediate) (C3.5.3):
+        - tst
+    -  Shift (immediate) (C3.5.10):
+        - ror, lsl, lsr, asr
+    - Sign-extend and Zero-extend (C3.5.11):
+        - sxtb, sxth, sxtw
+        - uxtb, uxth, uxtw
+    - Arithmetic with carry (C3.7.3):
+        - adc, adcs, sbc, sbcs, ngc, ngcs
+    - Logical (shifted register) (C3.7.6):
+        - bic, bics, eon, eor, orr, mvn, orn, tst
+    - Absolute value (C3.7.8):
+        - abs
+    - Multiply and divide (C3.7.10):
+        - madd, msub, mneg, smaddl, smsubl, smnegl, smull, smulh, umaddl, umsubl, umnegl, umull, umulh
+    - Bit operation (C3.7.12):
+        - cls, clz, cnt, ctz, rbit, rev, rev16, rev32, rev64
+    - Conditional select (C3.7.13):
+        - csel, csinc, csinv, csneg, cset, csetm, cinc, cinv, cneg
+    - Conditional comparison (C3.7.14):
+        - ccmp, ccmn
+
+
 - https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf
 - Test negative offsets with ldr/str instructions
-- [ ] Shift and extend modifier support
-    - lsl, lsr, asr, ror
-    - sxtb, sxth, sxtw
-    - uxtb, uxth, uxtw
-- [ ] Add more AArch64 instruction support
-    - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
-    - ror, orn, bic, eon
-    - tst
-    - csel
-    - mvn
-    - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
+- https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
     - Readd and DEBUG .rept and .endr
 
