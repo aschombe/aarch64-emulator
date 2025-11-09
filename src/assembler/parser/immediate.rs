@@ -71,13 +71,13 @@ pub fn parse_immediate(
         Ok(Immediate::Lit(*equ_map.get(clean_token).unwrap()))
     } else if is_numeric(clean_token) {
         let val = if clean_token.starts_with("0x") || clean_token.starts_with("0X") {
-            i64::from_str_radix(&clean_token[2..], 16)
+            u64::from_str_radix(&clean_token[2..], 16).map(|v| v as i64)
         } else if clean_token.starts_with("0b") || clean_token.starts_with("0B") {
-            i64::from_str_radix(&clean_token[2..], 2)
+            u64::from_str_radix(&clean_token[2..], 2).map(|v| v as i64)
         } else if clean_token.starts_with("0o") || clean_token.starts_with("0O") {
-            i64::from_str_radix(&clean_token[2..], 8)
+            u64::from_str_radix(&clean_token[2..], 8).map(|v| v as i64)
         } else {
-            clean_token.parse::<i64>()
+            clean_token.parse::<i64>().map(|v| v)
         };
         match val {
             Ok(v) => Ok(Immediate::Lit(v)),

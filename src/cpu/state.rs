@@ -306,6 +306,10 @@ impl CpuState {
 
             // Data Transfer (MOV, LDR/STR, ADR/ADRP)
             OpCode::MOV(kind) => self.execute_mov(OpCode::MOV(*kind), &ir_insn.operands),
+            OpCode::SWP => self.execute_swp(OpCode::SWP, &ir_insn.operands),
+            OpCode::SWPB => self.execute_swp(OpCode::SWPB, &ir_insn.operands),
+            OpCode::SWPH => self.execute_swp(OpCode::SWPH, &ir_insn.operands),
+            OpCode::SWPP => self.execute_swp(OpCode::SWPP, &ir_insn.operands),
             OpCode::ADR => self.execute_adr(OpCode::ADR, &ir_insn.operands),
             OpCode::ADRP => self.execute_adr(OpCode::ADRP, &ir_insn.operands),
             OpCode::LDR => self.execute_ldr(OpCode::LDR, &ir_insn.operands),
