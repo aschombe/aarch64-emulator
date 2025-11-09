@@ -265,6 +265,7 @@ pub enum OpCode {
     B(Condition),
     BL,
     BR,
+    BLR,
     RET,
     CMP,
     CBZ,

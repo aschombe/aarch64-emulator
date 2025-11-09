@@ -323,6 +323,7 @@ impl CpuState {
             OpCode::B(condition) => self.execute_branch(OpCode::B(*condition), &ir_insn.operands),
             OpCode::BL => self.execute_branch(OpCode::BL, &ir_insn.operands),
             OpCode::BR => self.execute_branch(OpCode::BR, &ir_insn.operands),
+            OpCode::BLR => self.execute_branch(OpCode::BLR, &ir_insn.operands),
             OpCode::CBZ => self.execute_branch(OpCode::CBZ, &ir_insn.operands),
             OpCode::CBNZ => self.execute_branch(OpCode::CBNZ, &ir_insn.operands),
             OpCode::TBZ => self.execute_branch(OpCode::TBZ, &ir_insn.operands),

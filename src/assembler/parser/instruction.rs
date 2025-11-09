@@ -159,6 +159,7 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
         "STRH" => Ok(OpCode::STRH),
         "BL" => Ok(OpCode::BL),
         "BR" => Ok(OpCode::BR),
+        "BLR" => Ok(OpCode::BLR),
         "B.EQ" | "BEQ" => Ok(OpCode::B(Condition::Eq)),
         "B.NE" | "BNE" => Ok(OpCode::B(Condition::Ne)),
         "B.LT" | "BLT" => Ok(OpCode::B(Condition::Lt)),

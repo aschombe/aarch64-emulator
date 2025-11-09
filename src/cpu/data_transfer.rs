@@ -110,7 +110,10 @@ impl InstructionDataTransfer for CpuState {
                     Some(x) => *x as Word,
                     None => {
                         if self.program.extern_labels.contains(label) {
-                            return Err(EmuError::InternalError(format!("Attempted to call or branch to extern function '{}' but it was not defined in any input file.", label)));
+                            return Err(EmuError::InternalError(format!(
+                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                label
+                            )));
                         } else {
                             return Err(EmuError::InternalError(format!(
                                 "Undefined label: {}",
@@ -122,29 +125,22 @@ impl InstructionDataTransfer for CpuState {
 
                 let is_addr = *self.program.label_is_addr.get(label).unwrap_or(&false);
 
-                let target_addr = match opcode {
-                    OpCode::ADR => {
-                        let target_ip_addr = if is_addr {
-                            raw
-                        } else {
-                            self.ip_to_virtual_addr(raw)
-                        };
-                        target_ip_addr
+                // For text labels, return IR index (raw); for data, use full address.
+                let target_addr = if is_addr {
+                    // Data label: use loaded address (as before)
+                    match opcode {
+                        OpCode::ADR => raw,
+                        OpCode::ADRP => raw & 0xFFFF_FFFF_FFFF_F000,
+                        _ => {
+                            return Err(EmuError::InternalError(format!(
+                                "Invalid ADR opcode: {:?}",
+                                opcode
+                            )));
+                        }
                     }
-                    OpCode::ADRP => {
-                        let target_ip_addr = if is_addr {
-                            raw
-                        } else {
-                            self.ip_to_virtual_addr(raw)
-                        };
-                        target_ip_addr & 0xFFFF_FFFF_FFFF_F000
-                    }
-                    _ => {
-                        return Err(EmuError::InternalError(format!(
-                            "Invalid ADR opcode: {:?}",
-                            opcode
-                        )));
-                    }
+                } else {
+                    // Text label: always return IR index
+                    raw
                 };
 
                 self.set_reg_with_width(rd_id, target_addr, is_w);
@@ -290,7 +286,10 @@ impl InstructionDataTransfer for CpuState {
             Some(x) => *x as Word,
             None => {
                 if self.program.extern_labels.contains(label) {
-                    return Err(EmuError::InternalError(format!("Attempted to call or branch to extern function '{}' but it was not defined in any input file.", label)));
+                    return Err(EmuError::InternalError(format!(
+                        "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                        label
+                    )));
                 } else {
                     return Err(EmuError::InternalError(format!(
                         "Undefined label: {}",
@@ -318,7 +317,10 @@ impl InstructionDataTransfer for CpuState {
                         Some(x) => *x as Word,
                         None => {
                             if cpu.program.extern_labels.contains(label) {
-                                return Err(EmuError::InternalError(format!("Attempted to call or branch to extern function '{}' but it was not defined in any input file.", label)));
+                                return Err(EmuError::InternalError(format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                )));
                             } else {
                                 return Err(EmuError::InternalError(format!(
                                     "Undefined label: {}",
@@ -340,7 +342,10 @@ impl InstructionDataTransfer for CpuState {
                         Some(x) => *x as Word,
                         None => {
                             if cpu.program.extern_labels.contains(label) {
-                                return Err(EmuError::InternalError(format!("Attempted to call or branch to extern function '{}' but it was not defined in any input file.", label)));
+                                return Err(EmuError::InternalError(format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                )));
                             } else {
                                 return Err(EmuError::InternalError(format!(
                                     "Undefined label: {}",

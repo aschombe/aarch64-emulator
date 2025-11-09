@@ -216,14 +216,25 @@ impl InstructionControl for CpuState {
             }
         }
         // BR (indirect)
-        // if let OpCode::BR = opcode {
-        //     if let [Operand::Reg(reg)] = operands {
-        //         let target_ip = self.get_reg(reg.to_id()) as usize;
-        //         *self.ip.borrow_mut() = target_ip;
-        //         self.did_branch.set(true);
-        //         return Ok(false);
-        //     }
-        // }
+        if let OpCode::BR = opcode {
+            if let [Operand::Reg(reg)] = operands {
+                let target_ip = self.get_reg(reg.to_id()) as usize;
+                *self.ip.borrow_mut() = target_ip;
+                self.did_branch.set(true);
+                return Ok(false);
+            }
+        }
+        // BLR
+        if let OpCode::BLR = opcode {
+            if let [Operand::Reg(reg)] = operands {
+                let return_addr = *self.ip.borrow() + 1;
+                self.set_reg(30, return_addr as Word);
+                let target_ip = self.get_reg(reg.to_id()) as usize;
+                *self.ip.borrow_mut() = target_ip;
+                self.did_branch.set(true);
+                return Ok(false);
+            }
+        }
         Err(EmuError::InternalError(format!(
             "Invalid branch operands: {:?} {:?}",
             opcode, operands
