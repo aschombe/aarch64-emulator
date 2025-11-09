@@ -141,9 +141,10 @@ Example command to run with multiple plugins:
 - Allow the use of real c library/other library functions?
 
 **Instructions**:
+- https://developer.arm.com/documentation/ddi0487/latest
 - https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf
 - Test negative offsets with ldr/str instructions
-- [ ] Shifting and extending support
+- [ ] Shift and extend modifier support
     - lsl, lsr, asr, ror
     - sxtb, sxth, sxtw
     - uxtb, uxth, uxtw

@@ -163,6 +163,7 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
         "B.GT" | "BGT" => Ok(OpCode::B(Condition::Gt)),
         "B.GE" | "BGE" => Ok(OpCode::B(Condition::Ge)),
         "B.AL" | "BAL" => Ok(OpCode::B(Condition::Al)),
+        "B.NV" | "BNV" => Ok(OpCode::B(Condition::Nv)),
         "B.CS" | "BCS" | "B.HS" | "BHS" => Ok(OpCode::B(Condition::Cs)),
         "B.CC" | "BCC" | "B.LO" | "BLO" => Ok(OpCode::B(Condition::Cc)),
         "B.MI" | "BMI" => Ok(OpCode::B(Condition::Mi)),

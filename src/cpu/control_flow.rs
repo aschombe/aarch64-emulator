@@ -27,8 +27,8 @@ impl InstructionControl for CpuState {
             Condition::Ge => n == v,
             Condition::Lt => n != v,
             Condition::Gt => !z && (n == v),
-            Condition::Le => z || (n != v),
-            Condition::Al => true,
+            Condition::Le => !(!z && (n == v)),
+            Condition::Al | Condition::Nv => true,
 
             Condition::Cs | Condition::Hs => c,
             Condition::Cc | Condition::Lo => !c,
@@ -37,7 +37,7 @@ impl InstructionControl for CpuState {
             Condition::Vs => v,
             Condition::Vc => !v,
             Condition::Hi => c && !z,
-            Condition::Ls => !c || z,
+            Condition::Ls => !(c && !z),
         }
     }
 
