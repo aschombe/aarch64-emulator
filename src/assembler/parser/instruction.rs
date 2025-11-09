@@ -193,6 +193,7 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
         "B.LS" | "BLS" => Ok(OpCode::B(Condition::Ls)),
         "RET" => Ok(OpCode::RET),
         "CMP" => Ok(OpCode::CMP),
+        "CMN" => Ok(OpCode::CMN),
         "CBZ" => Ok(OpCode::CBZ),
         "CBNZ" => Ok(OpCode::CBNZ),
         "TBZ" => Ok(OpCode::TBZ),

@@ -283,6 +283,7 @@ pub enum OpCode {
     BLR,
     RET,
     CMP,
+    CMN,
     CBZ,
     CBNZ,
     TBZ,

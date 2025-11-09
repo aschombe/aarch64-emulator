@@ -16,6 +16,7 @@ pub trait InstructionDataProcessing {
         is_sub: bool,
     ) -> EmuResult<bool>;
     fn execute_cmp(&mut self, operands: &[Operand]) -> EmuResult<bool>;
+    fn execute_cmn(&mut self, operands: &[Operand]) -> EmuResult<bool>;
     fn execute_neg(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool>;
     fn execute_swp(
         &mut self,
@@ -63,6 +64,40 @@ impl InstructionDataProcessing for CpuState {
             Ok(false)
         } else {
             Err(EmuError::InternalError("Invalid CMP".into()))
+        }
+    }
+
+    fn execute_cmn(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+        match operands {
+            [Operand::Reg(r1), Operand::Imm(imm)] => {
+                let a = self.get_reg(r1.to_id());
+                let b = match imm {
+                    Immediate::Lit(val) => *val as Word,
+                    Immediate::Lbl(_) | Immediate::Lo12Lbl(_) => {
+                        return Err(EmuError::InternalError(format!(
+                            "CMN does not support label immediates"
+                        )));
+                    }
+                };
+                let res = a.wrapping_add(b);
+                let is_w = r1.is_w_register();
+                let (_ignored_result, carry, overflow) = alu::add(a, b, is_w);
+                self.update_cpsr_nzcv(res, carry, overflow, false, is_w);
+                Ok(false)
+            }
+            [Operand::Reg(r1), Operand::Reg(r2)] => {
+                let a = self.get_reg(r1.to_id());
+                let b = self.get_reg(r2.to_id());
+                let res = a.wrapping_add(b);
+                let is_w = r1.is_w_register();
+                let (_ignored_result, carry, overflow) = alu::add(a, b, is_w);
+                self.update_cpsr_nzcv(res, carry, overflow, false, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(format!(
+                "Invalid CMN operands: {:?}",
+                operands
+            ))),
         }
     }
 

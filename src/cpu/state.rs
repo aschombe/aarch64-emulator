@@ -303,6 +303,7 @@ impl CpuState {
             OpCode::LSR => self.execute_binary_op(&ir_insn.operands, alu::lsr, false, false),
             OpCode::ASR => self.execute_binary_op(&ir_insn.operands, alu::asr, false, false),
             OpCode::CMP => self.execute_cmp(&ir_insn.operands),
+            OpCode::CMN => self.execute_cmn(&ir_insn.operands),
 
             // Data Transfer (MOV, LDR/STR, ADR/ADRP)
             OpCode::MOV(kind) => self.execute_mov(OpCode::MOV(*kind), &ir_insn.operands),
