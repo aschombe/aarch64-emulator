@@ -66,11 +66,13 @@ pub fn parse_instruction(
             }
         }
     }
+
     let tokens: Vec<String> = token_assembly
         .split('|')
-        .map(|t| t.trim().to_string())
+        .map(|t| t.trim().trim_end_matches(',').to_string())
         .filter(|t| !t.is_empty())
         .collect();
+
     let opcode = full_mnemonic_to_opcode(&full_mnemonic)?;
     let mut operands = Vec::new();
     for token in tokens.into_iter() {
@@ -95,6 +97,7 @@ pub fn parse_condition(full_mnemonic: &str) -> EmuResult<Condition> {
         "GT" => Ok(Condition::Gt),
         "GE" => Ok(Condition::Ge),
         "AL" => Ok(Condition::Al),
+        "NV" => Ok(Condition::Nv),
         "CS" | "HS" => Ok(Condition::Cs),
         "CC" | "LO" => Ok(Condition::Cc),
         "MI" => Ok(Condition::Mi),
@@ -176,6 +179,8 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
         "CMP" => Ok(OpCode::CMP),
         "CBZ" => Ok(OpCode::CBZ),
         "CBNZ" => Ok(OpCode::CBNZ),
+        "TBZ" => Ok(OpCode::TBZ),
+        "TBNZ" => Ok(OpCode::TBNZ),
         "SVC" => Ok(OpCode::SVC),
         "NOP" => Ok(OpCode::NOP),
         _ => {

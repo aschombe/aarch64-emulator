@@ -325,6 +325,8 @@ impl CpuState {
             OpCode::BR => self.execute_branch(OpCode::BR, &ir_insn.operands),
             OpCode::CBZ => self.execute_branch(OpCode::CBZ, &ir_insn.operands),
             OpCode::CBNZ => self.execute_branch(OpCode::CBNZ, &ir_insn.operands),
+            OpCode::TBZ => self.execute_branch(OpCode::TBZ, &ir_insn.operands),
+            OpCode::TBNZ => self.execute_branch(OpCode::TBNZ, &ir_insn.operands),
             OpCode::RET => self.execute_ret(),
             OpCode::SVC => self.execute_svc(&ir_insn.operands),
             OpCode::NOP => Ok(false),

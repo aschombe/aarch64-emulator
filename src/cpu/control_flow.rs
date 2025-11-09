@@ -42,14 +42,19 @@ impl InstructionControl for CpuState {
     }
 
     fn execute_branch(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
-        match operands {
-            // B / B.cond / BL
-            [Operand::Imm(Immediate::Lbl(label))] => {
+        // B/B.cond/BL
+        if let OpCode::B(condition_opt) = opcode {
+            if let [Operand::Imm(Immediate::Lbl(label))] = operands {
                 if *self.program.label_is_addr.get(label).unwrap_or(&false) {
                     return Err(EmuError::InternalError(format!(
                         "Branch to data label not allowed: {}",
                         label
                     )));
+                }
+
+                // B.cond: check condition
+                if !self.check_condition(condition_opt) {
+                    return Ok(false);
                 }
 
                 let target_ip = match self.program.label_to_ip.get(label) {
@@ -68,34 +73,53 @@ impl InstructionControl for CpuState {
                         }
                     }
                 };
-
-                if let OpCode::B(condition) = opcode {
-                    let take = self.check_condition(condition);
-                    if !take {
-                        return Ok(false);
-                    }
-                }
-                if matches!(opcode, OpCode::BL) {
-                    if let Some(pm_rc) = &self.plugin_manager {
-                        let mut pm = pm_rc.borrow_mut();
-                        pm.run_hooks("pre_bl", self)?;
-                    }
-                    let return_addr = *self.ip.borrow() + 1;
-                    self.set_reg(30, return_addr as Word);
-                }
                 *self.ip.borrow_mut() = target_ip;
                 self.did_branch.set(true);
-                if matches!(opcode, OpCode::BL) {
-                    if let Some(pm_rc) = &self.plugin_manager {
-                        let mut pm = pm_rc.borrow_mut();
-                        pm.run_hooks("post_bl", self)?;
-                    }
-                }
-                Ok(false)
+                return Ok(false);
             }
-
-            // CBZ / CBNZ
-            [Operand::Reg(reg), Operand::Imm(Immediate::Lbl(label))] => {
+        }
+        if let OpCode::BL = opcode {
+            if let [Operand::Imm(Immediate::Lbl(label))] = operands {
+                if *self.program.label_is_addr.get(label).unwrap_or(&false) {
+                    return Err(EmuError::InternalError(format!(
+                        "Branch to data label not allowed: {}",
+                        label
+                    )));
+                }
+                let target_ip = match self.program.label_to_ip.get(label) {
+                    Some(x) => *x as usize,
+                    None => {
+                        if self.program.extern_labels.contains(label) {
+                            return Err(EmuError::InternalError(format!(
+                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                label
+                            )));
+                        } else {
+                            return Err(EmuError::InternalError(format!(
+                                "Undefined label: {}",
+                                label
+                            )));
+                        }
+                    }
+                };
+                if let Some(pm_rc) = &self.plugin_manager {
+                    let mut pm = pm_rc.borrow_mut();
+                    pm.run_hooks("pre_bl", self)?;
+                }
+                let return_addr = *self.ip.borrow() + 1;
+                self.set_reg(30, return_addr as Word);
+                *self.ip.borrow_mut() = target_ip;
+                self.did_branch.set(true);
+                if let Some(pm_rc) = &self.plugin_manager {
+                    let mut pm = pm_rc.borrow_mut();
+                    pm.run_hooks("post_bl", self)?;
+                }
+                return Ok(false);
+            }
+        }
+        // CBZ/CBNZ
+        if matches!(opcode, OpCode::CBZ | OpCode::CBNZ) {
+            if let [Operand::Reg(reg), Operand::Imm(Immediate::Lbl(label))] = operands {
                 if *self.program.label_is_addr.get(label).unwrap_or(&false) {
                     return Err(EmuError::InternalError(format!(
                         "Conditional branch to data label not allowed: {}",
@@ -108,18 +132,12 @@ impl InstructionControl for CpuState {
                 } else {
                     raw_val
                 };
-
-                let condition_met = match opcode {
+                let should_branch = match opcode {
                     OpCode::CBZ => reg_val == 0,
                     OpCode::CBNZ => reg_val != 0,
-                    _ => {
-                        return Err(EmuError::InternalError(format!(
-                            "Invalid conditional branch opcode: {:?}",
-                            opcode
-                        )));
-                    }
+                    _ => false,
                 };
-                if condition_met {
+                if should_branch {
                     let target_ip = match self.program.label_to_ip.get(label) {
                         Some(x) => *x as usize,
                         None => {
@@ -139,22 +157,77 @@ impl InstructionControl for CpuState {
                     *self.ip.borrow_mut() = target_ip;
                     self.did_branch.set(true);
                 }
-                Ok(false)
+                return Ok(false);
             }
-
-            // BR
-            [Operand::Reg(reg)] if matches!(opcode, OpCode::BR) => {
-                let target_ip = self.get_reg(reg.to_id()) as usize;
-                *self.ip.borrow_mut() = target_ip;
-                self.did_branch.set(true);
-                Ok(false)
-            }
-
-            _ => Err(EmuError::InternalError(format!(
-                "Invalid branch operands: {:?}",
-                operands
-            ))),
         }
+        // TBZ/TBNZ
+        if matches!(opcode, OpCode::TBZ | OpCode::TBNZ) {
+            if let [
+                Operand::Reg(reg),
+                Operand::Imm(Immediate::Lit(bit_pos)),
+                Operand::Imm(Immediate::Lbl(label)),
+            ] = operands
+            {
+                if *self.program.label_is_addr.get(label).unwrap_or(&false) {
+                    return Err(EmuError::InternalError(format!(
+                        "TBZ/TBNZ to data label not allowed: {}",
+                        label
+                    )));
+                }
+                let raw_val = self.get_reg(reg.to_id());
+                let reg_val = if reg.is_w_register() {
+                    raw_val & 0xFFFF_FFFF
+                } else {
+                    raw_val
+                };
+                if *bit_pos >= if reg.is_w_register() { 32 } else { 64 } {
+                    return Err(EmuError::InternalError(format!(
+                        "Bit position {} out of range for register {:?}",
+                        bit_pos, reg
+                    )));
+                }
+                let bit_set = (reg_val & (1 << bit_pos)) != 0;
+                let should_branch = match opcode {
+                    OpCode::TBZ => !bit_set,
+                    OpCode::TBNZ => bit_set,
+                    _ => false,
+                };
+                if should_branch {
+                    let target_ip = match self.program.label_to_ip.get(label) {
+                        Some(x) => *x as usize,
+                        None => {
+                            if self.program.extern_labels.contains(label) {
+                                return Err(EmuError::InternalError(format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                )));
+                            } else {
+                                return Err(EmuError::InternalError(format!(
+                                    "Undefined label: {}",
+                                    label
+                                )));
+                            }
+                        }
+                    };
+                    *self.ip.borrow_mut() = target_ip;
+                    self.did_branch.set(true);
+                }
+                return Ok(false);
+            }
+        }
+        // BR (indirect)
+        // if let OpCode::BR = opcode {
+        //     if let [Operand::Reg(reg)] = operands {
+        //         let target_ip = self.get_reg(reg.to_id()) as usize;
+        //         *self.ip.borrow_mut() = target_ip;
+        //         self.did_branch.set(true);
+        //         return Ok(false);
+        //     }
+        // }
+        Err(EmuError::InternalError(format!(
+            "Invalid branch operands: {:?} {:?}",
+            opcode, operands
+        )))
     }
 
     fn execute_ret(&mut self) -> EmuResult<bool> {

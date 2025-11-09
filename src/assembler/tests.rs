@@ -7,11 +7,28 @@ mod tests {
     use crate::assembler::parser::AsmParser;
 
     #[test]
-    fn parses_simple_mov() {
-        let lines = vec!["mov x0, #1".to_string()];
+    fn parses_tbz_operands() {
+        let line = "tbz x1, #7, label1".to_string();
         let parser = AsmParser;
-        let (_, map) = parser.parse_assembly_to_ir(&lines).unwrap();
-        assert_eq!(map[0].0.opcode, OpCode::MOV);
-        assert!(matches!(map[0].0.operands[0], Operand::Reg(Reg::X0)));
+        let (ir_blocks, _) = parser
+            .parse_assembly_to_ir(
+                &vec![line],
+                "test.s",
+                &HashSet::new(),
+                &HashMap::new(),
+                "_start",
+            )
+            .unwrap();
+        let tbz_ir = match &ir_blocks[0].content {
+            AssemblyContent::Text(instrs) => &instrs[0],
+            _ => panic!("Expected text block"),
+        };
+        assert!(matches!(tbz_ir.opcode, OpCode::TBZ));
+        assert!(matches!(tbz_ir.operands[0], Operand::Reg(Reg::X1)));
+        assert!(matches!(
+            tbz_ir.operands[1],
+            Operand::Imm(Immediate::Lit(7))
+        ));
+        assert!(matches!(tbz_ir.operands[2], Operand::Imm(Immediate::Lbl(ref l)) if l == "label1"));
     }
 }

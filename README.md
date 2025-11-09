@@ -145,8 +145,6 @@ Example command to run with multiple plugins:
     - ADD SUPPORT FOR SHIFT AND EXTEND MODIFIERS WHERE APPLICABLE
     - Address (C1.3):
         - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
-    - Conditional Branching (C.3.1.1):
-        - tbz, tbnz
     - Unconditional branch (register) (C.3.1.3):
         - blr
     - Exception Generation and return (C3.1.5):

@@ -195,6 +195,7 @@ pub enum Operand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Condition {
     Al,
+    Nv,
     Eq,
     Ne,
     Lt,
@@ -268,6 +269,8 @@ pub enum OpCode {
     CMP,
     CBZ,
     CBNZ,
+    TBZ,
+    TBNZ,
     SVC,
     NOP,
 }
