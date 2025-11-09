@@ -184,6 +184,21 @@ impl InstructionDataTransfer for CpuState {
                 }
                 _ => Err(EmuError::InternalError("Invalid LDP operands".into())),
             },
+            OpCode::LDPSW => match operands {
+                [dest_op1, dest_op2, Operand::Offset(offset)] => {
+                    let (rt1_id, is_w1) = self.resolve_operand_dest(dest_op1)?;
+                    let (rt2_id, is_w2) = self.resolve_operand_dest(dest_op2)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    let value1 =
+                        self.memory.borrow().read_word(effective_addr)? as i32 as i64 as Word;
+                    let value2 =
+                        self.memory.borrow().read_word(effective_addr + 8)? as i32 as i64 as Word;
+                    self.set_reg_with_width(rt1_id, value1, is_w1);
+                    self.set_reg_with_width(rt2_id, value2, is_w2);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid LDPSW operands".into())),
+            },
             OpCode::LDRB => match operands {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
@@ -226,6 +241,81 @@ impl InstructionDataTransfer for CpuState {
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRSH operands".into())),
+            },
+            OpCode::LDRSW => match operands {
+                [dest_op, Operand::Offset(offset)] => {
+                    let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    let word_value = self.memory.borrow().read_word(effective_addr)? as i32;
+                    let sign_extended = word_value as i64 as Word;
+                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid LDRSW operands".into())),
+            },
+            OpCode::LDUR => match operands {
+                [dest_op, Operand::Offset(offset)] => {
+                    let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    let value = self.memory.borrow().read_word(effective_addr)?;
+                    self.set_reg_with_width(rt_id, value, is_w);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid LDUR operands".into())),
+            },
+            OpCode::LDURB => match operands {
+                [dest_op, Operand::Offset(offset)] => {
+                    let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    let byte_value = self.memory.borrow().read_byte(effective_addr)? as Word;
+                    self.set_reg_with_width(rt_id, byte_value & 0xFF, is_w);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid LDRUB operands".into())),
+            },
+            OpCode::LDURH => match operands {
+                [dest_op, Operand::Offset(offset)] => {
+                    let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    let halfword_value =
+                        self.memory.borrow().read_halfword(effective_addr)? as Word;
+                    self.set_reg_with_width(rt_id, halfword_value & 0xFFFF, is_w);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid LDRUH operands".into())),
+            },
+            OpCode::LDURSB => match operands {
+                [dest_op, Operand::Offset(offset)] => {
+                    let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    let byte_value = self.memory.borrow().read_byte(effective_addr)? as i8;
+                    let sign_extended = byte_value as i64 as Word;
+                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid LDURSB operands".into())),
+            },
+            OpCode::LDURSH => match operands {
+                [dest_op, Operand::Offset(offset)] => {
+                    let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    let halfword_value = self.memory.borrow().read_halfword(effective_addr)? as i16;
+                    let sign_extended = halfword_value as i32 as Word;
+                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid LDURSH operands".into())),
+            },
+            OpCode::LDURSW => match operands {
+                [dest_op, Operand::Offset(offset)] => {
+                    let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    let word_value = self.memory.borrow().read_word(effective_addr)? as i32;
+                    let sign_extended = word_value as i64 as Word;
+                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid LDURSW operands".into())),
             },
             _ => Err(EmuError::InternalError("Invalid LDR opcode".into())),
         }
@@ -276,6 +366,35 @@ impl InstructionDataTransfer for CpuState {
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid STRH operands".into())),
+            },
+            OpCode::STUR => match operands {
+                [source_op, Operand::Offset(offset)] => {
+                    let value = self.resolve_operand_source(source_op)?;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    self.memory.borrow_mut().write_word(effective_addr, value)?;
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid STUR operands".into())),
+            },
+            OpCode::STURB => match operands {
+                [source_op, Operand::Offset(offset)] => {
+                    let value = self.resolve_operand_source(source_op)? as u8;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    self.memory.borrow_mut().write_byte(effective_addr, value)?;
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid STURB operands".into())),
+            },
+            OpCode::STURH => match operands {
+                [source_op, Operand::Offset(offset)] => {
+                    let value = self.resolve_operand_source(source_op)? as u16;
+                    let effective_addr = self.resolve_offset_address(offset)?;
+                    self.memory
+                        .borrow_mut()
+                        .write_halfword(effective_addr, value as u32)?;
+                    Ok(false)
+                }
+                _ => Err(EmuError::InternalError("Invalid STURH operands".into())),
             },
             _ => Err(EmuError::InternalError("Invalid STR opcode".into())),
         }
