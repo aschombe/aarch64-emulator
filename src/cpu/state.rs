@@ -302,8 +302,13 @@ impl CpuState {
             OpCode::LSL => self.execute_binary_op(&ir_insn.operands, alu::lsl, false, false),
             OpCode::LSR => self.execute_binary_op(&ir_insn.operands, alu::lsr, false, false),
             OpCode::ASR => self.execute_binary_op(&ir_insn.operands, alu::asr, false, false),
+            OpCode::ROR => self.execute_binary_op(&ir_insn.operands, alu::ror, false, false),
             OpCode::CMP => self.execute_cmp(&ir_insn.operands),
             OpCode::CMN => self.execute_cmn(&ir_insn.operands),
+            OpCode::SMAX => self.execute_minmax(&ir_insn.operands, true, true),
+            OpCode::SMIN => self.execute_minmax(&ir_insn.operands, true, false),
+            OpCode::UMAX => self.execute_minmax(&ir_insn.operands, false, true),
+            OpCode::UMIN => self.execute_minmax(&ir_insn.operands, false, false),
 
             // Data Transfer (MOV, LDR/STR, ADR/ADRP)
             OpCode::MOV(kind) => self.execute_mov(OpCode::MOV(*kind), &ir_insn.operands),

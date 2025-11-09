@@ -199,3 +199,49 @@ pub fn asr(val: Word, shift: Word, is_w: bool) -> AluResult {
         ((signed.wrapping_shr(sh)) as u64, false, false)
     }
 }
+
+/// Rotate right.
+pub fn ror(val: Word, shift: Word, is_w: bool) -> AluResult {
+    let sh = (shift & 0xFF) as u32;
+    if is_w {
+        let v = val as u32;
+        ((v.rotate_right(sh) as u32) as u64, false, false)
+    } else {
+        (val.rotate_right(sh), false, false)
+    }
+}
+
+/// Minimum or maximum of two values.
+pub fn minmax(a: u64, b: u64, is_w: bool, is_signed: bool, is_max: bool) -> u64 {
+    if is_signed {
+        if is_w {
+            let a = a as i32;
+            let b = b as i32;
+            if is_max {
+                a.max(b) as u32 as u64
+            } else {
+                a.min(b) as u32 as u64
+            }
+        } else {
+            let a = a as i64;
+            let b = b as i64;
+            if is_max {
+                a.max(b) as u64
+            } else {
+                a.min(b) as u64
+            }
+        }
+    } else {
+        if is_w {
+            let a = a as u32;
+            let b = b as u32;
+            if is_max {
+                a.max(b) as u64
+            } else {
+                a.min(b) as u64
+            }
+        } else {
+            if is_max { a.max(b) } else { a.min(b) }
+        }
+    }
+}

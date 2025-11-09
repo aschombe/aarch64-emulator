@@ -23,6 +23,12 @@ pub trait InstructionDataProcessing {
         opcode: crate::assembler::asm_types::OpCode,
         operands: &[Operand],
     ) -> EmuResult<bool>;
+    fn execute_minmax(
+        &mut self,
+        operands: &[Operand],
+        is_signed: bool,
+        is_max: bool,
+    ) -> EmuResult<bool>;
 }
 
 impl InstructionDataProcessing for CpuState {
@@ -189,6 +195,27 @@ impl InstructionDataProcessing for CpuState {
                 _ => Err(EmuError::InternalError("Invalid SWPP operands".into())),
             },
             _ => Err(EmuError::InternalError("Invalid SWP opcode".into())),
+        }
+    }
+
+    fn execute_minmax(
+        &mut self,
+        operands: &[Operand],
+        is_signed: bool,
+        is_max: bool,
+    ) -> EmuResult<bool> {
+        match operands {
+            [dest, src1, src2] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let a = self.resolve_operand_source(src1)?;
+                let b = self.resolve_operand_source(src2)?;
+                let result = alu::minmax(a, b, is_w, is_signed, is_max);
+                self.set_reg_with_width(rd, result, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(
+                "Invalid operands for min/max.".to_string(),
+            )),
         }
     }
 }
