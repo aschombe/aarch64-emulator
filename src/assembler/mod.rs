@@ -7,7 +7,7 @@ pub mod label_pass;
 pub mod parser;
 
 use crate::assembler::label_pass::collect_labels;
-use crate::types::{EmuError, EmuResult, Word};
+use crate::types::{DATA_BASE, EmuError, EmuResult, Word};
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -129,8 +129,6 @@ fn flatten_and_resolve(
     Vec<AssemblyBlock>,
     Vec<usize>,
 )> {
-    use crate::types::DATA_BASE;
-
     let mut sorted_blocks = ir_blocks.clone();
     sorted_blocks.sort_by_key(|b| match b.content {
         AssemblyContent::Text(_) => 0,
@@ -145,11 +143,28 @@ fn flatten_and_resolve(
     let mut ip_to_line_map = Vec::new();
 
     let mut current_ip = 0usize;
-    let mut current_data_addr: Word = DATA_BASE;
     let mut entry_ip = 0usize;
 
+    // First pass finds all data/bss labels
     for block in sorted_blocks.iter() {
-        if label_to_ip.contains_key(&block.label) {
+        match &block.content {
+            AssemblyContent::Data(_) | AssemblyContent::Bss(_) => {
+                // We'll update these addresses in the main loop,
+                // but register them now so they exist
+                if !label_to_ip.contains_key(&block.label) {
+                    label_to_ip.insert(block.label.clone(), 0); // placeholder
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Second pass assigns addresses and instruction pointers
+    let mut current_data_addr_main: Word = DATA_BASE;
+    for block in sorted_blocks.iter() {
+        if label_to_ip.contains_key(&block.label)
+            && matches!(block.content, AssemblyContent::Text(_))
+        {
             return Err(EmuError::InternalError(format!(
                 "Duplicate label definition: {}",
                 block.label
@@ -169,7 +184,7 @@ fn flatten_and_resolve(
 
             // DATA SECTION: address
             AssemblyContent::Data(items) => {
-                label_to_ip.insert(block.label.clone(), current_data_addr);
+                label_to_ip.insert(block.label.clone(), current_data_addr_main); // ← UPDATE with real address
                 label_is_addr.insert(block.label.clone(), true);
                 let block_size: Word = items
                     .iter()
@@ -186,15 +201,15 @@ fn flatten_and_resolve(
                         Data::FloatArr(v) => (v.len() * 4) as Word,
                     })
                     .sum();
-                current_data_addr += block_size;
+                current_data_addr_main += block_size;
                 data_blocks.push(block.clone());
             }
 
             // BSS SECTION: address
             AssemblyContent::Bss(size) => {
-                label_to_ip.insert(block.label.clone(), current_data_addr);
+                label_to_ip.insert(block.label.clone(), current_data_addr_main); // ← UPDATE with real address
                 label_is_addr.insert(block.label.clone(), true);
-                current_data_addr += *size;
+                current_data_addr_main += *size;
             }
         }
     }

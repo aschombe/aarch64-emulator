@@ -535,7 +535,7 @@ pub fn apply_shift_extend(
     val: u64,
     mod_type: Option<ShiftOrExtendKind>,
     amount: u8,
-    src_width: u8,
+    _src_width: u8,
     out_width: u8,
 ) -> u64 {
     // Step 1: Extension
