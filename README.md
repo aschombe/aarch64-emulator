@@ -144,7 +144,66 @@ Example command to run with multiple plugins:
 - https://developer.arm.com/documentation/ddi0487/latest:
     - ADD SUPPORT FOR SHIFT AND EXTEND MODIFIERS WHERE APPLICABLE:
         - Instructions that support these:
-            - ... a ton
+            - MOVN/Z/K (MOVN/Z/K <Wd/Xd>, {#}<imm>{, LSL #<shift>})
+            - NEG/S (NEG/S <Wd/Xd>, <Wn/Xn>{, <shift> #<amount>}) (double check NEGS)
+            - ADD (Extended Register) (ADD <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <extend> {#<amount>}})
+            - ADD (Immediate) (ADD <Wd/Xd>, <Wn/Xn>, #<imm>{, <shift>})
+            - ADD (Shifted Register) (ADD <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - ADDS (Extended Register) (ADDS <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <extend> {#<amount>}})
+            - ADDS (Immediate) (ADDS <Wd/Xd>, <Wn/Xn>, #<imm>{, <shift>})
+            - ADDS (Shifted Register) (ADDS <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - SUB (Extended Register) (SUB <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <extend> {#<amount>}})
+            - SUB (Immediate) (SUB <Wd/Xd>, <Wn/Xd>, #<imm>{, <shift>})
+            - SUB (Shifted Register) (SUB <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - SUBS (Extended Register) (SUBS <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <extend> {#<amount>}})
+            - SUBS (Immediate) (SUBS <Wd/Xd>, <Wn/Xn>, #<imm>{, <shift>})
+            - SUBS (Shifted Register) (SUBS <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+
+            - DOUBLE CHECK SYNTAX ON THESE --------
+            - AND (Shifted Register) (AND <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - ORR (Shifted Register) (ORR <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - EOR (Shifted Register) (EOR <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - ANDS (Shifted Register) (ANDS <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - BIC (Shifted Register) (BIC <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - BICS (Shifted Register) (BICS <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - EON (Shifted Register) (EON <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - ORN (Shifted Register) (ORN <Wd/Xd>, <Wn/Xn>, <Rm/Xm>{, <shift> #<amount>})
+            - TST (Shifted Register) (TST <Wd/Xd>, <Wn/Xn>{, <shift> #<amount>})
+            - -------------
+
+            - ASR (Immediate) (ASR <Wd/Xd>, <Wn/Xn>, #<shift>)
+            - ROR (Immediate) (ROR <Wd/Xd>, <Wn/Xn>, #<shift>)
+            - LSR (Immediate) (LSR <Wd/Xd>, <Wn/Xn>, #<shift>)
+            - LSL (Immediate) (LSL <Wd/Xd>, <Wn/Xn>, #<shift>)
+
+            - LDR (Register) (LDR <Xt>, [<Xn|SP>, (<Wm>|<Xm>){, <extend> {#<amount>}}])
+            - LDRB (Register Extended) (LDRB <Wt>, [<Xn|SP>, (<Wm>|<Xm>), <extend> {<amount>}])
+            - LDRB (Register Shifted) (LDRB <Wt>, [<Xn|SP>, <Xm>{, LSL <amount>}])
+            - LDRH (Reigster) (LDRH <Wt>, [<Xn|SP>, (<Wm>|<Xm>){, <extend> {<amount>}}])
+            - LDRSB (Register Extended) (LDRSB <Xt>, [<Xn|SP>, (<Wm>|<Xm>), <extend> {<amount>}])
+            - LDRSB (Register Shifted) (LDRSB <Xt>, [<Xn|SP>, <Xm>{, LSL <amount>}])
+            - LDRSH (Register) (LDRSH <Xt>, [<Xn|SP>, (<Wm>|<Xm>){, <extend> {<amount>}}])
+            - LDRSW (Register) (LDRSW <Xt>, [<Xn|SP>, (<Wm>|<Xm>){, <extend> {<amount>}}])
+            - STR (Register) (STR <Xt>, [<Xn|SP>, (<Wm>|<Xm>){, <extend> {<amount>}}])
+            - STRB (Register Extended) (STRB <Wt>, [<Xn|SP>, (<Wm>|<Xm>), <extend> {<amount>}])
+            - STRB (Register Shifted) (STRB <Wt>, [<Xn|SP>, <Xm>{, LSL <amount>}])
+            - STRH (Register) (STRH <Wt>, [<Xn|SP>, (<Wm>|<Xm>){, <extend> {<amount>}}])
+
+            - CMN (Extended Register) (CMN <Xn|SP>, <R><m>{, <extend> {#<amount>}})
+            - CMN (Immediate) (CMN <Xn|SP>, #<imm>{, <shift>})
+            - CMN (Shifted Register) (CMN <Xn>, <Xm>{, <shift> #<amount>})
+            - CMP (Extended Register) (CMP <Xn|SP>, <R><m>{, <extend> {#<amount>}})
+            - CMP (Immediate) (CMP <Xn|SP>, #<imm>{, <shift>})
+            - CMP (Shifted Register) (CMP <Xn>, <Xm>{, <shift> #<amount>})
+            - TST (Shifted Register) (TST <Xn>, <Xm>{, <shift> #<amount>})
+
+            - STRB (Register) (Shifted Register)
+            - STRB (Register) (Extended Register)
+            - LDRB (Register) (Shifted Register)
+            - LDRB (Register) (Extended Register)
+            - LDRSB (Register) (Shifted register)
+            - LDRSB (Register) (Extended register)
+
         - Modifiers:
             - LSL, LSR, ASR, ROR
             - UXTB, UXTH, UXTW, UXTX
