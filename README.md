@@ -145,8 +145,6 @@ Example command to run with multiple plugins:
     - ADD SUPPORT FOR SHIFT AND EXTEND MODIFIERS WHERE APPLICABLE
     - Address (C1.3):
         - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
-    - Exception Generation and return (C3.1.5):
-        - brk, hlt, hvc, smc, eret
     - Logical (immediate) (C3.5.3):
         - tst
     - Sign-extend and Zero-extend (C3.5.11):
@@ -155,7 +153,7 @@ Example command to run with multiple plugins:
     - Arithmetic with carry (C3.7.3):
         - adc, adcs, sbc, sbcs, ngc, ngcs
     - Logical (shifted register) (C3.7.6):
-        - bic, bics, eon, eor, orr, mvn, orn, tst
+        - bic, bics, eon, eor, orr, mvn, orn
     - Absolute value (C3.7.8):
         - abs
     - Multiply and divide (C3.7.10):
