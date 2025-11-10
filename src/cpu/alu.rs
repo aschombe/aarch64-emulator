@@ -360,3 +360,76 @@ pub fn ngc(val_m: Word, carry_in: Word, is_w: bool) -> (Word, bool, bool) {
     // Like sbc but val_n == 0
     sbc(0, val_m, carry_in, is_w)
 }
+
+pub fn cls(val: u64, is_w: bool) -> u64 {
+    if is_w {
+        let v = val as i32;
+        let sign_bit = v >> 31;
+        let xor = v ^ sign_bit;
+        (xor.leading_zeros() - 1) as u64
+    } else {
+        let v = val as i64;
+        let sign_bit = v >> 63;
+        let xor = v ^ sign_bit;
+        (xor.leading_zeros() - 1) as u64
+    }
+}
+
+pub fn clz(val: u64, is_w: bool) -> u64 {
+    if is_w {
+        let v = val as u32;
+        v.leading_zeros() as u64
+    } else {
+        val.leading_zeros() as u64
+    }
+}
+
+pub fn ctz(val: u64, is_w: bool) -> u64 {
+    if is_w {
+        (val as u32).trailing_zeros() as u64
+    } else {
+        val.trailing_zeros() as u64
+    }
+}
+
+pub fn cnt(val: u64, is_w: bool) -> u64 {
+    if is_w {
+        (val as u32).count_ones() as u64
+    } else {
+        val.count_ones() as u64
+    }
+}
+
+pub fn rbit(val: u64, is_w: bool) -> u64 {
+    if is_w {
+        (val as u32).reverse_bits() as u64
+    } else {
+        val.reverse_bits()
+    }
+}
+
+pub fn rev(val: u64, is_w: bool) -> u64 {
+    if is_w {
+        (val as u32).swap_bytes() as u64
+    } else {
+        val.swap_bytes()
+    }
+}
+
+pub fn rev16(val: u64, is_w: bool) -> u64 {
+    if is_w {
+        let v = val as u32;
+        (((v & 0xFF00FF00) >> 8) | ((v & 0x00FF00FF) << 8)) as u64
+    } else {
+        ((val & 0xFF00FF00FF00FF00) >> 8) | ((val & 0x00FF00FF00FF00FF) << 8)
+    }
+}
+
+pub fn rev32(val: u64, is_w: bool) -> u64 {
+    if is_w {
+        let v = val as u32;
+        v as u64 // No-op
+    } else {
+        ((val >> 32) as u32 as u64) | ((val as u32 as u64) << 32)
+    }
+}

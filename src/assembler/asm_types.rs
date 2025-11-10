@@ -246,6 +246,15 @@ pub enum OpCode {
     UMADDL, // unsigned multiply-add long
     UMSUBL, // unsigned multiply-subtract long
     UMNEGL, // unsigned multiply-negate long
+    CLS,
+    CLZ,
+    CNT,
+    CTZ,
+    RBIT,
+    REV,
+    REV16,
+    REV32,
+    REV64,
     UDIV,
     SDIV,
     ADDS,

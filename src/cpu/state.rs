@@ -300,6 +300,17 @@ impl CpuState {
             OpCode::UMADDL => self.execute_wide_3op(&ir_insn.operands, alu::umaddl),
             OpCode::UMSUBL => self.execute_wide_3op(&ir_insn.operands, alu::umsubl),
             OpCode::UMNEGL => self.execute_wide_2op(&ir_insn.operands, alu::umnegl),
+
+            OpCode::CLS => self.execute_bitop(&ir_insn.operands, alu::cls),
+            OpCode::CLZ => self.execute_bitop(&ir_insn.operands, alu::clz),
+            OpCode::CTZ => self.execute_bitop(&ir_insn.operands, alu::ctz),
+            OpCode::CNT => self.execute_bitop(&ir_insn.operands, alu::cnt),
+            OpCode::RBIT => self.execute_bitop(&ir_insn.operands, alu::rbit),
+            OpCode::REV => self.execute_bitop(&ir_insn.operands, alu::rev),
+            OpCode::REV16 => self.execute_bitop(&ir_insn.operands, alu::rev16),
+            OpCode::REV32 => self.execute_bitop(&ir_insn.operands, alu::rev32),
+            OpCode::REV64 => self.execute_bitop(&ir_insn.operands, alu::rev),
+
             OpCode::UDIV => self.execute_binary_op(&ir_insn.operands, alu::udiv, false, false),
             OpCode::SDIV => self.execute_binary_op(&ir_insn.operands, alu::sdiv, false, false),
             OpCode::NEG => self.execute_neg(&ir_insn.operands, false),

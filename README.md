@@ -150,8 +150,6 @@ Example command to run with multiple plugins:
         - uxtb, uxth, uxtw
     - Logical (shifted register) (C3.7.6):
         - bic, bics, eon, eor, orr, mvn, orn
-    - Bit operation (C3.7.12):
-        - cls, clz, cnt, ctz, rbit, rev, rev16, rev32, rev64
     - Conditional select (C3.7.13):
         - csel, csinc, csinv, csneg, cset, csetm, cinc, cinv, cneg
     - Conditional comparison (C3.7.14):

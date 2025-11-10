@@ -47,6 +47,7 @@ pub trait InstructionDataProcessing {
         operands: &[Operand],
         op: fn(Word, Word) -> Word,
     ) -> EmuResult<bool>;
+    fn execute_bitop(&mut self, operands: &[Operand], op: fn(u64, bool) -> u64) -> EmuResult<bool>;
 }
 
 impl InstructionDataProcessing for CpuState {
@@ -412,6 +413,19 @@ impl InstructionDataProcessing for CpuState {
             _ => Err(EmuError::InternalError(
                 "Invalid wide 2-op operands".to_string(),
             )),
+        }
+    }
+
+    fn execute_bitop(&mut self, operands: &[Operand], op: fn(u64, bool) -> u64) -> EmuResult<bool> {
+        match operands {
+            [dest, src] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let val = self.resolve_operand_source(src)?;
+                let result = op(val, is_w);
+                self.set_reg_with_width(rd, result, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError("Invalid bit op operands".into())),
         }
     }
 }
