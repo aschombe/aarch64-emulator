@@ -30,6 +30,10 @@ pub trait InstructionDataProcessing {
         is_signed: bool,
         is_max: bool,
     ) -> EmuResult<bool>;
+    fn execute_adc(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool>;
+    fn execute_sbc(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool>;
+    fn execute_ngc(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool>;
+    fn execute_abs(&mut self, operands: &[Operand]) -> EmuResult<bool>;
 }
 
 impl InstructionDataProcessing for CpuState {
@@ -230,6 +234,88 @@ impl InstructionDataProcessing for CpuState {
             }
             _ => Err(EmuError::InternalError(
                 "Invalid operands for min/max.".to_string(),
+            )),
+        }
+    }
+
+    fn execute_adc(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool> {
+        match operands {
+            [dest, src1, src2] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let val1 = self.resolve_operand_source(src1)?;
+                let val2 = self.resolve_operand_source(src2)?;
+                let carry = self.get_carry_flag();
+                let (result, carry_out, overflow) = alu::adc(val1, val2, carry, is_w);
+                self.set_reg_with_width(rd, result, is_w);
+                if update_flags {
+                    self.update_cpsr_nzcv(result, carry_out, overflow, false, is_w);
+                }
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError("Invalid ADC operands.".to_string())),
+        }
+    }
+
+    fn execute_sbc(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool> {
+        match operands {
+            [dest, src1, src2] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let val1 = self.resolve_operand_source(src1)?;
+                let val2 = self.resolve_operand_source(src2)?;
+                let carry = self.get_carry_flag();
+                let (result, carry_out, overflow) = alu::sbc(val1, val2, carry, is_w);
+                self.set_reg_with_width(rd, result, is_w);
+                if update_flags {
+                    self.update_cpsr_nzcv(result, carry_out, overflow, true, is_w);
+                }
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError("Invalid SBC operands.".to_string())),
+        }
+    }
+
+    fn execute_ngc(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool> {
+        match operands {
+            [dest, src2] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let val2 = self.resolve_operand_source(src2)?;
+                let carry = self.get_carry_flag();
+                let (result, carry_out, overflow) = alu::ngc(val2, carry, is_w);
+                self.set_reg_with_width(rd, result, is_w);
+                if update_flags {
+                    self.update_cpsr_nzcv(result, carry_out, overflow, true, is_w);
+                }
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError("Invalid NGC operands.".to_string())),
+        }
+    }
+
+    fn execute_abs(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+        match operands {
+            [dest, src] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let value = self.resolve_operand_source(src)?;
+                let result = if is_w {
+                    let sv = value as i32;
+                    if sv == i32::MIN {
+                        sv as u32 as u64
+                    } else {
+                        sv.abs() as u32 as u64
+                    }
+                } else {
+                    let sv = value as i64;
+                    if sv == i64::MIN {
+                        sv as u64
+                    } else {
+                        sv.abs() as u64
+                    }
+                };
+                self.set_reg_with_width(rd, result, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(
+                "Invalid operands for ABS".to_string(),
             )),
         }
     }

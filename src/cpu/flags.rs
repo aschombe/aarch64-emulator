@@ -41,4 +41,12 @@ impl CpuState {
         }
         *self.cpsr.borrow_mut() = new_state;
     }
+
+    pub fn get_carry_flag(&self) -> u64 {
+        if *self.cpsr.borrow() & C_FLAG != 0 {
+            1
+        } else {
+            0
+        }
+    }
 }

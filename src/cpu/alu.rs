@@ -245,3 +245,60 @@ pub fn minmax(a: u64, b: u64, is_w: bool, is_signed: bool, is_max: bool) -> u64 
         }
     }
 }
+
+pub fn adc(val_n: Word, val_m: Word, carry_in: Word, is_w: bool) -> (Word, bool, bool) {
+    let (sum1, carry1): (u64, bool) = if is_w {
+        let (r, c) = (val_n as u32).overflowing_add(val_m as u32);
+        (r as u64, c)
+    } else {
+        val_n.overflowing_add(val_m)
+    };
+    let (sum2, carry2): (u64, bool) = if is_w {
+        let (r, c) = (sum1 as u32).overflowing_add(carry_in as u32);
+        (r as u64, c)
+    } else {
+        sum1.overflowing_add(carry_in)
+    };
+    let result = if is_w { sum2 as u32 as u64 } else { sum2 };
+    let carry = carry1 || carry2;
+    let overflow = if is_w {
+        let n = val_n as i32;
+        let m = val_m as i32;
+        // let c = carry_in as i32;
+        let r = result as i32;
+        ((n >= 0) == (m >= 0)) && ((n >= 0) != (r >= 0))
+    } else {
+        let n = val_n as i64;
+        let m = val_m as i64;
+        // let c = carry_in as i64;
+        let r = result as i64;
+        ((n >= 0) == (m >= 0)) && ((n >= 0) != (r >= 0))
+    };
+    (result, carry, overflow)
+}
+
+pub fn sbc(val_n: Word, val_m: Word, carry_in: Word, is_w: bool) -> (Word, bool, bool) {
+    let borrow = if carry_in == 1 { 0 } else { 1 };
+    let to_subtract = val_m + borrow;
+    let (result, carry, overflow) = if is_w {
+        let (res, carry) = (val_n as u32).overflowing_sub(to_subtract as u32);
+        let n = val_n as i32;
+        let m = to_subtract as i32;
+        let r = res as i32;
+        let overflow = ((n >= 0) == (-(m) >= 0)) && ((n >= 0) != (r >= 0));
+        (res as u64, !carry, overflow)
+    } else {
+        let (res, carry) = val_n.overflowing_sub(to_subtract);
+        let n = val_n as i64;
+        let m = to_subtract as i64;
+        let r = res as i64;
+        let overflow = ((n >= 0) == (-(m) >= 0)) && ((n >= 0) != (r >= 0));
+        (res, !carry, overflow)
+    };
+    (result, carry, overflow)
+}
+
+pub fn ngc(val_m: Word, carry_in: Word, is_w: bool) -> (Word, bool, bool) {
+    // Like sbc but val_n == 0
+    sbc(0, val_m, carry_in, is_w)
+}
