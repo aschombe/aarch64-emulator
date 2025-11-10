@@ -237,6 +237,15 @@ pub enum OpCode {
     SMULL,
     UMULH,
     SMULH,
+    MADD,   // Rd = Rn * Rm + Ra (signed/unsigned detected by context)
+    MSUB,   // Rd = Rn * Rm - Ra
+    MNEG,   // Rd = -(Rn * Rm)
+    SMADDL, // signed multiply-add long (wide)
+    SMSUBL, // signed multiply-subtract long
+    SMNEGL, // signed multiply-negate long
+    UMADDL, // unsigned multiply-add long
+    UMSUBL, // unsigned multiply-subtract long
+    UMNEGL, // unsigned multiply-negate long
     UDIV,
     SDIV,
     ADDS,

@@ -141,6 +141,64 @@ pub fn smulh(val_n: Word, val_m: Word, is_w: bool) -> AluResult {
     }
 }
 
+// MADD: Rd = Rn * Rm + Ra
+pub fn madd(n: Word, m: Word, a: Word, is_w: bool) -> Word {
+    let prod = if is_w {
+        (n as u32).wrapping_mul(m as u32) as u64
+    } else {
+        n.wrapping_mul(m)
+    };
+    prod.wrapping_add(a)
+}
+
+// MSUB: Rd = Rn * Rm - Ra
+pub fn msub(n: Word, m: Word, a: Word, is_w: bool) -> Word {
+    let prod = if is_w {
+        (n as u32).wrapping_mul(m as u32) as u64
+    } else {
+        n.wrapping_mul(m)
+    };
+    prod.wrapping_sub(a)
+}
+
+// MNEG: Rd = -(Rn * Rm)
+pub fn mneg(n: Word, m: Word, is_w: bool) -> Word {
+    let prod: i64 = if is_w {
+        (n as i32 as i64).wrapping_mul(m as i32 as i64)
+    } else {
+        (n as i64).wrapping_mul(m as i64)
+    };
+    prod.wrapping_neg() as u64
+}
+
+// Signed multiply-add/subtract long (SMADDL/SMSUBL/SMNEGL):
+pub fn smaddl(n: Word, m: Word, a: Word) -> Word {
+    let prod = (n as i32 as i64).wrapping_mul(m as i32 as i64);
+    prod.wrapping_add(a as i64) as u64
+}
+pub fn smsubl(n: Word, m: Word, a: Word) -> Word {
+    let prod = (n as i32 as i64).wrapping_mul(m as i32 as i64);
+    prod.wrapping_sub(a as i64) as u64
+}
+pub fn smnegl(n: Word, m: Word) -> Word {
+    let prod = (n as i32 as i64).wrapping_mul(m as i32 as i64);
+    prod.wrapping_neg() as u64
+}
+
+// Unsigned multiply-add/subtract long (UMADDL/UMSUBL/UMNEGL):
+pub fn umaddl(n: Word, m: Word, a: Word) -> Word {
+    let prod = (n as u32 as u64).wrapping_mul(m as u32 as u64);
+    prod.wrapping_add(a)
+}
+pub fn umsubl(n: Word, m: Word, a: Word) -> Word {
+    let prod = (n as u32 as u64).wrapping_mul(m as u32 as u64);
+    prod.wrapping_sub(a)
+}
+pub fn umnegl(n: Word, m: Word) -> Word {
+    let prod = (n as u32 as u64).wrapping_mul(m as u32 as u64);
+    prod.wrapping_neg()
+}
+
 /// Signed division.
 pub fn sdiv(val_n: Word, val_m: Word, is_w: bool) -> AluResult {
     if val_m == 0 {

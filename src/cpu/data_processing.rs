@@ -34,6 +34,19 @@ pub trait InstructionDataProcessing {
     fn execute_sbc(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool>;
     fn execute_ngc(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool>;
     fn execute_abs(&mut self, operands: &[Operand]) -> EmuResult<bool>;
+    fn execute_madd(&mut self, operands: &[Operand]) -> EmuResult<bool>;
+    fn execute_msub(&mut self, operands: &[Operand]) -> EmuResult<bool>;
+    fn execute_mneg(&mut self, operands: &[Operand]) -> EmuResult<bool>;
+    fn execute_wide_3op(
+        &mut self,
+        operands: &[Operand],
+        op: fn(Word, Word, Word) -> Word,
+    ) -> EmuResult<bool>;
+    fn execute_wide_2op(
+        &mut self,
+        operands: &[Operand],
+        op: fn(Word, Word) -> Word,
+    ) -> EmuResult<bool>;
 }
 
 impl InstructionDataProcessing for CpuState {
@@ -316,6 +329,88 @@ impl InstructionDataProcessing for CpuState {
             }
             _ => Err(EmuError::InternalError(
                 "Invalid operands for ABS".to_string(),
+            )),
+        }
+    }
+
+    fn execute_madd(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+        match operands {
+            [dest, src1, src2, src3] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let n = self.resolve_operand_source(src1)?;
+                let m = self.resolve_operand_source(src2)?;
+                let a = self.resolve_operand_source(src3)?;
+                let result = alu::madd(n, m, a, is_w);
+                self.set_reg_with_width(rd, result, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError("Invalid MADD operands".to_string())),
+        }
+    }
+    fn execute_msub(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+        match operands {
+            [dest, src1, src2, src3] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let n = self.resolve_operand_source(src1)?;
+                let m = self.resolve_operand_source(src2)?;
+                let a = self.resolve_operand_source(src3)?;
+                let result = alu::msub(n, m, a, is_w);
+                self.set_reg_with_width(rd, result, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError("Invalid MSUB operands".to_string())),
+        }
+    }
+    fn execute_mneg(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+        match operands {
+            [dest, src1, src2] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let n = self.resolve_operand_source(src1)?;
+                let m = self.resolve_operand_source(src2)?;
+                let result = alu::mneg(n, m, is_w);
+                self.set_reg_with_width(rd, result, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError("Invalid MNEG operands".to_string())),
+        }
+    }
+    // Same style for wide variants
+    fn execute_wide_3op(
+        &mut self,
+        operands: &[Operand],
+        op: fn(Word, Word, Word) -> Word,
+    ) -> EmuResult<bool> {
+        match operands {
+            [dest, src1, src2, src3] => {
+                let (rd, _is_w) = self.resolve_operand_dest(dest)?;
+                let n = self.resolve_operand_source(src1)?;
+                let m = self.resolve_operand_source(src2)?;
+                let a = self.resolve_operand_source(src3)?;
+                let result = op(n, m, a);
+                self.set_reg_with_width(rd, result, false); // These always write 64-bit
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(
+                "Invalid wide 3-op operands".to_string(),
+            )),
+        }
+    }
+    fn execute_wide_2op(
+        &mut self,
+        operands: &[Operand],
+        op: fn(Word, Word) -> Word,
+    ) -> EmuResult<bool> {
+        match operands {
+            [dest, src1, src2] => {
+                let (rd, _is_w) = self.resolve_operand_dest(dest)?;
+                let n = self.resolve_operand_source(src1)?;
+                let m = self.resolve_operand_source(src2)?;
+                let result = op(n, m);
+                self.set_reg_with_width(rd, result, false);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(
+                "Invalid wide 2-op operands".to_string(),
             )),
         }
     }
