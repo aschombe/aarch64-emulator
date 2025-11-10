@@ -13,76 +13,36 @@ pub fn parse_operand(
     global_labels: &HashSet<String>,
     equ_map: &std::collections::HashMap<String, i64>,
 ) -> EmuResult<Operand> {
+    use regex::Regex;
     let token = token.trim();
 
     if token.is_empty() {
         return Err(EmuError::InternalError("Operand is empty.".to_string()));
     }
 
-    let imm_mod_parts: Vec<&str> = token.split(',').map(|s| s.trim()).collect();
-    if imm_mod_parts.len() >= 2 {
-        let imm_token = imm_mod_parts[0];
-        let mod_token = imm_mod_parts[1].to_lowercase();
-        let mut amount: u8 = 0;
-        if imm_mod_parts.len() == 3 {
-            let amt_token = imm_mod_parts[2];
-            amount = amt_token.trim_start_matches('#').parse().unwrap_or(0);
-        }
-        let modifier = match mod_token.as_str() {
-            "lsl" => Some(ShiftOrExtendKind::LSL),
-            "lsr" => Some(ShiftOrExtendKind::LSR),
-            "asr" => Some(ShiftOrExtendKind::ASR),
-            "ror" => Some(ShiftOrExtendKind::ROR),
-            _ => None,
-        };
-        // For #imm plus LSL/LSR/ASR/ROR
-        if imm_token.starts_with('#') && modifier.is_some() {
-            // Parse immediate itself
-            let base = parse_operand(imm_token, filename, global_labels, equ_map)?;
-            // Compose extended/shifted immediate as a RegWithMod, or a custom ImmediateWithShift struct
-            return Ok(Operand::RegWithMod(Box::new(OperandWithShiftExtend {
-                base,
-                modifier,
-                amount,
-            })));
-            // OR: If you prefer, define a distinct Operand::ImmWithShift and use that instead
+    // Pre-indexed ([reg, ...]!)
+    if token.ends_with("]!") {
+        let bracket_content = token.trim_end_matches("]!").trim_start_matches('[').trim();
+        let parts: Vec<&str> = bracket_content.split(',').map(|s| s.trim()).collect();
+        let reg = parse_reg(parts[0])?;
+        if parts.len() == 2 && parts[1].starts_with('#') {
+            let imm = parse_immediate(parts[1], filename, global_labels, &equ_map)?;
+            return Ok(Operand::Offset(Offset::PreIndexed(reg, imm)));
+        } else if parts.len() >= 2 {
+            let offset_str = parts[1..].join(", ");
+            let idx = parse_operand(&offset_str, filename, global_labels, equ_map)?;
+            return Ok(Operand::Offset(Offset::PreIndexedReg(reg, Box::new(idx))));
+        } else {
+            return Err(EmuError::InternalError(format!(
+                "Invalid pre-indexed address format: '{}'",
+                token
+            )));
         }
     }
 
-    // Register + shift/extend (x2, lsl #8) or (w5, sxtw #3), etc.
-    let regmod_parts: Vec<&str> = token.split(',').map(|s| s.trim()).collect();
-    if regmod_parts.len() >= 2 {
-        let reg_token = regmod_parts[0];
-        let mod_token = regmod_parts[1].to_lowercase();
-        let mut amount: u8 = 0;
-        if regmod_parts.len() == 3 {
-            let amt_token = regmod_parts[2];
-            amount = amt_token.trim_start_matches('#').parse().unwrap_or(0);
-        }
-        let modifier = match mod_token.as_str() {
-            "lsl" => Some(ShiftOrExtendKind::LSL),
-            "lsr" => Some(ShiftOrExtendKind::LSR),
-            "asr" => Some(ShiftOrExtendKind::ASR),
-            "ror" => Some(ShiftOrExtendKind::ROR),
-            "uxtb" => Some(ShiftOrExtendKind::UXTB),
-            "uxth" => Some(ShiftOrExtendKind::UXTH),
-            "uxtw" => Some(ShiftOrExtendKind::UXTW),
-            "sxtb" => Some(ShiftOrExtendKind::SXTB),
-            "sxth" => Some(ShiftOrExtendKind::SXTH),
-            "sxtw" => Some(ShiftOrExtendKind::SXTW),
-            _ => None,
-        };
-        if modifier.is_some() && is_register(reg_token) {
-            let base = parse_operand(reg_token, filename, global_labels, equ_map)?;
-            return Ok(Operand::RegWithMod(Box::new(OperandWithShiftExtend {
-                base,
-                modifier,
-                amount,
-            })));
-        }
-    }
+    // Post-indexed: handled in parse_instruction
 
-    // Bracketed addressing forms first to allow shift/extend in memory
+    // Bracketed
     if token.starts_with('[') && token.ends_with(']') {
         let inner = token.trim_matches(|c| c == '[' || c == ']').trim();
         let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
@@ -101,34 +61,20 @@ pub fn parse_operand(
             }
             2 => {
                 let reg = parse_reg(parts[0])?;
-                if is_register(parts[1]) {
-                    return Ok(Operand::Offset(Offset::Ind4(reg, parse_reg(parts[1])?)));
+                let idx_op = parse_operand(parts[1], filename, global_labels, equ_map)?;
+                if let Operand::Imm(imm) = &idx_op {
+                    return Ok(Operand::Offset(Offset::Ind3(reg, imm.clone())));
+                } else if let Operand::Reg(r) = &idx_op {
+                    return Ok(Operand::Offset(Offset::Ind4(reg, *r)));
                 } else {
-                    return Ok(Operand::Offset(Offset::Ind3(
-                        reg,
-                        parse_immediate(parts[1], filename, global_labels, &equ_map)?,
-                    )));
+                    return Ok(Operand::Offset(Offset::Ind5(reg, Box::new(idx_op))));
                 }
             }
             3 => {
-                // [base, index, mod/amount] -- supports shift/extend forms
                 let reg = parse_reg(parts[0])?;
-                let idx_mod = {
-                    // Compose index+modifier (e.g., x3, lsl #2 or w6, sxtw #1)
-                    let idx_token = format!(
-                        "{}{}{}{}",
-                        parts[1],
-                        if parts[2].starts_with(|c: char| c.is_alphabetic()) {
-                            ", "
-                        } else {
-                            " "
-                        },
-                        parts[2],
-                        "", // extra space/sanity
-                    );
-                    parse_operand(&idx_token.trim(), filename, global_labels, equ_map)?
-                };
-                return Ok(Operand::Offset(Offset::Ind5(reg, Box::new(idx_mod))));
+                let idx_token = format!("{}, {}", parts[1], parts[2]);
+                let idx_op = parse_operand(&idx_token, filename, global_labels, equ_map)?;
+                return Ok(Operand::Offset(Offset::Ind5(reg, Box::new(idx_op))));
             }
             _ => {
                 return Err(EmuError::InternalError(format!(
@@ -139,49 +85,19 @@ pub fn parse_operand(
         }
     }
 
-    // Post/pre index same as before
-    if token.contains("] ,") {
-        let parts: Vec<&str> = token.splitn(2, "],").map(|s| s.trim()).collect();
-        if parts.len() != 2 {
-            return Err(EmuError::InternalError(format!(
-                "Invalid post-indexed address format: {}",
-                token
-            )));
-        }
-        let base = parts[0].trim_start_matches('[').trim();
-        let index = parts[1].trim();
-        let reg = parse_reg(base)?;
-        let imm = parse_immediate(index, filename, global_labels, &equ_map)?;
-        return Ok(Operand::Offset(Offset::PostIndexed(reg, imm)));
-    }
-    if token.ends_with("]!") {
-        let bracket_content = token.trim_end_matches("]!").trim_start_matches('[').trim();
-        let parts: Vec<&str> = bracket_content.split(',').map(|s| s.trim()).collect();
-        if parts.len() != 2 {
-            return Err(EmuError::InternalError(format!(
-                "Invalid pre-indexed address format: {}",
-                token
-            )));
-        }
-        let reg = parse_reg(parts[0])?;
-        let imm = parse_immediate(parts[1], filename, global_labels, &equ_map)?;
-        return Ok(Operand::Offset(Offset::PreIndexed(reg, imm)));
-    }
-
-    // Extended or shifted register outside brackets
+    // Register + shift/extend
     let split_token = token.split(',').map(|s| s.trim()).collect::<Vec<_>>();
-    if split_token.len() == 2 {
-        let reg_token = split_token[0];
-        let rest = split_token[1];
-        let mut rest_parts = rest.split_whitespace();
-        let mod_str = rest_parts.next().unwrap_or("").to_lowercase();
-        let amt_str = rest_parts.next();
-        let amount: u8 = if let Some(amt) = amt_str {
-            amt.trim_start_matches('#').parse().unwrap_or(0)
-        } else {
-            0
-        };
-        let modifier = match mod_str.as_str() {
+    if split_token.len() >= 2 && is_register(split_token[0]) {
+        let base = split_token[0];
+        let mod_amt = split_token[1..].join(" ");
+        let mut mod_parts = mod_amt.split_whitespace();
+        let modifier = mod_parts.next().unwrap_or("").to_lowercase();
+        let amount: u8 = mod_parts
+            .next()
+            .and_then(|s| s.trim_start_matches('#').parse().ok())
+            .unwrap_or(0);
+
+        let modkind = match modifier.as_str() {
             "lsl" => Some(ShiftOrExtendKind::LSL),
             "lsr" => Some(ShiftOrExtendKind::LSR),
             "asr" => Some(ShiftOrExtendKind::ASR),
@@ -194,56 +110,18 @@ pub fn parse_operand(
             "sxtw" => Some(ShiftOrExtendKind::SXTW),
             _ => None,
         };
-        if modifier.is_some() {
-            let base = parse_operand(reg_token, filename, global_labels, equ_map)?;
+        if modkind.is_some() {
+            let base_op = parse_operand(base, filename, global_labels, equ_map)?;
             return Ok(Operand::RegWithMod(Box::new(OperandWithShiftExtend {
-                base,
-                modifier,
-                amount,
-            })));
-        }
-    }
-    // Space form (e.g., w2 lsl #3)
-    let ws_split = token
-        .split_whitespace()
-        .map(|s| s.trim())
-        .collect::<Vec<_>>();
-    if ws_split.len() == 3 {
-        let reg_token = ws_split[0];
-        let mod_str = ws_split[1].to_lowercase();
-        let amt_str = ws_split[2];
-        let amount: u8 = amt_str.trim_start_matches('#').parse().unwrap_or(0);
-        let modifier = match mod_str.as_str() {
-            "lsl" => Some(ShiftOrExtendKind::LSL),
-            "lsr" => Some(ShiftOrExtendKind::LSR),
-            "asr" => Some(ShiftOrExtendKind::ASR),
-            "ror" => Some(ShiftOrExtendKind::ROR),
-            "uxtb" => Some(ShiftOrExtendKind::UXTB),
-            "uxth" => Some(ShiftOrExtendKind::UXTH),
-            "uxtw" => Some(ShiftOrExtendKind::UXTW),
-            "sxtb" => Some(ShiftOrExtendKind::SXTB),
-            "sxth" => Some(ShiftOrExtendKind::SXTH),
-            "sxtw" => Some(ShiftOrExtendKind::SXTW),
-            _ => None,
-        };
-        if modifier.is_some() {
-            let base = parse_operand(reg_token, filename, global_labels, equ_map)?;
-            return Ok(Operand::RegWithMod(Box::new(OperandWithShiftExtend {
-                base,
-                modifier,
+                base: base_op,
+                modifier: modkind,
                 amount,
             })));
         }
     }
 
-    // Char immediates, numbers, etc. (unchanged)
-    if token.starts_with('\'') && token.ends_with('\'') && token.len() >= 3 {
-        return Ok(Operand::Imm(parse_immediate(
-            token,
-            filename,
-            global_labels,
-            &equ_map,
-        )?));
+    if is_register(token) {
+        return Ok(Operand::Reg(parse_reg(token)?));
     }
     if token.starts_with('#')
         || token.starts_with('=')
@@ -258,9 +136,24 @@ pub fn parse_operand(
             &equ_map,
         )?));
     }
-    if is_register(token) {
-        return Ok(Operand::Reg(parse_reg(token)?));
+    if token.starts_with('\'') && token.ends_with('\'') && token.len() >= 3 {
+        return Ok(Operand::Imm(parse_immediate(
+            token,
+            filename,
+            global_labels,
+            &equ_map,
+        )?));
     }
+    let re_label = Regex::new(r"^\.?[A-Za-z_][A-Za-z0-9_]*$").unwrap();
+    if re_label.is_match(token) {
+        return Ok(Operand::Imm(parse_immediate(
+            token,
+            filename,
+            global_labels,
+            &equ_map,
+        )?));
+    }
+
     Err(EmuError::InternalError(format!(
         "Unrecognized token/operand: {}",
         token

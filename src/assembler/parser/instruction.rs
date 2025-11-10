@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 use super::operand::parse_operand;
-use crate::assembler::asm_types::{Condition, InstructionIR, MovType, OpCode, Operand};
+use crate::assembler::asm_types::Operand;
+use crate::assembler::asm_types::{Condition, InstructionIR, MovType, OpCode};
 use crate::types::{EmuError, EmuResult};
 use std::collections::HashSet;
 
@@ -36,6 +37,7 @@ pub fn parse_instruction(
             )));
         }
     }
+
     let operands_str = rest_of_line_parts.join(" ");
     let mut token_assembly = String::new();
     let mut in_brackets = false;
@@ -53,65 +55,89 @@ pub fn parse_instruction(
                 in_brackets = false;
                 token_assembly.push('|');
             }
-            ',' if !in_brackets => {
-                token_assembly.push('|');
-            }
+            ',' if !in_brackets => token_assembly.push('|'),
             c if c.is_whitespace() && !in_brackets => {
                 if !token_assembly.ends_with('|') {
                     token_assembly.push('|');
                 }
             }
-            _ => {
-                token_assembly.push(c);
-            }
+            _ => token_assembly.push(c),
         }
     }
 
-    // let tokens: Vec<String> = token_assembly
-    //     .split('|')
-    //     .map(|t| t.trim().trim_end_matches(',').to_string())
-    //     .filter(|t| !t.is_empty())
-    //     .collect();
-
-    let mut tokens = Vec::new();
-    let mut parts_iter = token_assembly
+    // STEP 1: initial tokens
+    let tokens: Vec<String> = token_assembly
         .split('|')
         .map(|t| t.trim())
         .filter(|t| !t.is_empty())
-        .peekable();
-    while let Some(token) = parts_iter.next() {
-        // Detect if next is shift/extend -- merge reg + modifier + amount
-        if let Some(next) = parts_iter.peek() {
-            let next_lower = next.to_ascii_lowercase();
-            if next_lower.starts_with("lsl")
-                || next_lower.starts_with("lsr")
-                || next_lower.starts_with("asr")
-                || next_lower.starts_with("ror")
-                || next_lower.starts_with("uxtb")
-                || next_lower.starts_with("uxth")
-                || next_lower.starts_with("uxtw")
-                || next_lower.starts_with("sxtb")
-                || next_lower.starts_with("sxth")
-                || next_lower.starts_with("sxtw")
-            {
-                let mut merged = format!("{}, {}", token, next);
-                parts_iter.next(); // consume the modifier
-                // If next is immediate, add it to merged
-                if let Some(next2) = parts_iter.peek() {
-                    // Accept \"#123\" or numeric immediate
-                    if next2.starts_with('#') || next2.chars().all(|c| c.is_digit(10)) {
-                        merged = format!("{}, {}", merged, next2);
-                        parts_iter.next(); // consume immediate
+        .map(|tok| tok.to_string())
+        .collect();
+
+    // STEP 2: Merge reg + shift/extend (+ amount)
+    fn is_register(tok: &str) -> bool {
+        tok.starts_with('x') || tok.starts_with('w')
+    }
+    let mut merged_tokens = Vec::new();
+    let mut iter = tokens.into_iter().peekable();
+    while let Some(token) = iter.next() {
+        if is_register(&token) {
+            if let Some(next) = iter.peek() {
+                let next_lower = next.to_ascii_lowercase();
+                let is_mod = next_lower.starts_with("lsl")
+                    || next_lower.starts_with("lsr")
+                    || next_lower.starts_with("asr")
+                    || next_lower.starts_with("ror")
+                    || next_lower.starts_with("uxtb")
+                    || next_lower.starts_with("uxth")
+                    || next_lower.starts_with("uxtw")
+                    || next_lower.starts_with("sxtb")
+                    || next_lower.starts_with("sxth")
+                    || next_lower.starts_with("sxtw");
+                if is_mod {
+                    let mod_token = iter.next().unwrap();
+                    if let Some(next2) = iter.peek() {
+                        if next2.starts_with('#') || next2.chars().all(|c| c.is_ascii_digit()) {
+                            let amt_token = iter.next().unwrap();
+                            merged_tokens.push(format!("{}, {} {}", token, mod_token, amt_token));
+                        } else {
+                            merged_tokens.push(format!("{}, {}", token, mod_token));
+                        }
+                    } else {
+                        merged_tokens.push(format!("{}, {}", token, mod_token));
                     }
+                    continue;
                 }
-                tokens.push(merged);
-                continue;
             }
         }
-        tokens.push(token.to_string());
+        merged_tokens.push(token);
     }
+    // STEP 3: Postindex split ([x1], w5, sxtw #2 => [x1], w5, sxtw #2)
+    let mut final_tokens = Vec::new();
+    for t in merged_tokens {
+        if let Some(closing_idx) = t.find("]") {
+            if closing_idx + 1 < t.len() {
+                let (l, r) = t.split_at(closing_idx + 1);
+                let rest = r.trim_start_matches(',').trim();
+                if rest.is_empty() {
+                    final_tokens.push(l.trim().to_string());
+                } else {
+                    final_tokens.push(l.trim().to_string());
+                    final_tokens.push(rest.to_string());
+                }
+            } else {
+                final_tokens.push(t);
+            }
+        } else {
+            final_tokens.push(t);
+        }
+    }
+    let tokens: Vec<String> = final_tokens
+        .into_iter()
+        .filter(|tok| tok.trim() != "!")
+        .filter(|tok| !tok.trim().is_empty())
+        .collect();
 
-    // Conditional select-like mnemonics
+    // --- Conditional Select (CSEL, CSINC, etc) ---
     let condsel_mnemonics = [
         "CSEL", "CSINC", "CSINV", "CSNEG", "CSET", "CSETM", "CINC", "CINV", "CNEG",
     ];
@@ -142,12 +168,10 @@ pub fn parse_instruction(
         }
         return Ok(InstructionIR { opcode, operands });
     }
-
-    // Conditional compare mnemonics
+    // --- Conditional Compare (CCMP, CCMN) ---
     let condcmp_mnemonics = ["CCMP", "CCMN"];
     if condcmp_mnemonics.contains(&full_mnemonic.as_str()) {
         if tokens.len() < 4 {
-            // ensure enough operands
             return Err(EmuError::InternalError(format!(
                 "Instruction '{}' requires at least four operands.",
                 full_mnemonic
@@ -155,20 +179,16 @@ pub fn parse_instruction(
         }
         let condition_token = tokens.last().unwrap();
         let cond = parse_csel_like_condition(condition_token)?;
-        // Parse operands except last (cond)
         let ops: Vec<_> = tokens[..tokens.len() - 1]
             .iter()
             .map(|tok| parse_operand(tok, filename, global_labels, equ_map))
             .collect::<Result<_, _>>()?;
         let opcode = match full_mnemonic.as_str() {
-            "CCMP" => {
-                // Immediate or register form
-                match (&ops[1], &ops[2]) {
-                    (Operand::Imm(_), Operand::Imm(_)) => OpCode::CCMPImm(cond),
-                    (Operand::Reg(_), Operand::Imm(_)) => OpCode::CCMPReg(cond),
-                    _ => return Err(EmuError::InternalError("Invalid operands for CCMP".into())),
-                }
-            }
+            "CCMP" => match (&ops[1], &ops[2]) {
+                (Operand::Imm(_), Operand::Imm(_)) => OpCode::CCMPImm(cond),
+                (Operand::Reg(_), Operand::Imm(_)) => OpCode::CCMPReg(cond),
+                _ => return Err(EmuError::InternalError("Invalid operands for CCMP".into())),
+            },
             "CCMN" => match (&ops[1], &ops[2]) {
                 (Operand::Imm(_), Operand::Imm(_)) => OpCode::CCMNImm(cond),
                 (Operand::Reg(_), Operand::Imm(_)) => OpCode::CCMNReg(cond),
@@ -182,12 +202,12 @@ pub fn parse_instruction(
         });
     }
 
+    // Default (classic model)
     let opcode = full_mnemonic_to_opcode(&full_mnemonic)?;
     let mut operands = Vec::new();
-    for token in tokens.into_iter() {
-        operands.push(parse_operand(&token, filename, global_labels, equ_map)?);
+    for token in tokens.iter() {
+        operands.push(parse_operand(token, filename, global_labels, equ_map)?);
     }
-
     Ok(InstructionIR { opcode, operands })
 }
 

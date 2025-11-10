@@ -175,13 +175,15 @@ impl Reg {
 /// Enum representing different addressing modes for memory access
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Offset {
-    Ind1(Immediate),             // [imm]
-    Ind2(Reg),                   // [reg]
-    Ind3(Reg, Immediate),        // [reg, imm]
-    Ind4(Reg, Reg),              // [reg, reg]
-    Ind5(Reg, Box<Operand>),     // [reg, reg/imm with shift/extend]
-    PreIndexed(Reg, Immediate),  // [reg, imm]!
-    PostIndexed(Reg, Immediate), // [reg], imm
+    Ind1(Immediate),                   // [imm]
+    Ind2(Reg),                         // [reg]
+    Ind3(Reg, Immediate),              // [reg, imm]
+    Ind4(Reg, Reg),                    // [reg, reg]
+    Ind5(Reg, Box<Operand>),           // [reg, reg/imm with shift/extend]
+    PreIndexed(Reg, Immediate),        // [reg, imm]!
+    PostIndexed(Reg, Immediate),       // [reg], imm
+    PreIndexedReg(Reg, Box<Operand>),  // [reg, reg/imm with shift/extend]!
+    PostIndexedReg(Reg, Box<Operand>), // [reg], reg/imm with shift/extend
 }
 
 /// Enum representing different types of operands in an instruction

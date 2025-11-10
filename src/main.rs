@@ -59,7 +59,9 @@ impl EmuConfig {
 
 fn main() {
     if let Err(e) = start() {
+        eprintln!("\n================ ERROR ================\n");
         eprintln!("{}", e);
+        eprintln!("\n=======================================\n");
         std::process::exit(1);
     }
 }

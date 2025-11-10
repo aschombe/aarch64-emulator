@@ -1,7 +1,9 @@
 // Copyright (c) 2025 Andrew Schomber
 // Licensed under the MIT License. See LICENSE for details.
 
-use crate::assembler::asm_types::{Immediate, MovType, Offset, OpCode, Operand};
+use crate::assembler::asm_types::{
+    Immediate, MovType, Offset, OpCode, Operand, OperandWithShiftExtend, ShiftOrExtendKind,
+};
 use crate::cpu;
 use crate::cpu::state::CpuState;
 use crate::types::{EmuError, EmuResult, Word};
@@ -324,10 +326,42 @@ impl InstructionDataTransfer for CpuState {
     fn execute_str(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
         match opcode {
             OpCode::STR => match operands {
+                // Standard [src, Offset]
                 [source_op, Operand::Offset(offset)] => {
                     let value = self.resolve_operand_source(source_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
                     self.memory.borrow_mut().write_word(effective_addr, value)?;
+                    Ok(false)
+                }
+                // ARM post-indexed: [src, Offset(Ind2(base)), RegWithMod(offset_reg)]
+                [
+                    source_op,
+                    Operand::Offset(Offset::Ind2(base)),
+                    Operand::RegWithMod(modop),
+                ] => {
+                    let value = self.resolve_operand_source(source_op)?;
+                    let base_addr = self.get_reg(base.to_id());
+                    let offset_val =
+                        self.resolve_operand_source(&Operand::RegWithMod(modop.clone()))?;
+                    let reg_id = base.to_id();
+                    self.memory.borrow_mut().write_word(base_addr, value)?;
+                    let new_base = base_addr.wrapping_add(offset_val);
+                    self.set_reg(reg_id, new_base);
+                    Ok(false)
+                }
+                // ARM post-indexed: [src, Offset(Ind2(base)), Reg(offset_reg)]
+                [
+                    source_op,
+                    Operand::Offset(Offset::Ind2(base)),
+                    Operand::Reg(reg),
+                ] => {
+                    let value = self.resolve_operand_source(source_op)?;
+                    let base_addr = self.get_reg(base.to_id());
+                    let offset_val = self.get_reg(reg.to_id());
+                    let reg_id = base.to_id();
+                    self.memory.borrow_mut().write_word(base_addr, value)?;
+                    let new_base = base_addr.wrapping_add(offset_val);
+                    self.set_reg(reg_id, new_base);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid STR operands".into())),
@@ -440,15 +474,13 @@ impl InstructionDataTransfer for CpuState {
                                     "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
                                     label
                                 )));
-                            } else {
-                                return Err(EmuError::InternalError(format!(
-                                    "Undefined label: {}",
-                                    label
-                                )));
                             }
+                            return Err(EmuError::InternalError(format!(
+                                "Undefined label: {}",
+                                label
+                            )));
                         }
                     };
-
                     let is_addr = *cpu.program.label_is_addr.get(label).unwrap_or(&false);
                     Ok(if is_addr {
                         raw
@@ -465,15 +497,13 @@ impl InstructionDataTransfer for CpuState {
                                     "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
                                     label
                                 )));
-                            } else {
-                                return Err(EmuError::InternalError(format!(
-                                    "Undefined label: {}",
-                                    label
-                                )));
                             }
+                            return Err(EmuError::InternalError(format!(
+                                "Undefined label: {}",
+                                label
+                            )));
                         }
                     };
-
                     let is_addr = *cpu.program.label_is_addr.get(label).unwrap_or(&false);
                     let full_addr = if is_addr {
                         raw
@@ -484,6 +514,35 @@ impl InstructionDataTransfer for CpuState {
                 }
             }
         };
+        let resolve_regwithmod =
+            |modop: &OperandWithShiftExtend, cpu: &mut CpuState| -> EmuResult<Word> {
+                let base_val = cpu.resolve_operand_source(&modop.base)?;
+                match modop.modifier {
+                    Some(ShiftOrExtendKind::LSL) => Ok(base_val << modop.amount),
+                    Some(ShiftOrExtendKind::LSR) => Ok((base_val as u64 >> modop.amount) as Word),
+                    Some(ShiftOrExtendKind::ASR) => Ok(((base_val as i64) >> modop.amount) as Word),
+                    Some(ShiftOrExtendKind::ROR) => Ok(base_val.rotate_right(modop.amount as u32)),
+                    Some(ShiftOrExtendKind::SXTB) => {
+                        Ok(((base_val as i8) as i64 as Word) << modop.amount)
+                    }
+                    Some(ShiftOrExtendKind::SXTH) => {
+                        Ok(((base_val as i16) as i64 as Word) << modop.amount)
+                    }
+                    Some(ShiftOrExtendKind::SXTW) => {
+                        Ok(((base_val as i32) as i64 as Word) << modop.amount)
+                    }
+                    Some(ShiftOrExtendKind::UXTB) => {
+                        Ok(((base_val as u8) as u64 as Word) << modop.amount)
+                    }
+                    Some(ShiftOrExtendKind::UXTH) => {
+                        Ok(((base_val as u16) as u64 as Word) << modop.amount)
+                    }
+                    Some(ShiftOrExtendKind::UXTW) => {
+                        Ok(((base_val as u32) as u64 as Word) << modop.amount)
+                    }
+                    None => Ok(base_val),
+                }
+            };
 
         match offset {
             Offset::Ind1(imm) => resolve_immediate_value(imm, self),
@@ -500,7 +559,17 @@ impl InstructionDataTransfer for CpuState {
             }
             Offset::Ind5(base_reg, index_mod_op) => {
                 let base_val = self.get_reg(base_reg.to_id());
-                let idx_val = self.resolve_operand_source(index_mod_op)?;
+                let idx_val = match index_mod_op.as_ref() {
+                    Operand::Imm(imm) => resolve_immediate_value(imm, self)?,
+                    Operand::Reg(reg) => self.get_reg(reg.to_id()),
+                    Operand::RegWithMod(modop) => resolve_regwithmod(modop, self)?,
+                    _ => {
+                        return Err(EmuError::InternalError(format!(
+                            "Unsupported indexed addressing form for Ind5: {:?}",
+                            index_mod_op
+                        )));
+                    }
+                };
                 Ok(base_val.wrapping_add(idx_val))
             }
             Offset::PreIndexed(base_reg, imm) => {
@@ -511,11 +580,47 @@ impl InstructionDataTransfer for CpuState {
                 self.set_reg(reg_id, new_base);
                 Ok(new_base)
             }
+            Offset::PreIndexedReg(base_reg, idx_op) => {
+                let reg_id = base_reg.to_id();
+                let base_addr = self.get_reg(reg_id);
+                let idx_val = match idx_op.as_ref() {
+                    Operand::Imm(imm) => resolve_immediate_value(imm, self)?,
+                    Operand::Reg(reg) => self.get_reg(reg.to_id()),
+                    Operand::RegWithMod(modop) => resolve_regwithmod(modop, self)?,
+                    _ => {
+                        return Err(EmuError::InternalError(format!(
+                            "Unsupported pre-indexed register offset: {:?}",
+                            idx_op
+                        )));
+                    }
+                };
+                let new_base = base_addr.wrapping_add(idx_val);
+                self.set_reg(reg_id, new_base);
+                Ok(new_base)
+            }
             Offset::PostIndexed(base_reg, imm) => {
                 let reg_id = base_reg.to_id();
                 let base_addr = self.get_reg(reg_id);
                 let offset_val = resolve_immediate_value(imm, self)?;
                 let new_base = base_addr.wrapping_add(offset_val);
+                self.set_reg(reg_id, new_base);
+                Ok(base_addr)
+            }
+            Offset::PostIndexedReg(base_reg, idx_op) => {
+                let reg_id = base_reg.to_id();
+                let base_addr = self.get_reg(reg_id);
+                let idx_val = match idx_op.as_ref() {
+                    Operand::Imm(imm) => resolve_immediate_value(imm, self)?,
+                    Operand::Reg(reg) => self.get_reg(reg.to_id()),
+                    Operand::RegWithMod(modop) => resolve_regwithmod(modop, self)?,
+                    _ => {
+                        return Err(EmuError::InternalError(format!(
+                            "Unsupported post-indexed register offset: {:?}",
+                            idx_op
+                        )));
+                    }
+                };
+                let new_base = base_addr.wrapping_add(idx_val);
                 self.set_reg(reg_id, new_base);
                 Ok(base_addr)
             }
