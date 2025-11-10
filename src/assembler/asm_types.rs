@@ -308,6 +308,13 @@ pub enum OpCode {
     ROR,
     MVN,
 
+    SXTB,
+    SXTH,
+    SXTW,
+    UXTB,
+    UXTH,
+    UXTW,
+
     LDR,
     LDP,
     LDPSW,

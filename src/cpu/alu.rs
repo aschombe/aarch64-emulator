@@ -491,3 +491,41 @@ pub fn rev32(val: u64, is_w: bool) -> u64 {
         ((val >> 32) as u32 as u64) | ((val as u32 as u64) << 32)
     }
 }
+
+pub fn sxtb(val: u64, is_w: bool) -> u64 {
+    let v = (val as u8) as i8; // 8-bit then sign-extend to i32/i64
+    if is_w {
+        v as i32 as u32 as u64
+    } else {
+        v as i64 as u64
+    }
+}
+
+pub fn sxth(val: u64, is_w: bool) -> u64 {
+    let v = (val as u16) as i16;
+    if is_w {
+        v as i32 as u32 as u64
+    } else {
+        v as i64 as u64
+    }
+}
+
+pub fn sxtw(val: u64) -> u64 {
+    let v = (val as u32) as i32;
+    v as i64 as u64
+}
+
+pub fn uxtb(val: u64, is_w: bool) -> u64 {
+    let v = val as u8 as u64;
+    if is_w { v as u32 as u64 } else { v }
+}
+
+pub fn uxth(val: u64, is_w: bool) -> u64 {
+    let v = val as u16 as u64;
+    if is_w { v as u32 as u64 } else { v }
+}
+
+pub fn uxtw(val: u64) -> u64 {
+    let v = val as u32 as u64;
+    v
+}

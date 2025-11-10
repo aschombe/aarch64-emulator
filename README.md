@@ -142,12 +142,15 @@ Example command to run with multiple plugins:
 
 **Instructions**:
 - https://developer.arm.com/documentation/ddi0487/latest:
-    - ADD SUPPORT FOR SHIFT AND EXTEND MODIFIERS WHERE APPLICABLE
+    - ADD SUPPORT FOR SHIFT AND EXTEND MODIFIERS WHERE APPLICABLE:
+        - Instructions that support these:
+            - ... a ton
+        - Modifiers:
+            - LSL, LSR, ASR, ROR
+            - UXTB, UXTH, UXTW, UXTX
+            - SXTB, SXTH, SXTW, SXTX
     - Address (C1.3):
         - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
-    - Sign-extend and Zero-extend (C3.5.11):
-        - sxtb, sxth, sxtw
-        - uxtb, uxth, uxtw
 
 
 - https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf

@@ -58,6 +58,12 @@ pub trait InstructionDataProcessing {
     fn execute_ccmn_reg(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool>;
     fn execute_ccmn_imm(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool>;
     fn execute_mvn(&mut self, operands: &[Operand]) -> EmuResult<bool>;
+    fn execute_ext(
+        &mut self,
+        operands: &[Operand],
+        op: fn(u64, bool) -> u64,
+        can_width: bool,
+    ) -> EmuResult<bool>;
 }
 
 impl InstructionDataProcessing for CpuState {
@@ -659,6 +665,26 @@ impl InstructionDataProcessing for CpuState {
                 Ok(false)
             }
             _ => Err(EmuError::InternalError("Invalid MVN operands".to_string())),
+        }
+    }
+
+    fn execute_ext(
+        &mut self,
+        operands: &[Operand],
+        op: fn(u64, bool) -> u64,
+        can_width: bool,
+    ) -> EmuResult<bool> {
+        match operands {
+            [dest, src] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let srcval = self.resolve_operand_source(src)?;
+                let result = op(srcval, if can_width { is_w } else { false });
+                self.set_reg_with_width(rd, result, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(
+                "Invalid operands for extension".into(),
+            )),
         }
     }
 }
