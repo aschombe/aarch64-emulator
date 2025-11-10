@@ -45,7 +45,7 @@ struct EmuConfig {
 }
 
 impl EmuConfig {
-    /// Validates that exactly one input type (assembly set or binary) was provided.
+    /// Validates that assembly files are provided.
     fn validate(&self) -> EmuResult<()> {
         if self.assembly_files.is_empty() {
             Err(EmuError::InternalError(

@@ -98,26 +98,6 @@ impl fmt::Display for EmuError {
     }
 }
 
-// User-friendly error messages
-// impl fmt::Display for EmuError {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             EmuError::MemoryAccessViolation(addr) => {
-//                 write!(f, "Memory Access Violation at 0x{:X}", addr)
-//             }
-//             // EmuError::StackSmashDetected(addr) => {
-//             //     write!(f, "Stack Smash Detected at 0x{:X}", addr)
-//             // }
-//             EmuError::DivisionByZero => write!(f, "Division by zero"),
-//             // EmuError::InvalidInstructionIR(msg) => write!(f, "Invalid Instruction IR: {}", msg),
-//             EmuError::UnimplementedSyscall(num) => write!(f, "Unimplemented Syscall: {}", num),
-//             EmuError::InternalError(msg) => write!(f, "Internal Error: {}", msg),
-//             EmuError::IoError(msg) => write!(f, "I/O Error: {}", msg),
-//             // EmuError::PluginError(msg) => write!(f, "Plugin Error: {}", msg),
-//         }
-//     }
-// }
-
 impl From<mlua::Error> for EmuError {
     fn from(err: mlua::Error) -> Self {
         EmuError::InternalError(format!("Lua error: {}", err))
