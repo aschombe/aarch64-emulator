@@ -174,7 +174,6 @@ fn start() -> Result<(), EmuError> {
             if e.to_string().contains("Halt command received.") {
                 return Ok(());
             }
-            eprintln!("\nExecution failed with error: {}\n", e);
             cpu.borrow().dump_state_full();
             Err(e)
         }
