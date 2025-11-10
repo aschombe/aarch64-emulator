@@ -17,6 +17,7 @@ pub trait InstructionDataProcessing {
     ) -> EmuResult<bool>;
     fn execute_cmp(&mut self, operands: &[Operand]) -> EmuResult<bool>;
     fn execute_cmn(&mut self, operands: &[Operand]) -> EmuResult<bool>;
+    fn execute_tst(&mut self, operands: &[Operand]) -> EmuResult<bool>;
     fn execute_neg(&mut self, operands: &[Operand], update_flags: bool) -> EmuResult<bool>;
     fn execute_swp(
         &mut self,
@@ -104,6 +105,20 @@ impl InstructionDataProcessing for CpuState {
                 "Invalid CMN operands: {:?}",
                 operands
             ))),
+        }
+    }
+
+    fn execute_tst(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+        match operands {
+            [src1, src2] => {
+                let val_n = self.resolve_operand_source(src1)?;
+                let val_m = self.resolve_operand_source(src2)?;
+                let is_w = matches!(src1, Operand::Reg(r) if r.is_w_register());
+                let (result, carry, overflow) = alu::and(val_n, val_m, is_w);
+                self.update_cpsr_nzcv(result, carry, overflow, false, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError("Bad TST operands".into())),
         }
     }
 

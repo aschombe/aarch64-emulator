@@ -145,8 +145,6 @@ Example command to run with multiple plugins:
     - ADD SUPPORT FOR SHIFT AND EXTEND MODIFIERS WHERE APPLICABLE
     - Address (C1.3):
         - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
-    - Logical (immediate) (C3.5.3):
-        - tst
     - Sign-extend and Zero-extend (C3.5.11):
         - sxtb, sxth, sxtw
         - uxtb, uxth, uxtw

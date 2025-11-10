@@ -305,6 +305,7 @@ impl CpuState {
             OpCode::ROR => self.execute_binary_op(&ir_insn.operands, alu::ror, false, false),
             OpCode::CMP => self.execute_cmp(&ir_insn.operands),
             OpCode::CMN => self.execute_cmn(&ir_insn.operands),
+            OpCode::TST => self.execute_tst(&ir_insn.operands),
             OpCode::SMAX => self.execute_minmax(&ir_insn.operands, true, true),
             OpCode::SMIN => self.execute_minmax(&ir_insn.operands, true, false),
             OpCode::UMAX => self.execute_minmax(&ir_insn.operands, false, true),

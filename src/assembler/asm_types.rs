@@ -289,6 +289,7 @@ pub enum OpCode {
     RET,
     CMP,
     CMN,
+    TST,
     CBZ,
     CBNZ,
     TBZ,
