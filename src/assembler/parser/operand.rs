@@ -169,7 +169,7 @@ pub fn parse_operand(
     }
 
     // Extended or shifted register outside brackets
-    let mut split_token = token.split(',').map(|s| s.trim()).collect::<Vec<_>>();
+    let split_token = token.split(',').map(|s| s.trim()).collect::<Vec<_>>();
     if split_token.len() == 2 {
         let reg_token = split_token[0];
         let rest = split_token[1];

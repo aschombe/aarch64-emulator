@@ -538,7 +538,7 @@ pub fn apply_shift_extend(
     src_width: u8,
     out_width: u8,
 ) -> u64 {
-    // Extension (always prior to shifting)
+    // Step 1: Extension
     let extended = match mod_type {
         Some(ShiftOrExtendKind::UXTB) => (val as u8) as u64,
         Some(ShiftOrExtendKind::UXTH) => (val as u16) as u64,
@@ -549,23 +549,15 @@ pub fn apply_shift_extend(
         _ => val,
     };
 
-    // Determine caps based on width: 32 or 64
-    let capped_amount = match mod_type {
-        // Shifts are capped in ARM64: use only lower 5 or 6 bits
-        Some(ShiftOrExtendKind::LSL)
-        | Some(ShiftOrExtendKind::LSR)
-        | Some(ShiftOrExtendKind::ASR)
-        | Some(ShiftOrExtendKind::ROR) => {
-            if out_width == 32 {
-                amount & 0x1F // keep lowest 5 bits, max 31
-            } else {
-                amount & 0x3F // keep lowest 6 bits, max 63
-            }
-        }
-        _ => amount,
+    // Step 2: Shift (extends always shift left by amount, shifts use their own type)
+    let capped_amount = if out_width == 32 {
+        amount & 0x1F
+    } else {
+        amount & 0x3F
     };
 
     let shifted = match mod_type {
+        // Pure shifts
         Some(ShiftOrExtendKind::LSL) => extended.checked_shl(capped_amount as u32).unwrap_or(0),
         Some(ShiftOrExtendKind::LSR) => extended.checked_shr(capped_amount as u32).unwrap_or(0),
         Some(ShiftOrExtendKind::ASR) => {
@@ -574,10 +566,17 @@ pub fn apply_shift_extend(
                 .unwrap_or(0)) as u64
         }
         Some(ShiftOrExtendKind::ROR) => extended.rotate_right(capped_amount as u32),
-        _ => extended,
+        // Extends: after extension, apply LSL by amount
+        Some(ShiftOrExtendKind::UXTB)
+        | Some(ShiftOrExtendKind::UXTH)
+        | Some(ShiftOrExtendKind::UXTW)
+        | Some(ShiftOrExtendKind::SXTB)
+        | Some(ShiftOrExtendKind::SXTH)
+        | Some(ShiftOrExtendKind::SXTW) => extended.checked_shl(capped_amount as u32).unwrap_or(0),
+        None => extended,
     };
 
-    // Mask to output width
+    // Step 3: Mask to output width
     shifted
         & if out_width == 64 {
             0xFFFF_FFFF_FFFF_FFFF

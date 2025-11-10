@@ -161,7 +161,6 @@ impl InstructionDataProcessing for CpuState {
             [dest, src] => {
                 let (rdid, isw) = self.resolve_operand_dest(dest)?;
                 let srcval = self.resolve_operand_source(src)?;
-                // Perform subtraction: result = 0 - srcval
                 let (result, carry, overflow) = alu::sub(0, srcval, isw);
                 self.set_reg_with_width(rdid, result, isw);
                 if update_flags {

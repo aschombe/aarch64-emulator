@@ -53,7 +53,7 @@ pub fn parse_reg(s: &str) -> EmuResult<Reg> {
         "X19" => Ok(Reg::X19),
         "X20" => Ok(Reg::X20),
         "X21" => Ok(Reg::X21),
-        "X22" => Ok(Reg::W22),
+        "X22" => Ok(Reg::X22),
         "X23" => Ok(Reg::X23),
         "X24" => Ok(Reg::X24),
         "X25" => Ok(Reg::X25),
