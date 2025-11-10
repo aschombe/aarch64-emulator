@@ -215,18 +215,76 @@ pub fn sdiv(val_n: Word, val_m: Word, is_w: bool) -> AluResult {
 }
 
 /// Bitwise AND.
-pub fn and(val_n: Word, val_m: Word, _is_w: bool) -> AluResult {
-    (val_n & val_m, false, false)
+pub fn and(val_n: u64, val_m: u64, is_w: bool) -> (u64, bool, bool) {
+    let result = (val_n & val_m)
+        & if is_w {
+            0xFFFF_FFFF
+        } else {
+            0xFFFF_FFFF_FFFF_FFFF
+        };
+    (result, false, false)
 }
 
 /// Bitwise OR.
-pub fn orr(val_n: Word, val_m: Word, _is_w: bool) -> AluResult {
-    (val_n | val_m, false, false)
+pub fn orr(val_n: u64, val_m: u64, is_w: bool) -> (u64, bool, bool) {
+    let result = (val_n | val_m)
+        & if is_w {
+            0xFFFF_FFFF
+        } else {
+            0xFFFF_FFFF_FFFF_FFFF
+        };
+    (result, false, false)
 }
 
 /// Bitwise XOR.
-pub fn eor(val_n: Word, val_m: Word, _is_w: bool) -> AluResult {
-    (val_n ^ val_m, false, false)
+pub fn eor(val_n: u64, val_m: u64, is_w: bool) -> (u64, bool, bool) {
+    let result = (val_n ^ val_m)
+        & if is_w {
+            0xFFFF_FFFF
+        } else {
+            0xFFFF_FFFF_FFFF_FFFF
+        };
+    (result, false, false)
+}
+
+pub fn bic(val_n: u64, val_m: u64, is_w: bool) -> (u64, bool, bool) {
+    let result = (val_n & !val_m)
+        & if is_w {
+            0xFFFF_FFFF
+        } else {
+            0xFFFF_FFFF_FFFF_FFFF
+        };
+    (result, false, false)
+}
+
+pub fn orn(val_n: u64, val_m: u64, is_w: bool) -> (u64, bool, bool) {
+    let result = (val_n | !val_m)
+        & if is_w {
+            0xFFFF_FFFF
+        } else {
+            0xFFFF_FFFF_FFFF_FFFF
+        };
+    (result, false, false)
+}
+
+pub fn eon(val_n: u64, val_m: u64, is_w: bool) -> (u64, bool, bool) {
+    let result = (val_n ^ !val_m)
+        & if is_w {
+            0xFFFF_FFFF
+        } else {
+            0xFFFF_FFFF_FFFF_FFFF
+        };
+    (result, false, false)
+}
+
+pub fn mvn(val_m: u64, is_w: bool) -> (u64, bool, bool) {
+    let result = (!val_m)
+        & if is_w {
+            0xFFFF_FFFF
+        } else {
+            0xFFFF_FFFF_FFFF_FFFF
+        };
+    (result, false, false)
 }
 
 /// Logical shift left.

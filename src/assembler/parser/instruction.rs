@@ -257,6 +257,12 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
         "LSR" => Ok(OpCode::LSR),
         "ASR" => Ok(OpCode::ASR),
         "ROR" => Ok(OpCode::ROR),
+        "BIC" => Ok(OpCode::BIC),
+        "BICS" => Ok(OpCode::BICS),
+        "EON" => Ok(OpCode::EON),
+        "ORN" => Ok(OpCode::ORN),
+        "MVN" => Ok(OpCode::MVN),
+
         "ADR" => Ok(OpCode::ADR),
         "ADRP" => Ok(OpCode::ADRP),
         "LDR" => Ok(OpCode::LDR),

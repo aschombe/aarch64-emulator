@@ -336,6 +336,12 @@ impl CpuState {
             OpCode::LSR => self.execute_binary_op(&ir_insn.operands, alu::lsr, false, false),
             OpCode::ASR => self.execute_binary_op(&ir_insn.operands, alu::asr, false, false),
             OpCode::ROR => self.execute_binary_op(&ir_insn.operands, alu::ror, false, false),
+            OpCode::BIC => self.execute_binary_op(&ir_insn.operands, alu::bic, false, false),
+            OpCode::BICS => self.execute_binary_op(&ir_insn.operands, alu::bic, true, false),
+            OpCode::EON => self.execute_binary_op(&ir_insn.operands, alu::eon, false, false),
+            OpCode::ORN => self.execute_binary_op(&ir_insn.operands, alu::orn, false, false),
+            OpCode::MVN => self.execute_mvn(&ir_insn.operands),
+
             OpCode::CMP => self.execute_cmp(&ir_insn.operands),
             OpCode::CMN => self.execute_cmn(&ir_insn.operands),
             OpCode::TST => self.execute_tst(&ir_insn.operands),

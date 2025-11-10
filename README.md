@@ -148,8 +148,6 @@ Example command to run with multiple plugins:
     - Sign-extend and Zero-extend (C3.5.11):
         - sxtb, sxth, sxtw
         - uxtb, uxth, uxtw
-    - Logical (shifted register) (C3.7.6):
-        - bic, bics, eon, eor, orr, mvn, orn
 
 
 - https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf

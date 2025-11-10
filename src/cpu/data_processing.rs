@@ -57,6 +57,7 @@ pub trait InstructionDataProcessing {
     fn execute_ccmp_imm(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool>;
     fn execute_ccmn_reg(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool>;
     fn execute_ccmn_imm(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool>;
+    fn execute_mvn(&mut self, operands: &[Operand]) -> EmuResult<bool>;
 }
 
 impl InstructionDataProcessing for CpuState {
@@ -645,6 +646,19 @@ impl InstructionDataProcessing for CpuState {
             Ok(false)
         } else {
             Err(EmuError::InternalError("Bad CCMN imm ops".into()))
+        }
+    }
+
+    fn execute_mvn(&mut self, operands: &[Operand]) -> EmuResult<bool> {
+        match operands {
+            [dest, src] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let srcval = self.resolve_operand_source(src)?;
+                let (result, _, _) = alu::mvn(srcval, is_w);
+                self.set_reg_with_width(rd, result, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError("Invalid MVN operands".to_string())),
         }
     }
 }
