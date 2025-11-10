@@ -3,7 +3,7 @@
 
 use crate::assembler::{
     FileSource, SourceMapEntry,
-    asm_types::{Immediate, InstructionIR, OpCode, Operand, SymbolTable},
+    asm_types::{Immediate, InstructionIR, OpCode, Operand, SelectOp, SymbolTable},
 };
 
 use crate::cpu::{
@@ -368,6 +368,22 @@ impl CpuState {
             OpCode::STUR => self.execute_str(OpCode::STUR, &ir_insn.operands),
             OpCode::STURB => self.execute_str(OpCode::STURB, &ir_insn.operands),
             OpCode::STURH => self.execute_str(OpCode::STURH, &ir_insn.operands),
+
+            OpCode::CSEL(cond) => self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::Sel),
+            OpCode::CSINC(cond) => self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::Inc),
+            OpCode::CSINV(cond) => self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::Inv),
+            OpCode::CSNEG(cond) => self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::Neg),
+            OpCode::CSET(cond) => self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::Set),
+            OpCode::CSETM(cond) => self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::Setm),
+            OpCode::CINC(cond) => {
+                self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::IncTrue)
+            }
+            OpCode::CINV(cond) => {
+                self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::InvTrue)
+            }
+            OpCode::CNEG(cond) => {
+                self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::NegTrue)
+            }
 
             // Control Flow (B, BL, BR, RET, SVC)
             OpCode::B(condition) => self.execute_branch(OpCode::B(*condition), &ir_insn.operands),

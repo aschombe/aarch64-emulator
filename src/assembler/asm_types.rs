@@ -255,6 +255,17 @@ pub enum OpCode {
     REV16,
     REV32,
     REV64,
+
+    CSEL(Condition),
+    CSINC(Condition),
+    CSINV(Condition),
+    CSNEG(Condition),
+    CSET(Condition),
+    CSETM(Condition),
+    CINC(Condition),
+    CINV(Condition),
+    CNEG(Condition),
+
     UDIV,
     SDIV,
     ADDS,
@@ -321,6 +332,19 @@ pub enum OpCode {
     TBNZ,
     SVC,
     NOP,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectOp {
+    Sel,
+    Inc,
+    Inv,
+    Neg,
+    Set,
+    Setm,
+    IncTrue,
+    InvTrue,
+    NegTrue,
 }
 
 /// Struct representing a single instruction in the intermediate representation (IR)

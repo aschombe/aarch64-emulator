@@ -73,6 +73,38 @@ pub fn parse_instruction(
         .filter(|t| !t.is_empty())
         .collect();
 
+    // Conditional select-like mnemonics
+    let condsel_mnemonics = [
+        "CSEL", "CSINC", "CSINV", "CSNEG", "CSET", "CSETM", "CINC", "CINV", "CNEG",
+    ];
+    if condsel_mnemonics.contains(&full_mnemonic.as_str()) {
+        if tokens.len() < 2 {
+            return Err(EmuError::InternalError(format!(
+                "Instruction '{}' requires at least two operands.",
+                full_mnemonic
+            )));
+        }
+        let condition_token = tokens.last().unwrap();
+        let cond = parse_csel_like_condition(condition_token)?;
+        let opcode = match full_mnemonic.as_str() {
+            "CSEL" => OpCode::CSEL(cond),
+            "CSINC" => OpCode::CSINC(cond),
+            "CSINV" => OpCode::CSINV(cond),
+            "CSNEG" => OpCode::CSNEG(cond),
+            "CSET" => OpCode::CSET(cond),
+            "CSETM" => OpCode::CSETM(cond),
+            "CINC" => OpCode::CINC(cond),
+            "CINV" => OpCode::CINV(cond),
+            "CNEG" => OpCode::CNEG(cond),
+            _ => unreachable!(),
+        };
+        let mut operands = Vec::new();
+        for token in &tokens[0..tokens.len() - 1] {
+            operands.push(parse_operand(token, filename, global_labels, equ_map)?);
+        }
+        return Ok(InstructionIR { opcode, operands });
+    }
+
     let opcode = full_mnemonic_to_opcode(&full_mnemonic)?;
     let mut operands = Vec::new();
     for token in tokens.into_iter() {
@@ -113,6 +145,12 @@ pub fn parse_condition(full_mnemonic: &str) -> EmuResult<Condition> {
     }
 }
 
+pub fn parse_csel_like_condition(condition_str: &str) -> EmuResult<Condition> {
+    let condition_str = condition_str.trim().to_uppercase();
+    let fake_mnemonic = format!("B.{}", condition_str);
+    parse_condition(&fake_mnemonic)
+}
+
 pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
     let full_mnemonic = full_mnemonic.to_uppercase();
     match full_mnemonic.as_str() {
@@ -148,6 +186,7 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
         "REV16" => Ok(OpCode::REV16),
         "REV32" => Ok(OpCode::REV32),
         "REV64" => Ok(OpCode::REV64),
+
         "UDIV" => Ok(OpCode::UDIV),
         "SDIV" => Ok(OpCode::SDIV),
         "ADDS" => Ok(OpCode::ADDS),

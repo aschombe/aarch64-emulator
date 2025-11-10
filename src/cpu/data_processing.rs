@@ -1,9 +1,8 @@
 // Copyright (c) 2025 Andrew Schomber
 // Licensed under the MIT License. See LICENSE for details.
 
-use crate::assembler::asm_types::{Immediate, Offset, OpCode, Operand};
-use crate::cpu::alu;
-use crate::cpu::state::CpuState;
+use crate::assembler::asm_types::{Condition, Immediate, Offset, OpCode, Operand, SelectOp};
+use crate::cpu::{alu, control_flow::InstructionControl, state::CpuState};
 use crate::types::{EmuError, EmuResult, Word};
 
 /// Trait for data processing instructions: ALU ops, CMP, NEG.
@@ -48,6 +47,12 @@ pub trait InstructionDataProcessing {
         op: fn(Word, Word) -> Word,
     ) -> EmuResult<bool>;
     fn execute_bitop(&mut self, operands: &[Operand], op: fn(u64, bool) -> u64) -> EmuResult<bool>;
+    fn execute_csel_like(
+        &mut self,
+        operands: &[Operand],
+        cond: crate::assembler::asm_types::Condition,
+        op: SelectOp,
+    ) -> EmuResult<bool>;
 }
 
 impl InstructionDataProcessing for CpuState {
@@ -426,6 +431,126 @@ impl InstructionDataProcessing for CpuState {
                 Ok(false)
             }
             _ => Err(EmuError::InternalError("Invalid bit op operands".into())),
+        }
+    }
+
+    fn execute_csel_like(
+        &mut self,
+        operands: &[Operand],
+        cond: Condition,
+        op: SelectOp,
+    ) -> EmuResult<bool> {
+        match operands {
+            [dest, src1, src2] => {
+                let (rd, is_w) = self.resolve_operand_dest(dest)?;
+                let val1 = self.resolve_operand_source(src1)?;
+                let val2 = self.resolve_operand_source(src2)?;
+                let select_first = self.check_condition(cond);
+                let chosen = match op {
+                    SelectOp::Sel => {
+                        if select_first {
+                            val1
+                        } else {
+                            val2
+                        }
+                    }
+                    SelectOp::Inc => {
+                        if select_first {
+                            val1
+                        } else {
+                            val2.wrapping_add(1)
+                                & if is_w {
+                                    0xFFFF_FFFF
+                                } else {
+                                    0xFFFF_FFFF_FFFF_FFFF
+                                }
+                        }
+                    }
+                    SelectOp::Inv => {
+                        if select_first {
+                            val1
+                        } else {
+                            !val2
+                                & if is_w {
+                                    0xFFFF_FFFF
+                                } else {
+                                    0xFFFF_FFFF_FFFF_FFFF
+                                }
+                        }
+                    }
+                    SelectOp::Neg => {
+                        if select_first {
+                            val1
+                        } else {
+                            (!val2).wrapping_add(1)
+                                & if is_w {
+                                    0xFFFF_FFFF
+                                } else {
+                                    0xFFFF_FFFF_FFFF_FFFF
+                                }
+                        }
+                    }
+                    SelectOp::Set => {
+                        if select_first {
+                            val1
+                        } else {
+                            if is_w {
+                                0xFFFF_FFFF
+                            } else {
+                                0xFFFF_FFFF_FFFF_FFFF
+                            }
+                        }
+                    }
+                    SelectOp::Setm => {
+                        if select_first {
+                            val1
+                        } else {
+                            0
+                        }
+                    }
+                    SelectOp::IncTrue => {
+                        if select_first {
+                            val1.wrapping_add(1)
+                                & if is_w {
+                                    0xFFFF_FFFF
+                                } else {
+                                    0xFFFF_FFFF_FFFF_FFFF
+                                }
+                        } else {
+                            val2
+                        }
+                    }
+                    SelectOp::InvTrue => {
+                        if select_first {
+                            !val1
+                                & if is_w {
+                                    0xFFFF_FFFF
+                                } else {
+                                    0xFFFF_FFFF_FFFF_FFFF
+                                }
+                        } else {
+                            val2
+                        }
+                    }
+                    SelectOp::NegTrue => {
+                        if select_first {
+                            (!val1).wrapping_add(1)
+                                & if is_w {
+                                    0xFFFF_FFFF
+                                } else {
+                                    0xFFFF_FFFF_FFFF_FFFF
+                                }
+                        } else {
+                            val2
+                        }
+                    }
+                };
+                self.set_reg_with_width(rd, chosen, is_w);
+                Ok(false)
+            }
+            _ => Err(EmuError::InternalError(
+                "Invalid operands for conditional select".into(),
+            )),
         }
     }
 }
