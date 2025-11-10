@@ -142,12 +142,10 @@ Example command to run with multiple plugins:
 - Allow the use of real c library/other library functions?
 
 **Instructions**:
-- Run through ./examples/instruction_modifiers.s to ensure all modifiers are working (off-by-one errors)
 - Error messages are still ugly and print multiple times
 - https://developer.arm.com/documentation/ddi0487/latest:
 - Address (C1.3):
     - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
-
 
 - https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf
 - Test negative offsets with ldr/str instructions
