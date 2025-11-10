@@ -179,6 +179,7 @@ pub enum Offset {
     Ind2(Reg),                   // [reg]
     Ind3(Reg, Immediate),        // [reg, imm]
     Ind4(Reg, Reg),              // [reg, reg]
+    Ind5(Reg, Box<Operand>),     // [reg, reg/imm with shift/extend]
     PreIndexed(Reg, Immediate),  // [reg, imm]!
     PostIndexed(Reg, Immediate), // [reg], imm
 }
@@ -189,6 +190,7 @@ pub enum Operand {
     Imm(Immediate),
     Reg(Reg),
     Offset(Offset),
+    RegWithMod(Box<OperandWithShiftExtend>),
 }
 
 /// Enum representing condition codes for conditional instructions
@@ -220,6 +222,28 @@ pub enum MovType {
     K, // MOVK
     Z, // MOVZ
     N, // MOVN
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShiftOrExtendKind {
+    LSL,
+    LSR,
+    ASR,
+    ROR,
+    UXTB,
+    UXTH,
+    UXTW,
+    SXTB,
+    SXTH,
+    SXTW,
+}
+
+/// Struct representing an operand with an optional shift or extend modifier
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OperandWithShiftExtend {
+    pub base: Operand,                       // Register/imm
+    pub modifier: Option<ShiftOrExtendKind>, // None means no modifier
+    pub amount: u8,                          // Amount (if relevant)
 }
 
 /// Enum representing the various operation codes (opcodes) for instructions

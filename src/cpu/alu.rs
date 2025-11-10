@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Andrew Schomber
 // Licensed under the MIT License. See LICENSE for details.
 
+use crate::assembler::asm_types::ShiftOrExtendKind;
 use crate::types::Word;
 
 /// Result type used by all ALU operations.
@@ -528,4 +529,59 @@ pub fn uxth(val: u64, is_w: bool) -> u64 {
 pub fn uxtw(val: u64) -> u64 {
     let v = val as u32 as u64;
     v
+}
+
+pub fn apply_shift_extend(
+    val: u64,
+    mod_type: Option<ShiftOrExtendKind>,
+    amount: u8,
+    src_width: u8,
+    out_width: u8,
+) -> u64 {
+    // Extension (always prior to shifting)
+    let extended = match mod_type {
+        Some(ShiftOrExtendKind::UXTB) => (val as u8) as u64,
+        Some(ShiftOrExtendKind::UXTH) => (val as u16) as u64,
+        Some(ShiftOrExtendKind::UXTW) => (val as u32) as u64,
+        Some(ShiftOrExtendKind::SXTB) => (val as i8) as i64 as u64,
+        Some(ShiftOrExtendKind::SXTH) => (val as i16) as i64 as u64,
+        Some(ShiftOrExtendKind::SXTW) => (val as i32) as i64 as u64,
+        _ => val,
+    };
+
+    // Determine caps based on width: 32 or 64
+    let capped_amount = match mod_type {
+        // Shifts are capped in ARM64: use only lower 5 or 6 bits
+        Some(ShiftOrExtendKind::LSL)
+        | Some(ShiftOrExtendKind::LSR)
+        | Some(ShiftOrExtendKind::ASR)
+        | Some(ShiftOrExtendKind::ROR) => {
+            if out_width == 32 {
+                amount & 0x1F // keep lowest 5 bits, max 31
+            } else {
+                amount & 0x3F // keep lowest 6 bits, max 63
+            }
+        }
+        _ => amount,
+    };
+
+    let shifted = match mod_type {
+        Some(ShiftOrExtendKind::LSL) => extended.checked_shl(capped_amount as u32).unwrap_or(0),
+        Some(ShiftOrExtendKind::LSR) => extended.checked_shr(capped_amount as u32).unwrap_or(0),
+        Some(ShiftOrExtendKind::ASR) => {
+            ((extended as i64)
+                .checked_shr(capped_amount as u32)
+                .unwrap_or(0)) as u64
+        }
+        Some(ShiftOrExtendKind::ROR) => extended.rotate_right(capped_amount as u32),
+        _ => extended,
+    };
+
+    // Mask to output width
+    shifted
+        & if out_width == 64 {
+            0xFFFF_FFFF_FFFF_FFFF
+        } else {
+            0xFFFF_FFFF
+        }
 }

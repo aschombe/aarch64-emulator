@@ -498,6 +498,11 @@ impl InstructionDataTransfer for CpuState {
                 let idx_val = self.get_reg(index_reg.to_id());
                 Ok(base_addr.wrapping_add(idx_val))
             }
+            Offset::Ind5(base_reg, index_mod_op) => {
+                let base_val = self.get_reg(base_reg.to_id());
+                let idx_val = self.resolve_operand_source(index_mod_op)?;
+                Ok(base_val.wrapping_add(idx_val))
+            }
             Offset::PreIndexed(base_reg, imm) => {
                 let reg_id = base_reg.to_id();
                 let base_addr = self.get_reg(reg_id);

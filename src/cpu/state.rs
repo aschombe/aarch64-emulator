@@ -200,9 +200,9 @@ impl CpuState {
             Operand::Reg(r) => {
                 let val = self.get_reg(r.to_id());
                 Ok(if r.is_w_register() {
-                    val & 0xFFFF_FFFF // Only the bottom 32 bits are relevant for W-reg source
+                    val & 0xFFFF_FFFF
                 } else {
-                    val // X-registers provide the full 64 bits
+                    val
                 })
             }
             Operand::Imm(Immediate::Lit(v)) => Ok(*v as Word),
@@ -253,8 +253,33 @@ impl CpuState {
                 } else {
                     self.ip_to_virtual_addr(raw)
                 };
-                // Mask off lower 12 bits for a literal value
                 Ok(full_addr & 0xFFF)
+            }
+            Operand::RegWithMod(owse) => {
+                // Get base register value
+                let base_val = match &owse.base {
+                    Operand::Reg(r) => self.get_reg(r.to_id()),
+                    Operand::Imm(Immediate::Lit(v)) => *v as u64,
+                    _ => {
+                        return Err(EmuError::InternalError(format!(
+                            "Unsupported base for shift/extend operand: {:?}",
+                            owse.base
+                        )));
+                    }
+                };
+                // src width logic
+                let src_width = match &owse.base {
+                    Operand::Reg(r) if r.is_w_register() => 32,
+                    _ => 64,
+                };
+                let out_width = 64; // typically instruction will mask if needed
+                Ok(crate::cpu::alu::apply_shift_extend(
+                    base_val,
+                    owse.modifier,
+                    owse.amount,
+                    src_width,
+                    out_width,
+                ))
             }
             _ => Err(EmuError::InternalError(format!(
                 "Unsupported source operand: {:?}",
@@ -280,7 +305,6 @@ impl CpuState {
 
     pub fn execute_instruction_ir(&mut self, ir_insn: &InstructionIR) -> EmuResult<bool> {
         match &ir_insn.opcode {
-            // Data Processing (ALU, CMP, NEG)
             OpCode::ADD => self.execute_binary_op(&ir_insn.operands, alu::add, false, false),
             OpCode::ADDS => self.execute_binary_op(&ir_insn.operands, alu::add, true, false),
             OpCode::SUB => self.execute_binary_op(&ir_insn.operands, alu::sub, false, true),
@@ -357,7 +381,6 @@ impl CpuState {
             OpCode::UMAX => self.execute_minmax(&ir_insn.operands, false, true),
             OpCode::UMIN => self.execute_minmax(&ir_insn.operands, false, false),
 
-            // Data Transfer (MOV, LDR/STR, ADR/ADRP)
             OpCode::MOV(kind) => self.execute_mov(OpCode::MOV(*kind), &ir_insn.operands),
             OpCode::SWP => self.execute_swp(OpCode::SWP, &ir_insn.operands),
             OpCode::SWPB => self.execute_swp(OpCode::SWPB, &ir_insn.operands),
@@ -403,7 +426,6 @@ impl CpuState {
                 self.execute_csel_like(&ir_insn.operands, *cond, SelectOp::NegTrue)
             }
 
-            // Control Flow (B, BL, BR, RET, SVC)
             OpCode::B(condition) => self.execute_branch(OpCode::B(*condition), &ir_insn.operands),
             OpCode::BL => self.execute_branch(OpCode::BL, &ir_insn.operands),
             OpCode::BR => self.execute_branch(OpCode::BR, &ir_insn.operands),

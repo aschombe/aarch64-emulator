@@ -67,11 +67,49 @@ pub fn parse_instruction(
         }
     }
 
-    let tokens: Vec<String> = token_assembly
+    // let tokens: Vec<String> = token_assembly
+    //     .split('|')
+    //     .map(|t| t.trim().trim_end_matches(',').to_string())
+    //     .filter(|t| !t.is_empty())
+    //     .collect();
+
+    let mut tokens = Vec::new();
+    let mut parts_iter = token_assembly
         .split('|')
-        .map(|t| t.trim().trim_end_matches(',').to_string())
+        .map(|t| t.trim())
         .filter(|t| !t.is_empty())
-        .collect();
+        .peekable();
+    while let Some(token) = parts_iter.next() {
+        // Detect if next is shift/extend -- merge reg + modifier + amount
+        if let Some(next) = parts_iter.peek() {
+            let next_lower = next.to_ascii_lowercase();
+            if next_lower.starts_with("lsl")
+                || next_lower.starts_with("lsr")
+                || next_lower.starts_with("asr")
+                || next_lower.starts_with("ror")
+                || next_lower.starts_with("uxtb")
+                || next_lower.starts_with("uxth")
+                || next_lower.starts_with("uxtw")
+                || next_lower.starts_with("sxtb")
+                || next_lower.starts_with("sxth")
+                || next_lower.starts_with("sxtw")
+            {
+                let mut merged = format!("{}, {}", token, next);
+                parts_iter.next(); // consume the modifier
+                // If next is immediate, add it to merged
+                if let Some(next2) = parts_iter.peek() {
+                    // Accept \"#123\" or numeric immediate
+                    if next2.starts_with('#') || next2.chars().all(|c| c.is_digit(10)) {
+                        merged = format!("{}, {}", merged, next2);
+                        parts_iter.next(); // consume immediate
+                    }
+                }
+                tokens.push(merged);
+                continue;
+            }
+        }
+        tokens.push(token.to_string());
+    }
 
     // Conditional select-like mnemonics
     let condsel_mnemonics = [
