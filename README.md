@@ -142,7 +142,7 @@ Example command to run with multiple plugins:
 - Allow the use of real c library/other library functions?
 
 **Instructions**:
-- Error messages are still ugly and print multiple times
+- Error messages print multiple times
 - https://developer.arm.com/documentation/ddi0487/latest:
 - Address (C1.3):
     - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
