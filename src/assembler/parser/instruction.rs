@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 use super::operand::parse_operand;
-use crate::assembler::asm_types::{Condition, InstructionIR, MovType, OpCode};
+use crate::assembler::asm_types::{Condition, InstructionIR, MovType, OpCode, Operand};
 use crate::types::{EmuError, EmuResult};
 use std::collections::HashSet;
 
@@ -103,6 +103,45 @@ pub fn parse_instruction(
             operands.push(parse_operand(token, filename, global_labels, equ_map)?);
         }
         return Ok(InstructionIR { opcode, operands });
+    }
+
+    // Conditional compare mnemonics
+    let condcmp_mnemonics = ["CCMP", "CCMN"];
+    if condcmp_mnemonics.contains(&full_mnemonic.as_str()) {
+        if tokens.len() < 4 {
+            // ensure enough operands
+            return Err(EmuError::InternalError(format!(
+                "Instruction '{}' requires at least four operands.",
+                full_mnemonic
+            )));
+        }
+        let condition_token = tokens.last().unwrap();
+        let cond = parse_csel_like_condition(condition_token)?;
+        // Parse operands except last (cond)
+        let ops: Vec<_> = tokens[..tokens.len() - 1]
+            .iter()
+            .map(|tok| parse_operand(tok, filename, global_labels, equ_map))
+            .collect::<Result<_, _>>()?;
+        let opcode = match full_mnemonic.as_str() {
+            "CCMP" => {
+                // Immediate or register form
+                match (&ops[1], &ops[2]) {
+                    (Operand::Imm(_), Operand::Imm(_)) => OpCode::CCMPImm(cond),
+                    (Operand::Reg(_), Operand::Imm(_)) => OpCode::CCMPReg(cond),
+                    _ => return Err(EmuError::InternalError("Invalid operands for CCMP".into())),
+                }
+            }
+            "CCMN" => match (&ops[1], &ops[2]) {
+                (Operand::Imm(_), Operand::Imm(_)) => OpCode::CCMNImm(cond),
+                (Operand::Reg(_), Operand::Imm(_)) => OpCode::CCMNReg(cond),
+                _ => return Err(EmuError::InternalError("Invalid operands for CCMN".into())),
+            },
+            _ => unreachable!(),
+        };
+        return Ok(InstructionIR {
+            opcode,
+            operands: ops,
+        });
     }
 
     let opcode = full_mnemonic_to_opcode(&full_mnemonic)?;

@@ -266,6 +266,11 @@ pub enum OpCode {
     CINV(Condition),
     CNEG(Condition),
 
+    CCMPReg(Condition), // For CCMP <Rn>, <Rm>, #nzcv, <cond>
+    CCMPImm(Condition), // For CCMP <Rn>, #imm, #nzcv, <cond>
+    CCMNReg(Condition), // For CCMN <Rn>, <Rm>, #nzcv, <cond>
+    CCMNImm(Condition), // For CCMN <Rn>, #imm, #nzcv, <cond>
+
     UDIV,
     SDIV,
     ADDS,

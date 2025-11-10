@@ -53,6 +53,10 @@ pub trait InstructionDataProcessing {
         cond: crate::assembler::asm_types::Condition,
         op: SelectOp,
     ) -> EmuResult<bool>;
+    fn execute_ccmp_reg(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool>;
+    fn execute_ccmp_imm(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool>;
+    fn execute_ccmn_reg(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool>;
+    fn execute_ccmn_imm(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool>;
 }
 
 impl InstructionDataProcessing for CpuState {
@@ -551,6 +555,96 @@ impl InstructionDataProcessing for CpuState {
             _ => Err(EmuError::InternalError(
                 "Invalid operands for conditional select".into(),
             )),
+        }
+    }
+
+    fn execute_ccmp_reg(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool> {
+        // [Rn, Rm, #nzcv]
+        if let [op1, op2, Operand::Imm(Immediate::Lit(nzcv))] = operands {
+            let is_w = matches!(op1, Operand::Reg(r) if r.is_w_register());
+            let condition_true = self.check_condition(cond);
+            if condition_true {
+                let lhs = self.resolve_operand_source(op1)?;
+                let rhs = self.resolve_operand_source(op2)?;
+                let (res, carry, overflow) = alu::sub(lhs, rhs, is_w);
+                self.update_cpsr_nzcv(res, carry, overflow, true, is_w);
+            } else {
+                // Set flags to literal nzcv (lowest 4 bits)
+                let mut cpsr = self.cpsr.borrow_mut();
+                *cpsr = (*cpsr & !0xF0000000) | ((*nzcv as u64 & 0xF) << 28);
+            }
+            Ok(false)
+        } else {
+            Err(EmuError::InternalError("Bad CCMP reg ops".into()))
+        }
+    }
+
+    fn execute_ccmp_imm(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool> {
+        // [Rn, #imm5, #nzcv]
+        if let [
+            op1,
+            Operand::Imm(Immediate::Lit(imm)),
+            Operand::Imm(Immediate::Lit(nzcv)),
+        ] = operands
+        {
+            let is_w = matches!(op1, Operand::Reg(r) if r.is_w_register());
+            let condition_true = self.check_condition(cond);
+            if condition_true {
+                let lhs = self.resolve_operand_source(op1)?;
+                let rhs = *imm as u64;
+                let (res, carry, overflow) = alu::sub(lhs, rhs, is_w);
+                self.update_cpsr_nzcv(res, carry, overflow, true, is_w);
+            } else {
+                let mut cpsr = self.cpsr.borrow_mut();
+                *cpsr = (*cpsr & !0xF0000000) | ((*nzcv as u64 & 0xF) << 28);
+            }
+            Ok(false)
+        } else {
+            Err(EmuError::InternalError("Bad CCMP imm ops".into()))
+        }
+    }
+
+    fn execute_ccmn_reg(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool> {
+        // [Rn, Rm, #nzcv]
+        if let [op1, op2, Operand::Imm(Immediate::Lit(nzcv))] = operands {
+            let is_w = matches!(op1, Operand::Reg(r) if r.is_w_register());
+            let condition_true = self.check_condition(cond);
+            if condition_true {
+                let lhs = self.resolve_operand_source(op1)?;
+                let rhs = self.resolve_operand_source(op2)?;
+                let (res, carry, overflow) = alu::add(lhs, rhs, is_w);
+                self.update_cpsr_nzcv(res, carry, overflow, false, is_w);
+            } else {
+                let mut cpsr = self.cpsr.borrow_mut();
+                *cpsr = (*cpsr & !0xF0000000) | ((*nzcv as u64 & 0xF) << 28);
+            }
+            Ok(false)
+        } else {
+            Err(EmuError::InternalError("Bad CCMN reg ops".into()))
+        }
+    }
+
+    fn execute_ccmn_imm(&mut self, operands: &[Operand], cond: Condition) -> EmuResult<bool> {
+        if let [
+            op1,
+            Operand::Imm(Immediate::Lit(imm)),
+            Operand::Imm(Immediate::Lit(nzcv)),
+        ] = operands
+        {
+            let is_w = matches!(op1, Operand::Reg(r) if r.is_w_register());
+            let condition_true = self.check_condition(cond);
+            if condition_true {
+                let lhs = self.resolve_operand_source(op1)?;
+                let rhs = *imm as u64;
+                let (res, carry, overflow) = alu::add(lhs, rhs, is_w);
+                self.update_cpsr_nzcv(res, carry, overflow, false, is_w);
+            } else {
+                let mut cpsr = self.cpsr.borrow_mut();
+                *cpsr = (*cpsr & !0xF0000000) | ((*nzcv as u64 & 0xF) << 28);
+            }
+            Ok(false)
+        } else {
+            Err(EmuError::InternalError("Bad CCMN imm ops".into()))
         }
     }
 }

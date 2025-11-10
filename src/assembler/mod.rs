@@ -44,7 +44,7 @@ pub fn assemble_multiple_files(
     let mut global_labels: HashSet<String> = HashSet::new();
     let mut file_sources: Vec<(String, Vec<String>)> = Vec::new();
 
-    let mut equ_map: HashMap<String, i64> = HashMap::new();
+    let equ_map: HashMap<String, i64> = HashMap::new();
 
     for path in file_paths {
         let raw_content = fs::read_to_string(path)

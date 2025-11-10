@@ -150,8 +150,6 @@ Example command to run with multiple plugins:
         - uxtb, uxth, uxtw
     - Logical (shifted register) (C3.7.6):
         - bic, bics, eon, eor, orr, mvn, orn
-    - Conditional comparison (C3.7.14):
-        - ccmp, ccmn
 
 
 - https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf

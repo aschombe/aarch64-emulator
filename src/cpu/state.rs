@@ -323,6 +323,11 @@ impl CpuState {
             OpCode::NGC => self.execute_ngc(&ir_insn.operands, false),
             OpCode::NGCS => self.execute_ngc(&ir_insn.operands, true),
 
+            OpCode::CCMPReg(cond) => self.execute_ccmp_reg(&ir_insn.operands, *cond),
+            OpCode::CCMPImm(cond) => self.execute_ccmp_imm(&ir_insn.operands, *cond),
+            OpCode::CCMNReg(cond) => self.execute_ccmn_reg(&ir_insn.operands, *cond),
+            OpCode::CCMNImm(cond) => self.execute_ccmn_imm(&ir_insn.operands, *cond),
+
             OpCode::AND => self.execute_binary_op(&ir_insn.operands, alu::and, false, false),
             OpCode::ANDS => self.execute_binary_op(&ir_insn.operands, alu::and, true, false),
             OpCode::ORR => self.execute_binary_op(&ir_insn.operands, alu::orr, false, false),
