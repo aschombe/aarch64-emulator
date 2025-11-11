@@ -142,6 +142,8 @@ Example command to run with multiple plugins:
 - Allow the use of real c library/other library functions?
 
 **Instructions**:
+- ./examples/movs/mov.s is broken, so is ./examples/instruction_modifiers.s
+- Check more of the examples for broken
 - https://developer.arm.com/documentation/ddi0487/latest:
 - Address (C1.3):
     - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
