@@ -1,7 +1,7 @@
 // Copyright (c) 2025 Andrew Schomber
 // Licensed under the MIT License. See LICENSE for details.
 
-use crate::assembler::asm_types::{InstructionIR, OpCode, Operand};
+use crate::assembler::asm_types::{OpCode, Operand};
 use crate::cpu::InterpretedProgram;
 use crate::types::VERBOSE_ENABLED;
 

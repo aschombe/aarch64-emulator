@@ -154,7 +154,21 @@ Example command to run with multiple plugins:
     - Readd and DEBUG .rept and .endr
 
 **Optimizer**:
-- [ ] Implement more optimizations
+- [ ] add/sub immediate simplification (reg/imm +/- imm/reg)
+- [ ] Constant folding (e.g. mov x1, 3; add x2, x1 7; -> mov x2, 10)
+- [ ] Remove consecutive moves to the same register (e.g. mov x1, x2; mov x1, x3; -> mov x1, x3)
+- [ ] Replacing orr/add/etc. with mov when possible
+- [ ] Drop lsl/lsr/asr of 0
+- [ ] Remove and by -1
+- [ ] Dead code after unconditional branches
+- [ ] Dead procedure elimination
+- [ ] Useless/unused cmp
+- [ ] Remove redundant loads/stores
+- [ ] Constant propagation
+- [ ] loop invariant code motion
+- [ ] Strength reduction (e.g. replace mul by 2 with lsl 1)
+- [ ] Replace multi-instruction sequences with single instructions (madd, etc.)
+
 
 **Virtual File System**:
 - [ ] Come up with more things to add
