@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 use aarch64_emulator::{
-    assembler::{assemble_multiple_files, data_loader::load_data_into_cpu},
+    assembler::{assemble_multiple_files, data_loader::load_data_into_cpu, optimizer::optimize},
     cpu::CpuState,
     debugger,
     plugin::PluginManager,
@@ -42,6 +42,10 @@ struct EmuConfig {
     /// Specify a custom entry point label
     #[clap(short, long, default_value = "_start")]
     entry: String,
+
+    /// Enable optimization passes during assembly
+    #[clap(short, long, conflicts_with = "debug")]
+    optimize: bool,
 }
 
 impl EmuConfig {
@@ -109,6 +113,17 @@ fn start() -> Result<(), EmuError> {
                 "Using custom entry point: {} at IP {}",
                 config.entry, custom_entry_ip
             );
+        }
+    }
+
+    // Optimization pass
+    if config.optimize {
+        if config.verbose {
+            println!("\n--- Running Optimization Passes ---");
+        }
+        optimize(&mut program);
+        if config.verbose {
+            println!("--- Optimization Passes Complete ---\n");
         }
     }
 

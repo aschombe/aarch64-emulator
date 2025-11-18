@@ -399,6 +399,19 @@ pub struct InstructionIR {
     pub operands: Vec<Operand>,
 }
 
+impl InstructionIR {
+    /// Converts the instruction to its assembly string representation
+    pub fn to_asm_string(&self) -> String {
+        let opcode_str = format!("{:?}", self.opcode).to_lowercase();
+        let operands_str: Vec<String> = self
+            .operands
+            .iter()
+            .map(|op| format!("{:?}", op).to_lowercase())
+            .collect();
+        format!("{} {}", opcode_str, operands_str.join(", "))
+    }
+}
+
 /// Enum representing different types of data in the data section
 #[derive(Debug, Clone)]
 pub enum Data {

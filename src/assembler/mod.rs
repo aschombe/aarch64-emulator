@@ -4,6 +4,7 @@
 pub mod asm_types;
 pub mod data_loader;
 pub mod label_pass;
+pub mod optimizer;
 pub mod parser;
 
 use crate::assembler::label_pass::collect_labels;

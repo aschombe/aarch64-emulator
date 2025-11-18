@@ -153,6 +153,9 @@ Example command to run with multiple plugins:
 - [ ] Add directives:
     - Readd and DEBUG .rept and .endr
 
+**Optimizer**:
+- [ ] Implement more optimizations
+
 **Virtual File System**:
 - [ ] Come up with more things to add
 
