@@ -154,7 +154,7 @@ Example command to run with multiple plugins:
     - Readd and DEBUG .rept and .endr
 
 **Optimizer**:
-- [ ] add/sub immediate simplification (reg/imm +/- imm/reg)
+- [ ] add/sub immediate simplification (e.g. add x1, x2, 0 -> mov x1, x2)
 - [ ] Constant folding (e.g. mov x1, 3; add x2, x1 7; -> mov x2, 10)
 - [ ] Remove consecutive moves to the same register (e.g. mov x1, x2; mov x1, x3; -> mov x1, x3)
 - [ ] Replacing orr/add/etc. with mov when possible
