@@ -129,7 +129,9 @@ Example command to run with multiple plugins:
 
 ## TODO
 **Architecture**:
-- Optional Optimizer
+- ELF parser and loader:
+    - https://docs.rs/elf/latest/elf/
+    - https://github.com/gimli-rs/object
 - Rewrite tokenizing and parsing to use something like pest, as it is getting messy.
 - [ ] Use AWS Lambda and API gateway to provide an online emulator service
     - HTML/CSS/JS frontend that allows users to upload assembly files or select options
