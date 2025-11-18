@@ -80,6 +80,7 @@ pub fn parse_instruction(
     let mut merged_tokens = Vec::new();
     let mut iter = tokens.into_iter().peekable();
     while let Some(token) = iter.next() {
+        // Register + shift/extend
         if is_register(&token) {
             if let Some(next) = iter.peek() {
                 let next_lower = next.to_ascii_lowercase();
@@ -93,6 +94,30 @@ pub fn parse_instruction(
                     || next_lower.starts_with("sxtb")
                     || next_lower.starts_with("sxth")
                     || next_lower.starts_with("sxtw");
+                if is_mod {
+                    let mod_token = iter.next().unwrap();
+                    if let Some(next2) = iter.peek() {
+                        if next2.starts_with('#') || next2.chars().all(|c| c.is_ascii_digit()) {
+                            let amt_token = iter.next().unwrap();
+                            merged_tokens.push(format!("{}, {} {}", token, mod_token, amt_token));
+                        } else {
+                            merged_tokens.push(format!("{}, {}", token, mod_token));
+                        }
+                    } else {
+                        merged_tokens.push(format!("{}, {}", token, mod_token));
+                    }
+                    continue;
+                }
+            }
+        }
+        // Immediate + shift (for MOVZ/MOVK/MOVN)
+        if token.starts_with('#') {
+            if let Some(next) = iter.peek() {
+                let next_lower = next.to_ascii_lowercase();
+                let is_mod = next_lower.starts_with("lsl")
+                    || next_lower.starts_with("lsr")
+                    || next_lower.starts_with("asr")
+                    || next_lower.starts_with("ror");
                 if is_mod {
                     let mod_token = iter.next().unwrap();
                     if let Some(next2) = iter.peek() {

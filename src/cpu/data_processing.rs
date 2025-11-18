@@ -83,7 +83,7 @@ impl InstructionDataProcessing for CpuState {
                     _ => self.resolve_operand_source(src2)?,
                 };
                 let (result, carry, overflow) = opfunc(val_n, val_m, is_w);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
 
                 if update_flags {
                     self.update_cpsr_nzcv(result, carry, overflow, is_sub, is_w);
@@ -162,7 +162,7 @@ impl InstructionDataProcessing for CpuState {
                 let (rdid, isw) = self.resolve_operand_dest(dest)?;
                 let srcval = self.resolve_operand_source(src)?;
                 let (result, carry, overflow) = alu::sub(0, srcval, isw);
-                self.set_reg_with_width(rdid, result, isw);
+                self.set_reg_with_width(rdid, result as i64, isw);
                 if update_flags {
                     self.update_cpsr_nzcv(result, carry, overflow, true, isw);
                 }
@@ -185,7 +185,7 @@ impl InstructionDataProcessing for CpuState {
 
                     let old_val = self.memory.borrow().read_word(addr)?;
                     self.memory.borrow_mut().write_word(addr, src_val)?;
-                    self.set_reg_with_width(dest_id, old_val, is_w);
+                    self.set_reg_with_width(dest_id, old_val as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid SWP operands".into())),
@@ -198,7 +198,7 @@ impl InstructionDataProcessing for CpuState {
 
                     let old_val = self.memory.borrow().read_byte(addr)? as Word;
                     self.memory.borrow_mut().write_byte(addr, src_val)?;
-                    self.set_reg_with_width(dest_id, old_val, true);
+                    self.set_reg_with_width(dest_id, old_val as i64, true);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid SWPB operands".into())),
@@ -213,7 +213,7 @@ impl InstructionDataProcessing for CpuState {
                     self.memory
                         .borrow_mut()
                         .write_halfword(addr, src_val as u32)?;
-                    self.set_reg_with_width(dest_id, old_val, true);
+                    self.set_reg_with_width(dest_id, old_val as i64, true);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid SWPH operands".into())),
@@ -236,8 +236,8 @@ impl InstructionDataProcessing for CpuState {
                     let old2 = self.memory.borrow().read_word(base_addr + 8)?;
                     self.memory.borrow_mut().write_word(base_addr, src1)?;
                     self.memory.borrow_mut().write_word(base_addr + 8, src2)?;
-                    self.set_reg_with_width(rd1, old1, false);
-                    self.set_reg_with_width(rd2, old2, false);
+                    self.set_reg_with_width(rd1, old1 as i64, false);
+                    self.set_reg_with_width(rd2, old2 as i64, false);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid SWPP operands".into())),
@@ -258,7 +258,7 @@ impl InstructionDataProcessing for CpuState {
                 let a = self.resolve_operand_source(src1)?;
                 let b = self.resolve_operand_source(src2)?;
                 let result = alu::minmax(a, b, is_w, is_signed, is_max);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(
@@ -275,7 +275,7 @@ impl InstructionDataProcessing for CpuState {
                 let val2 = self.resolve_operand_source(src2)?;
                 let carry = self.get_carry_flag();
                 let (result, carry_out, overflow) = alu::adc(val1, val2, carry, is_w);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 if update_flags {
                     self.update_cpsr_nzcv(result, carry_out, overflow, false, is_w);
                 }
@@ -293,7 +293,7 @@ impl InstructionDataProcessing for CpuState {
                 let val2 = self.resolve_operand_source(src2)?;
                 let carry = self.get_carry_flag();
                 let (result, carry_out, overflow) = alu::sbc(val1, val2, carry, is_w);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 if update_flags {
                     self.update_cpsr_nzcv(result, carry_out, overflow, true, is_w);
                 }
@@ -310,7 +310,7 @@ impl InstructionDataProcessing for CpuState {
                 let val2 = self.resolve_operand_source(src2)?;
                 let carry = self.get_carry_flag();
                 let (result, carry_out, overflow) = alu::ngc(val2, carry, is_w);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 if update_flags {
                     self.update_cpsr_nzcv(result, carry_out, overflow, true, is_w);
                 }
@@ -340,7 +340,7 @@ impl InstructionDataProcessing for CpuState {
                         sv.abs() as u64
                     }
                 };
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(
@@ -357,7 +357,7 @@ impl InstructionDataProcessing for CpuState {
                 let m = self.resolve_operand_source(src2)?;
                 let a = self.resolve_operand_source(src3)?;
                 let result = alu::madd(n, m, a, is_w);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError("Invalid MADD operands".to_string())),
@@ -371,7 +371,7 @@ impl InstructionDataProcessing for CpuState {
                 let m = self.resolve_operand_source(src2)?;
                 let a = self.resolve_operand_source(src3)?;
                 let result = alu::msub(n, m, a, is_w);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError("Invalid MSUB operands".to_string())),
@@ -384,7 +384,7 @@ impl InstructionDataProcessing for CpuState {
                 let n = self.resolve_operand_source(src1)?;
                 let m = self.resolve_operand_source(src2)?;
                 let result = alu::mneg(n, m, is_w);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError("Invalid MNEG operands".to_string())),
@@ -403,7 +403,7 @@ impl InstructionDataProcessing for CpuState {
                 let m = self.resolve_operand_source(src2)?;
                 let a = self.resolve_operand_source(src3)?;
                 let result = op(n, m, a);
-                self.set_reg_with_width(rd, result, false); // These always write 64-bit
+                self.set_reg_with_width(rd, result as i64, false); // These always write 64-bit
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(
@@ -422,7 +422,7 @@ impl InstructionDataProcessing for CpuState {
                 let n = self.resolve_operand_source(src1)?;
                 let m = self.resolve_operand_source(src2)?;
                 let result = op(n, m);
-                self.set_reg_with_width(rd, result, false);
+                self.set_reg_with_width(rd, result as i64, false);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(
@@ -437,7 +437,7 @@ impl InstructionDataProcessing for CpuState {
                 let (rd, is_w) = self.resolve_operand_dest(dest)?;
                 let val = self.resolve_operand_source(src)?;
                 let result = op(val, is_w);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError("Invalid bit op operands".into())),
@@ -555,7 +555,7 @@ impl InstructionDataProcessing for CpuState {
                         }
                     }
                 };
-                self.set_reg_with_width(rd, chosen, is_w);
+                self.set_reg_with_width(rd, chosen as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(
@@ -660,7 +660,7 @@ impl InstructionDataProcessing for CpuState {
                 let (rd, is_w) = self.resolve_operand_dest(dest)?;
                 let srcval = self.resolve_operand_source(src)?;
                 let (result, _, _) = alu::mvn(srcval, is_w);
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError("Invalid MVN operands".to_string())),
@@ -678,7 +678,7 @@ impl InstructionDataProcessing for CpuState {
                 let (rd, is_w) = self.resolve_operand_dest(dest)?;
                 let srcval = self.resolve_operand_source(src)?;
                 let result = op(srcval, if can_width { is_w } else { false });
-                self.set_reg_with_width(rd, result, is_w);
+                self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(

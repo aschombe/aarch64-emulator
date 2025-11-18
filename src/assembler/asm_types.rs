@@ -190,6 +190,7 @@ pub enum Offset {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operand {
     Imm(Immediate),
+    ImmWithShift(i64, ShiftOrExtendKind, u8),
     Reg(Reg),
     Offset(Offset),
     RegWithMod(Box<OperandWithShiftExtend>),

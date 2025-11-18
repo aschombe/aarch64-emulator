@@ -33,7 +33,7 @@ pub struct InterpretedProgram {
 #[derive(Clone)]
 pub struct CpuState {
     pub registers: RefCell<[Word; 32]>,
-    pub sp: RefCell<Word>,
+    pub sp: RefCell<i64>,
     pub cpsr: RefCell<Word>,
     pub memory: RefCell<Memory>,
     pub program: InterpretedProgram,
@@ -52,7 +52,7 @@ impl CpuState {
     ) -> Self {
         let cpu = CpuState {
             registers: RefCell::new([0; 32]),
-            sp: RefCell::new(STACK_TOP),
+            sp: RefCell::new(STACK_TOP as i64),
             cpsr: RefCell::new(0),
             memory: RefCell::new(Memory::new()),
             ip: RefCell::new(program.entry_ip),
@@ -155,17 +155,17 @@ impl CpuState {
         if id == 31 {
             0
         } else if id == 32 {
-            *self.sp.borrow()
+            *self.sp.borrow() as Word
         } else {
             self.registers.borrow()[id]
         }
     }
 
-    pub fn set_reg(&mut self, id: usize, value: Word) {
+    pub fn set_reg(&mut self, id: usize, value: i64) {
         self.set_reg_with_width(id, value, false);
     }
 
-    pub fn set_reg_with_width(&mut self, id: usize, value: Word, is_w: bool) {
+    pub fn set_reg_with_width(&mut self, id: usize, value: i64, is_w: bool) {
         if id == 31 {
             // XZR/WZR - write ignored
         } else if id == 32 {
@@ -173,9 +173,9 @@ impl CpuState {
         } else {
             if is_w {
                 let masked_value = value & 0xFFFF_FFFF;
-                self.registers.borrow_mut()[id] = masked_value;
+                self.registers.borrow_mut()[id] = masked_value as Word;
             } else {
-                self.registers.borrow_mut()[id] = value;
+                self.registers.borrow_mut()[id] = value as Word;
             }
         }
     }
@@ -206,6 +206,21 @@ impl CpuState {
                 })
             }
             Operand::Imm(Immediate::Lit(v)) => Ok(*v as Word),
+            Operand::ImmWithShift(v, kind, amt) => {
+                let raw_value = *v as Word;
+                let shifted = match kind {
+                    crate::assembler::asm_types::ShiftOrExtendKind::LSL => raw_value << amt,
+                    crate::assembler::asm_types::ShiftOrExtendKind::LSR => raw_value >> amt,
+                    crate::assembler::asm_types::ShiftOrExtendKind::ASR => {
+                        ((raw_value as i64) >> amt) as Word
+                    }
+                    crate::assembler::asm_types::ShiftOrExtendKind::ROR => {
+                        raw_value.rotate_right(*amt as u32)
+                    }
+                    _ => raw_value,
+                };
+                Ok(shifted)
+            }
             Operand::Imm(Immediate::Lbl(label)) => {
                 let raw = match self.program.label_to_ip.get(label) {
                     Some(x) => *x as Word,
@@ -455,7 +470,7 @@ impl CpuState {
 
         CpuState {
             registers: RefCell::new([0; 32]),
-            sp: RefCell::new(STACK_TOP),
+            sp: RefCell::new(STACK_TOP as i64),
             cpsr: RefCell::new(0),
             memory: RefCell::new(Memory::new()),
             program: InterpretedProgram {

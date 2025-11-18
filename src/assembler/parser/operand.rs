@@ -3,7 +3,9 @@
 
 use super::immediate::parse_immediate;
 use super::utils::{is_label, is_numeric, is_register, parse_reg};
-use crate::assembler::asm_types::{Offset, Operand, OperandWithShiftExtend, ShiftOrExtendKind};
+use crate::assembler::asm_types::{
+    Immediate, Offset, Operand, OperandWithShiftExtend, ShiftOrExtendKind,
+};
 use crate::types::{EmuError, EmuResult};
 use std::collections::HashSet;
 
@@ -42,7 +44,7 @@ pub fn parse_operand(
 
     // Post-indexed: handled in parse_instruction
 
-    // Bracketed
+    // Bracketed (memory operands)
     if token.starts_with('[') && token.ends_with(']') {
         let inner = token.trim_matches(|c| c == '[' || c == ']').trim();
         let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
@@ -85,8 +87,40 @@ pub fn parse_operand(
         }
     }
 
-    // Register + shift/extend
+    // Immediate + shift (e.g. "#42, lsl #16" or "label, lsl #16")
     let split_token = token.split(',').map(|s| s.trim()).collect::<Vec<_>>();
+    if split_token.len() == 2 && (split_token[0].starts_with('#') || is_numeric(split_token[0])) {
+        let imm_str = split_token[0];
+        let mut mod_parts = split_token[1].split_whitespace();
+        let modifier = mod_parts.next().unwrap_or("").to_lowercase();
+        let amount: u8 = mod_parts
+            .next()
+            .and_then(|s| s.trim_start_matches('#').parse().ok())
+            .unwrap_or(0);
+
+        let modkind = match modifier.as_str() {
+            "lsl" => Some(ShiftOrExtendKind::LSL),
+            "lsr" => Some(ShiftOrExtendKind::LSR),
+            "asr" => Some(ShiftOrExtendKind::ASR),
+            "ror" => Some(ShiftOrExtendKind::ROR),
+            _ => None,
+        };
+        if let Some(mk) = modkind {
+            let imm = parse_immediate(imm_str, filename, global_labels, &equ_map)?;
+            let value = match imm {
+                Immediate::Lit(v) => v,
+                Immediate::Lbl(ref s) | Immediate::Lo12Lbl(ref s) => {
+                    return Err(EmuError::InternalError(format!(
+                        "Immediate with shift/extend not supported for label immediates: {}",
+                        s
+                    )));
+                }
+            };
+            return Ok(Operand::ImmWithShift(value, mk, amount));
+        }
+    }
+
+    // Register + shift/extend (including SXTW/UxTW/etc)
     if split_token.len() >= 2 && is_register(split_token[0]) {
         let base = split_token[0];
         let mod_amt = split_token[1..].join(" ");
@@ -120,9 +154,12 @@ pub fn parse_operand(
         }
     }
 
+    // Basic register
     if is_register(token) {
         return Ok(Operand::Reg(parse_reg(token)?));
     }
+
+    // Simple immediate/label
     if token.starts_with('#')
         || token.starts_with('=')
         || is_numeric(token)

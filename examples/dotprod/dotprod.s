@@ -20,16 +20,16 @@ LDR X3, [X0, 16]
 LDR X4, [X1, 16]
 MUL X6, X3, X4
 ADD X5, X5, X6
-STR X5, [X2, 0]
+MOV X0, X5
+// STR X5, [X2, 0]
 
-MOV X8, 64
-MOV X0, 1
-ADR X1, dot
-MOV X2, 8
-SVC 0
+// MOV X8, 64
+// MOV X0, 1
+// ADR X1, dot
+// MOV X2, 8
+// SVC 0
 
 MOV X8, 93
-MOV X0, 0
 SVC 0
 
 .data

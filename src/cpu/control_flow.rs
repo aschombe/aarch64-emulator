@@ -3,7 +3,7 @@
 
 use crate::assembler::asm_types::{Condition, Immediate, OpCode, Operand};
 use crate::cpu::state::CpuState;
-use crate::types::{EmuError, EmuResult, Word};
+use crate::types::{EmuError, EmuResult};
 use crate::{cpu, syscall};
 
 /// Trait for control flow instructions: branches, calls, returns, and SVC.
@@ -107,7 +107,7 @@ impl InstructionControl for CpuState {
                     pm.run_hooks("pre_bl", self)?;
                 }
                 let return_addr = *self.ip.borrow() + 1;
-                self.set_reg(30, return_addr as Word);
+                self.set_reg(30, return_addr as i64);
                 *self.ip.borrow_mut() = target_ip;
                 self.did_branch.set(true);
                 if let Some(pm_rc) = &self.plugin_manager {
@@ -228,7 +228,7 @@ impl InstructionControl for CpuState {
         if let OpCode::BLR = opcode {
             if let [Operand::Reg(reg)] = operands {
                 let return_addr = *self.ip.borrow() + 1;
-                self.set_reg(30, return_addr as Word);
+                self.set_reg(30, return_addr as i64);
                 let target_ip = self.get_reg(reg.to_id()) as usize;
                 *self.ip.borrow_mut() = target_ip;
                 self.did_branch.set(true);

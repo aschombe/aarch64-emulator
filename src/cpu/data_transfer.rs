@@ -20,12 +20,22 @@ pub trait InstructionDataTransfer {
 
 impl InstructionDataTransfer for CpuState {
     fn execute_mov(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
+        fn apply_shift(val: Word, kind: &ShiftOrExtendKind, amt: u8) -> Word {
+            match kind {
+                ShiftOrExtendKind::LSL => val << amt,
+                ShiftOrExtendKind::LSR => val >> amt,
+                ShiftOrExtendKind::ASR => ((val as i64) >> amt) as Word,
+                ShiftOrExtendKind::ROR => val.rotate_right(amt as u32),
+                _ => val,
+            }
+        }
+
         match opcode {
             OpCode::MOV(MovType::Normal) => match operands {
                 [dest_op, src_op] => {
                     let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let src_val = self.resolve_operand_source(src_op)?;
-                    self.set_reg_with_width(rd_id, src_val, is_w);
+                    self.set_reg_with_width(rd_id, src_val as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError(format!(
@@ -41,7 +51,18 @@ impl InstructionDataTransfer for CpuState {
                     } else {
                         *v as Word
                     };
-                    self.set_reg_with_width(rd_id, value, is_w);
+                    self.set_reg_with_width(rd_id, value as i64, is_w);
+                    Ok(false)
+                }
+                [dest_op, Operand::ImmWithShift(v, kind, amt)] => {
+                    let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let raw_value = if is_w {
+                        *v as Word & 0xFFFF_FFFF
+                    } else {
+                        *v as Word
+                    };
+                    let shifted = apply_shift(raw_value, kind, *amt);
+                    self.set_reg_with_width(rd_id, shifted as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError(format!(
@@ -57,9 +78,27 @@ impl InstructionDataTransfer for CpuState {
                     } else {
                         *v as Word
                     };
-                    self.set_reg_with_width(rd_id, value, is_w);
+                    self.set_reg_with_width(rd_id, value as i64, is_w);
                     let mut cpsr = *self.cpsr.borrow();
                     if value == 0 {
+                        cpsr |= cpu::flags::Z_FLAG;
+                    } else {
+                        cpsr &= !cpu::flags::Z_FLAG;
+                    }
+                    *self.cpsr.borrow_mut() = cpsr;
+                    Ok(false)
+                }
+                [dest_op, Operand::ImmWithShift(v, kind, amt)] => {
+                    let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let raw_value = if is_w {
+                        *v as Word & 0xFFFF_FFFF
+                    } else {
+                        *v as Word
+                    };
+                    let shifted = apply_shift(raw_value, kind, *amt);
+                    self.set_reg_with_width(rd_id, shifted as i64, is_w);
+                    let mut cpsr = *self.cpsr.borrow();
+                    if shifted == 0 {
                         cpsr |= cpu::flags::Z_FLAG;
                     } else {
                         cpsr &= !cpu::flags::Z_FLAG;
@@ -80,10 +119,29 @@ impl InstructionDataTransfer for CpuState {
                     } else {
                         *v as Word
                     };
-                    self.set_reg_with_width(rd_id, value, is_w);
+                    self.set_reg_with_width(rd_id, value as i64, is_w);
                     let mut cpsr = *self.cpsr.borrow();
                     let sign_bit = if is_w { 31 } else { 63 };
                     if (value >> sign_bit) & 1 == 1 {
+                        cpsr |= cpu::flags::N_FLAG;
+                    } else {
+                        cpsr &= !cpu::flags::N_FLAG;
+                    }
+                    *self.cpsr.borrow_mut() = cpsr;
+                    Ok(false)
+                }
+                [dest_op, Operand::ImmWithShift(v, kind, amt)] => {
+                    let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
+                    let raw_value = if is_w {
+                        *v as Word & 0xFFFF_FFFF
+                    } else {
+                        *v as Word
+                    };
+                    let shifted = apply_shift(raw_value, kind, *amt);
+                    self.set_reg_with_width(rd_id, shifted as i64, is_w);
+                    let mut cpsr = *self.cpsr.borrow();
+                    let sign_bit = if is_w { 31 } else { 63 };
+                    if (shifted >> sign_bit) & 1 == 1 {
                         cpsr |= cpu::flags::N_FLAG;
                     } else {
                         cpsr &= !cpu::flags::N_FLAG;
@@ -145,7 +203,7 @@ impl InstructionDataTransfer for CpuState {
                     raw
                 };
 
-                self.set_reg_with_width(rd_id, target_addr, is_w);
+                self.set_reg_with_width(rd_id, target_addr as i64, is_w);
                 Ok(false)
             }
             _ => Err(EmuError::InternalError(format!(
@@ -162,13 +220,13 @@ impl InstructionDataTransfer for CpuState {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let value = self.memory.borrow().read_word(effective_addr)?;
-                    self.set_reg_with_width(rt_id, value, is_w);
+                    self.set_reg_with_width(rt_id, value as i64, is_w);
                     Ok(false)
                 }
                 [dest_op, Operand::Imm(Immediate::Lbl(label))] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let address_value = self.resolve_label_address(label)?;
-                    self.set_reg_with_width(rt_id, address_value, is_w);
+                    self.set_reg_with_width(rt_id, address_value as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDR operands".into())),
@@ -180,8 +238,8 @@ impl InstructionDataTransfer for CpuState {
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let value1 = self.memory.borrow().read_word(effective_addr)?;
                     let value2 = self.memory.borrow().read_word(effective_addr + 8)?;
-                    self.set_reg_with_width(rt1_id, value1, is_w1);
-                    self.set_reg_with_width(rt2_id, value2, is_w2);
+                    self.set_reg_with_width(rt1_id, value1 as i64, is_w1);
+                    self.set_reg_with_width(rt2_id, value2 as i64, is_w2);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDP operands".into())),
@@ -195,8 +253,8 @@ impl InstructionDataTransfer for CpuState {
                         self.memory.borrow().read_word(effective_addr)? as i32 as i64 as Word;
                     let value2 =
                         self.memory.borrow().read_word(effective_addr + 8)? as i32 as i64 as Word;
-                    self.set_reg_with_width(rt1_id, value1, is_w1);
-                    self.set_reg_with_width(rt2_id, value2, is_w2);
+                    self.set_reg_with_width(rt1_id, value1 as i64, is_w1);
+                    self.set_reg_with_width(rt2_id, value2 as i64, is_w2);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDPSW operands".into())),
@@ -206,7 +264,7 @@ impl InstructionDataTransfer for CpuState {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let byte_value = self.memory.borrow().read_byte(effective_addr)? as Word;
-                    self.set_reg_with_width(rt_id, byte_value & 0xFF, is_w);
+                    self.set_reg_with_width(rt_id, byte_value as i64 & 0xFF, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRB operands".into())),
@@ -217,7 +275,7 @@ impl InstructionDataTransfer for CpuState {
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let halfword_value =
                         self.memory.borrow().read_halfword(effective_addr)? as Word;
-                    self.set_reg_with_width(rt_id, halfword_value & 0xFFFF, is_w);
+                    self.set_reg_with_width(rt_id, halfword_value as i64 & 0xFFFF, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRH operands".into())),
@@ -228,7 +286,7 @@ impl InstructionDataTransfer for CpuState {
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let byte_value = self.memory.borrow().read_byte(effective_addr)? as i8;
                     let sign_extended = byte_value as i64 as Word;
-                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRSB operands".into())),
@@ -239,7 +297,7 @@ impl InstructionDataTransfer for CpuState {
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let halfword_value = self.memory.borrow().read_halfword(effective_addr)? as i16;
                     let sign_extended = halfword_value as i32 as Word;
-                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRSH operands".into())),
@@ -250,7 +308,7 @@ impl InstructionDataTransfer for CpuState {
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let word_value = self.memory.borrow().read_word(effective_addr)? as i32;
                     let sign_extended = word_value as i64 as Word;
-                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRSW operands".into())),
@@ -260,7 +318,7 @@ impl InstructionDataTransfer for CpuState {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let value = self.memory.borrow().read_word(effective_addr)?;
-                    self.set_reg_with_width(rt_id, value, is_w);
+                    self.set_reg_with_width(rt_id, value as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDUR operands".into())),
@@ -270,7 +328,7 @@ impl InstructionDataTransfer for CpuState {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let byte_value = self.memory.borrow().read_byte(effective_addr)? as Word;
-                    self.set_reg_with_width(rt_id, byte_value & 0xFF, is_w);
+                    self.set_reg_with_width(rt_id, byte_value as i64 & 0xFF, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRUB operands".into())),
@@ -281,7 +339,7 @@ impl InstructionDataTransfer for CpuState {
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let halfword_value =
                         self.memory.borrow().read_halfword(effective_addr)? as Word;
-                    self.set_reg_with_width(rt_id, halfword_value & 0xFFFF, is_w);
+                    self.set_reg_with_width(rt_id, halfword_value as i64 & 0xFFFF, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDRUH operands".into())),
@@ -292,7 +350,7 @@ impl InstructionDataTransfer for CpuState {
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let byte_value = self.memory.borrow().read_byte(effective_addr)? as i8;
                     let sign_extended = byte_value as i64 as Word;
-                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDURSB operands".into())),
@@ -303,7 +361,7 @@ impl InstructionDataTransfer for CpuState {
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let halfword_value = self.memory.borrow().read_halfword(effective_addr)? as i16;
                     let sign_extended = halfword_value as i32 as Word;
-                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDURSH operands".into())),
@@ -314,7 +372,7 @@ impl InstructionDataTransfer for CpuState {
                     let effective_addr = self.resolve_offset_address(offset)?;
                     let word_value = self.memory.borrow().read_word(effective_addr)? as i32;
                     let sign_extended = word_value as i64 as Word;
-                    self.set_reg_with_width(rt_id, sign_extended, is_w);
+                    self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid LDURSW operands".into())),
@@ -346,7 +404,7 @@ impl InstructionDataTransfer for CpuState {
                     let reg_id = base.to_id();
                     self.memory.borrow_mut().write_word(base_addr, value)?;
                     let new_base = base_addr.wrapping_add(offset_val);
-                    self.set_reg(reg_id, new_base);
+                    self.set_reg(reg_id, new_base as i64);
                     Ok(false)
                 }
                 // ARM post-indexed: [src, Offset(Ind2(base)), Reg(offset_reg)]
@@ -361,7 +419,7 @@ impl InstructionDataTransfer for CpuState {
                     let reg_id = base.to_id();
                     self.memory.borrow_mut().write_word(base_addr, value)?;
                     let new_base = base_addr.wrapping_add(offset_val);
-                    self.set_reg(reg_id, new_base);
+                    self.set_reg(reg_id, new_base as i64);
                     Ok(false)
                 }
                 _ => Err(EmuError::InternalError("Invalid STR operands".into())),
@@ -577,7 +635,7 @@ impl InstructionDataTransfer for CpuState {
                 let base_addr = self.get_reg(reg_id);
                 let offset_val = resolve_immediate_value(imm, self)?;
                 let new_base = base_addr.wrapping_add(offset_val);
-                self.set_reg(reg_id, new_base);
+                self.set_reg(reg_id, new_base as i64);
                 Ok(new_base)
             }
             Offset::PreIndexedReg(base_reg, idx_op) => {
@@ -595,7 +653,7 @@ impl InstructionDataTransfer for CpuState {
                     }
                 };
                 let new_base = base_addr.wrapping_add(idx_val);
-                self.set_reg(reg_id, new_base);
+                self.set_reg(reg_id, new_base as i64);
                 Ok(new_base)
             }
             Offset::PostIndexed(base_reg, imm) => {
@@ -603,7 +661,7 @@ impl InstructionDataTransfer for CpuState {
                 let base_addr = self.get_reg(reg_id);
                 let offset_val = resolve_immediate_value(imm, self)?;
                 let new_base = base_addr.wrapping_add(offset_val);
-                self.set_reg(reg_id, new_base);
+                self.set_reg(reg_id, new_base as i64);
                 Ok(base_addr)
             }
             Offset::PostIndexedReg(base_reg, idx_op) => {
@@ -621,7 +679,7 @@ impl InstructionDataTransfer for CpuState {
                     }
                 };
                 let new_base = base_addr.wrapping_add(idx_val);
-                self.set_reg(reg_id, new_base);
+                self.set_reg(reg_id, new_base as i64);
                 Ok(base_addr)
             }
         }

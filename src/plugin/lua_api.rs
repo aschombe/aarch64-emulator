@@ -65,7 +65,7 @@ pub fn create_snapshot(cpu: &CpuState, plugin_name: &str) -> LuaCpuSnapshot {
     let memory = cpu.memory.borrow().ram.clone();
     LuaCpuSnapshot {
         registers: *cpu.registers.borrow(),
-        sp: *cpu.sp.borrow(),
+        sp: *cpu.sp.borrow() as Word,
         ip: *cpu.ip.borrow() as Word,
         cpsr: *cpu.cpsr.borrow(),
         memory,

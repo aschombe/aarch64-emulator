@@ -56,16 +56,16 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
                 match vfs.open(&path_str, flags) {
                     Ok(fd) => {
                         println!("[SYS_OPENAT] Opened '{}' -> fd={}", path_str, fd);
-                        state.set_reg(0, fd);
+                        state.set_reg(0, fd as i64);
                     }
                     Err(e) => {
                         eprintln!("[SYS_OPENAT ERROR] '{}' open failed: {}", path_str, e);
-                        state.set_reg(0, u64::MAX);
+                        state.set_reg(0, -1);
                     }
                 }
             } else {
                 eprintln!("[SYS_OPENAT WARNING] No VFS mounted");
-                state.set_reg(0, u64::MAX);
+                state.set_reg(0, -1);
             }
 
             Ok(false)
@@ -82,12 +82,12 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
                     }
                     Err(e) => {
                         eprintln!("[SYS_CLOSE ERROR] {}", e);
-                        state.set_reg(0, u64::MAX);
+                        state.set_reg(0, -1);
                     }
                 }
             } else {
                 eprintln!("[SYS_CLOSE WARNING] No VFS mounted");
-                state.set_reg(0, u64::MAX);
+                state.set_reg(0, -1);
             }
 
             Ok(false)
@@ -112,16 +112,16 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
                             "[SYS_READ] FD {} -> Read {} bytes: \"{}\"",
                             fd, bytes_read, escaped
                         );
-                        state.set_reg(0, bytes_read as u64);
+                        state.set_reg(0, bytes_read as i64);
                     }
                     Err(e) => {
                         eprintln!("[SYS_READ ERROR] {}", e);
-                        state.set_reg(0, u64::MAX);
+                        state.set_reg(0, -1);
                     }
                 }
             } else {
                 eprintln!("[SYS_READ WARNING] No VFS mounted");
-                state.set_reg(0, u64::MAX);
+                state.set_reg(0, -1);
             }
 
             Ok(false)
@@ -149,7 +149,7 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
             if fd == 1 || fd == 2 {
                 println!("[SYS_WRITE - STDOUT] {}", escaped);
                 std::io::stdout().flush()?;
-                state.set_reg(0, count as u64);
+                state.set_reg(0, count as i64);
                 return Ok(false);
             }
 
@@ -158,7 +158,7 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
                 if let Some(vfh) = vfs.fd_map.get_mut(&fd) {
                     if matches!(vfh.mode, FileAccessMode::ReadOnly) {
                         eprintln!("[SYS_WRITE ERROR] fd={} is read-only", fd);
-                        state.set_reg(0, u64::MAX);
+                        state.set_reg(0, 0);
                         return Ok(false);
                     }
 
@@ -175,7 +175,7 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
                         escaped
                     );
 
-                    state.set_reg(0, count as u64);
+                    state.set_reg(0, count as i64);
                     return Ok(false);
                 }
             }
@@ -197,16 +197,16 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
                             "[SYS_LSEEK] fd={} -> new position {} (whence={})",
                             fd, new_offset, whence
                         );
-                        state.set_reg(0, new_offset);
+                        state.set_reg(0, new_offset as i64);
                     }
                     Err(e) => {
                         eprintln!("[SYS_LSEEK ERROR] {}", e);
-                        state.set_reg(0, u64::MAX);
+                        state.set_reg(0, -1);
                     }
                 }
             } else {
                 eprintln!("[SYS_LSEEK WARNING] No VFS mounted");
-                state.set_reg(0, u64::MAX);
+                state.set_reg(0, -1);
             }
 
             Ok(false)

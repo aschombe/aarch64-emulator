@@ -213,7 +213,7 @@ fn render_source<'a>(cpu: &'a CpuState, dbg: &'a DebuggerState) -> Vec<ListItem<
 fn render_registers<'a>(cpu: &'a CpuState) -> Vec<Span<'a>> {
     let regs = cpu.registers.borrow();
     let mut list: Vec<(String, Word)> = (0..32).map(|i| (format!(" X{}", i), regs[i])).collect();
-    list.push((" SP".to_string(), *cpu.sp.borrow()));
+    list.push((" SP".to_string(), *cpu.sp.borrow() as u64));
     list.push((" PC".to_string(), *cpu.ip.borrow() as u64));
     let mut spans = Vec::new();
     for row in 0..17 {
