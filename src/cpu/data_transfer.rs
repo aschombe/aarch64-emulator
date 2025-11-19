@@ -580,6 +580,9 @@ impl InstructionDataTransfer for CpuState {
                     Some(ShiftOrExtendKind::LSR) => Ok((base_val as u64 >> modop.amount) as Word),
                     Some(ShiftOrExtendKind::ASR) => Ok(((base_val as i64) >> modop.amount) as Word),
                     Some(ShiftOrExtendKind::ROR) => Ok(base_val.rotate_right(modop.amount as u32)),
+                    Some(ShiftOrExtendKind::MSL) => {
+                        Ok((base_val << modop.amount) & 0xFFFF_FFFF_FFFF_FFFF)
+                    }
                     Some(ShiftOrExtendKind::SXTB) => {
                         Ok(((base_val as i8) as i64 as Word) << modop.amount)
                     }
@@ -589,6 +592,7 @@ impl InstructionDataTransfer for CpuState {
                     Some(ShiftOrExtendKind::SXTW) => {
                         Ok(((base_val as i32) as i64 as Word) << modop.amount)
                     }
+                    Some(ShiftOrExtendKind::SXTX) => Ok(base_val),
                     Some(ShiftOrExtendKind::UXTB) => {
                         Ok(((base_val as u8) as u64 as Word) << modop.amount)
                     }
@@ -598,6 +602,7 @@ impl InstructionDataTransfer for CpuState {
                     Some(ShiftOrExtendKind::UXTW) => {
                         Ok(((base_val as u32) as u64 as Word) << modop.amount)
                     }
+                    Some(ShiftOrExtendKind::UXTX) => Ok(base_val),
                     None => Ok(base_val),
                 }
             };

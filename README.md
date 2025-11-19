@@ -130,6 +130,8 @@ Example command to run with multiple plugins:
 ## TODO
 **Architecture**:
 - ELF parser and loader:
+    - Allow entry point of emulator to be an offset or a label (since ELF files have offsets as entry points)
+    - Allow branching instructions to take offsets as targets as well as labels (since ELF files use offsets)
     - https://docs.rs/elf/latest/elf/
     - https://github.com/gimli-rs/object
 - Rewrite tokenizing and parsing to use something like pest, as it is getting messy.
@@ -153,6 +155,7 @@ Example command to run with multiple plugins:
 - Test negative offsets with ldr/str instructions
 - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
+    - .org
     - Readd and DEBUG .rept and .endr
 
 **Optimizer**:
@@ -163,7 +166,6 @@ Example command to run with multiple plugins:
 - [ ] Drop lsl/lsr/asr of 0
 - [ ] Remove and by -1
 - [ ] Dead code after unconditional branches
-- [ ] Dead procedure elimination
 - [ ] Useless/unused cmp
 - [ ] Remove redundant loads/stores
 - [ ] Constant propagation

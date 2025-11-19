@@ -516,6 +516,10 @@ pub fn sxtw(val: u64) -> u64 {
     v as i64 as u64
 }
 
+pub fn sxtx(val: u64) -> u64 {
+    val
+}
+
 pub fn uxtb(val: u64, is_w: bool) -> u64 {
     let v = val as u8 as u64;
     if is_w { v as u32 as u64 } else { v }
@@ -531,6 +535,10 @@ pub fn uxtw(val: u64) -> u64 {
     v
 }
 
+pub fn uxtx(val: u64) -> u64 {
+    val
+}
+
 pub fn apply_shift_extend(
     val: u64,
     mod_type: Option<ShiftOrExtendKind>,
@@ -543,9 +551,11 @@ pub fn apply_shift_extend(
         Some(ShiftOrExtendKind::UXTB) => (val as u8) as u64,
         Some(ShiftOrExtendKind::UXTH) => (val as u16) as u64,
         Some(ShiftOrExtendKind::UXTW) => (val as u32) as u64,
+        Some(ShiftOrExtendKind::UXTX) => val,
         Some(ShiftOrExtendKind::SXTB) => (val as i8) as i64 as u64,
         Some(ShiftOrExtendKind::SXTH) => (val as i16) as i64 as u64,
         Some(ShiftOrExtendKind::SXTW) => (val as i32) as i64 as u64,
+        Some(ShiftOrExtendKind::SXTX) => val,
         _ => val,
     };
 
@@ -566,13 +576,15 @@ pub fn apply_shift_extend(
                 .unwrap_or(0)) as u64
         }
         Some(ShiftOrExtendKind::ROR) => extended.rotate_right(capped_amount as u32),
-        // Extends: after extension, apply LSL by amount
+        Some(ShiftOrExtendKind::MSL) => extended,
         Some(ShiftOrExtendKind::UXTB)
         | Some(ShiftOrExtendKind::UXTH)
         | Some(ShiftOrExtendKind::UXTW)
+        | Some(ShiftOrExtendKind::UXTX)
         | Some(ShiftOrExtendKind::SXTB)
         | Some(ShiftOrExtendKind::SXTH)
-        | Some(ShiftOrExtendKind::SXTW) => extended.checked_shl(capped_amount as u32).unwrap_or(0),
+        | Some(ShiftOrExtendKind::SXTW)
+        | Some(ShiftOrExtendKind::SXTX) => extended.checked_shl(capped_amount as u32).unwrap_or(0),
         None => extended,
     };
 

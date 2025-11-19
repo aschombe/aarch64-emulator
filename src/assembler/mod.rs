@@ -3,6 +3,7 @@
 
 pub mod asm_types;
 pub mod data_loader;
+pub mod elf_loader;
 pub mod label_pass;
 pub mod optimizer;
 pub mod parser;

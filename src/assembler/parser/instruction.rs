@@ -91,9 +91,11 @@ pub fn parse_instruction(
                     || next_lower.starts_with("uxtb")
                     || next_lower.starts_with("uxth")
                     || next_lower.starts_with("uxtw")
+                    || next_lower.starts_with("uxtx")
                     || next_lower.starts_with("sxtb")
                     || next_lower.starts_with("sxth")
-                    || next_lower.starts_with("sxtw");
+                    || next_lower.starts_with("sxtw")
+                    || next_lower.starts_with("sxtx");
                 if is_mod {
                     let mod_token = iter.next().unwrap();
                     if let Some(next2) = iter.peek() {
@@ -349,9 +351,11 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
         "SXTB" => Ok(OpCode::SXTB),
         "SXTH" => Ok(OpCode::SXTH),
         "SXTW" => Ok(OpCode::SXTW),
+        "SXTX" => Ok(OpCode::SXTX),
         "UXTB" => Ok(OpCode::UXTB),
         "UXTH" => Ok(OpCode::UXTH),
         "UXTW" => Ok(OpCode::UXTW),
+        "UXTX" => Ok(OpCode::UXTX),
 
         "ADR" => Ok(OpCode::ADR),
         "ADRP" => Ok(OpCode::ADRP),

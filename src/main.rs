@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 use aarch64_emulator::{
-    assembler::{assemble_multiple_files, data_loader::load_data_into_cpu, optimizer::optimize},
+    assembler::{
+        assemble_multiple_files, data_loader::load_data_into_cpu, elf_loader, optimizer::optimize,
+    },
     cpu::CpuState,
     debugger,
     plugin::PluginManager,
@@ -23,7 +25,7 @@ struct EmuConfig {
     #[clap(value_parser, required = true)]
     assembly_files: Vec<String>,
 
-    /// Enables verbose execution tracing and syscall debug messages in run mode.
+    /// Enables verbose execution tracing and syscall debug messages in run mode
     #[clap(short, long)]
     verbose: bool,
 
@@ -46,14 +48,18 @@ struct EmuConfig {
     /// Enable optimization passes during assembly
     #[clap(short, long, conflicts_with = "debug")]
     optimize: bool,
+
+    /// Path to a pre-compiled ELF binary to parse and execute
+    #[clap(short, long, conflicts_with_all = ["debug", "plugins", "assembly_files", "optimize", "entry"])]
+    binary: String,
 }
 
 impl EmuConfig {
     /// Validates that assembly files are provided.
     fn validate(&self) -> EmuResult<()> {
-        if self.assembly_files.is_empty() {
+        if self.assembly_files.is_empty() && self.binary.is_empty() {
             Err(EmuError::InternalError(
-                "No input file specified. Use assembly file(s).".to_string(),
+                "No input file(s) specified.".to_string(),
             ))
         } else {
             Ok(())
@@ -84,6 +90,32 @@ fn start() -> Result<(), EmuError> {
         }
     } else {
         println!("AArch64 Interpreter starting up.");
+    }
+
+    if !config.binary.is_empty() {
+        // let program = elf_loader::parse_elf_to_interpreted_program(&config.binary)?;
+        let (program, data_blocks) = elf_loader::parse_elf(&config.binary)?;
+        let cpu = Rc::new(RefCell::new(CpuState::new(program, None, None)));
+        // Load data segments into CPU memory
+        // load_data_into_cpu(&mut cpu.borrow_mut(), &data_blocks)?;
+        println!("\n--- Starting Execution ---");
+        let result = cpu.borrow_mut().run();
+        return match result {
+            Ok(_) => {
+                println!("\nProgram finished successfully.\n");
+                if !config.debug {
+                    cpu.borrow().dump_state_full();
+                }
+                Ok(())
+            }
+            Err(e) => {
+                if e.to_string().contains("Halt command received.") {
+                    return Ok(());
+                }
+                cpu.borrow().dump_state_full();
+                Err(e)
+            }
+        };
     }
 
     // Assemble input assembly files

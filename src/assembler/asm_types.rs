@@ -55,6 +55,7 @@ pub enum Reg {
     X29,
     X30,
     SP,
+    WSP,
     LR,
     XZR,
     W0,
@@ -128,7 +129,7 @@ impl Reg {
             Reg::X29 | Reg::W29 => 29,
             Reg::X30 | Reg::W30 | Reg::LR => 30,
             Reg::XZR | Reg::W31 | Reg::WZR => 31,
-            Reg::SP => 32,
+            Reg::SP | Reg::WSP => 32,
         }
     }
 
@@ -168,6 +169,7 @@ impl Reg {
                 | Reg::W30
                 | Reg::W31
                 | Reg::WZR
+                | Reg::WSP
         )
     }
 }
@@ -233,12 +235,15 @@ pub enum ShiftOrExtendKind {
     LSR,
     ASR,
     ROR,
+    MSL,
     UXTB,
     UXTH,
     UXTW,
+    UXTX,
     SXTB,
     SXTH,
     SXTW,
+    SXTX,
 }
 
 /// Struct representing an operand with an optional shift or extend modifier
@@ -338,9 +343,11 @@ pub enum OpCode {
     SXTB,
     SXTH,
     SXTW,
+    SXTX,
     UXTB,
     UXTH,
     UXTW,
+    UXTX,
 
     LDR,
     LDP,
