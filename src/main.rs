@@ -51,7 +51,7 @@ struct EmuConfig {
 
     /// Path to a pre-compiled ELF binary to parse and execute
     #[clap(short, long, conflicts_with_all = ["debug", "plugins", "assembly_files", "optimize", "entry"])]
-    binary: String,
+    binary: Option<String>,
 }
 
 impl EmuConfig {
@@ -92,8 +92,8 @@ fn start() -> Result<(), EmuError> {
         println!("AArch64 Interpreter starting up.");
     }
 
-    if !config.binary.is_empty() {
-        let (program, data_blocks) = elf_loader::parse_elf(&config.binary)?;
+    if let Some(_) = &config.binary {
+        let (program, _data_blocks) = elf_loader::parse_elf(&config.binary.unwrap())?;
         let cpu = Rc::new(RefCell::new(CpuState::new(program, None, None)));
         // Load data segments into CPU memory
         // load_data_into_cpu(&mut cpu.borrow_mut(), &data_blocks)?;
