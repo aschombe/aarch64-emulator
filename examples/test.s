@@ -32,3 +32,5 @@ _start:
     mov  x8, #93              // syscall: exit
     svc  #0                   // exit(x0)
 
+.data
+nothing: .byte 0

@@ -93,7 +93,6 @@ fn start() -> Result<(), EmuError> {
     }
 
     if !config.binary.is_empty() {
-        // let program = elf_loader::parse_elf_to_interpreted_program(&config.binary)?;
         let (program, data_blocks) = elf_loader::parse_elf(&config.binary)?;
         let cpu = Rc::new(RefCell::new(CpuState::new(program, None, None)));
         // Load data segments into CPU memory

@@ -130,8 +130,9 @@ Example command to run with multiple plugins:
 ## TODO
 **Architecture**:
 - ELF parser and loader:
-    - Allow entry point of emulator to be an offset or a label (since ELF files have offsets as entry points)
-    - Allow branching instructions to take offsets as targets as well as labels (since ELF files use offsets)
+    - These two subpoints might be irrelevant. The real issue is figuring out how to map ELF's label to IP offsets into my format
+        - Allow entry point of emulator to be an offset or a label (since ELF files have offsets as entry points)
+        - Allow branching instructions to take offsets as targets as well as labels (since ELF files use offsets)
     - https://docs.rs/elf/latest/elf/
     - https://github.com/gimli-rs/object
 - Rewrite tokenizing and parsing to use something like pest, as it is getting messy.
