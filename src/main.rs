@@ -57,7 +57,7 @@ struct EmuConfig {
 impl EmuConfig {
     /// Validates that assembly files are provided.
     fn validate(&self) -> EmuResult<()> {
-        if self.assembly_files.is_empty() && self.binary.is_empty() {
+        if self.assembly_files.is_empty() && self.binary.is_none() {
             Err(EmuError::InternalError(
                 "No input file(s) specified.".to_string(),
             ))
