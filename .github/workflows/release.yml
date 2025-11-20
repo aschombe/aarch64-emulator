@@ -48,14 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 0. (Linux/AArch64 only) Install cross-compiler toolchain and libclang dependencies
-      - name: Install cross-compiler and libclang (Linux AArch64 only)
-        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross clang-14 libclang-14-dev
-          sudo ln -sf /usr/lib/llvm-14/lib/libclang.so /usr/lib/libclang.so
-          echo "LIBCLANG_PATH=/usr/lib/llvm-14/lib" >> $GITHUB_ENV
+      # No need for apt-get for AR or clang; cross will use ghcr.io/cross-rs/aarch64-unknown-linux-gnu:main which has them
 
       # 1. Install Rust toolchain and target
       - name: Install Rust Toolchain and Target
