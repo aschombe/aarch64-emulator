@@ -93,10 +93,10 @@ fn start() -> Result<(), EmuError> {
     }
 
     if let Some(_) = &config.binary {
-        let (program, _data_blocks) = elf_loader::parse_elf(&config.binary.unwrap())?;
+        let (program, data_blocks) = elf_loader::parse_elf(&config.binary.unwrap())?;
         let cpu = Rc::new(RefCell::new(CpuState::new(program, None, None)));
         // Load data segments into CPU memory
-        // load_data_into_cpu(&mut cpu.borrow_mut(), &data_blocks)?;
+        load_data_into_cpu(&mut cpu.borrow_mut(), &data_blocks)?;
         println!("\n--- Starting Execution ---");
         let result = cpu.borrow_mut().run();
         return match result {

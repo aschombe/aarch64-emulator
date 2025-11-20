@@ -179,44 +179,67 @@ impl InstructionDataTransfer for CpuState {
 
     fn execute_adr(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
         match operands {
-            [dest_op, Operand::Imm(Immediate::Lbl(label))] => {
+            [dest_op, Operand::Imm(immediate)] => {
                 let (rd_id, is_w) = self.resolve_operand_dest(dest_op)?;
 
-                let raw = match self.program.label_to_ip.get(label) {
-                    Some(x) => *x as Word,
-                    None => {
-                        if self.program.extern_labels.contains(label) {
-                            return Err(EmuError::InternalError(format!(
-                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                label
-                            )));
+                // Figure out what value to place in the register
+                let target_addr = match immediate {
+                    Immediate::Lbl(label) => {
+                        let raw = match self.program.label_to_ip.get(label) {
+                            Some(x) => *x as Word,
+                            None => {
+                                if self.program.extern_labels.contains(label) {
+                                    return Err(EmuError::InternalError(format!(
+                                        "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                        label
+                                    )));
+                                } else {
+                                    return Err(EmuError::InternalError(format!(
+                                        "Undefined label: {}",
+                                        label
+                                    )));
+                                }
+                            }
+                        };
+                        let is_addr = *self.program.label_is_addr.get(label).unwrap_or(&false);
+
+                        // For text labels, return IR index (raw); for data, use full address.
+                        if is_addr {
+                            match opcode {
+                                OpCode::ADR => raw,
+                                OpCode::ADRP => raw & 0xFFFF_FFFF_FFFF_F000,
+                                _ => {
+                                    return Err(EmuError::InternalError(format!(
+                                        "Invalid ADR opcode: {:?}",
+                                        opcode
+                                    )));
+                                }
+                            }
                         } else {
-                            return Err(EmuError::InternalError(format!(
-                                "Undefined label: {}",
-                                label
-                            )));
+                            // Text label: always return IR index
+                            raw
                         }
                     }
-                };
 
-                let is_addr = *self.program.label_is_addr.get(label).unwrap_or(&false);
-
-                // For text labels, return IR index (raw); for data, use full address.
-                let target_addr = if is_addr {
-                    // Data label: use loaded address (as before)
-                    match opcode {
-                        OpCode::ADR => raw,
-                        OpCode::ADRP => raw & 0xFFFF_FFFF_FFFF_F000,
-                        _ => {
-                            return Err(EmuError::InternalError(format!(
-                                "Invalid ADR opcode: {:?}",
-                                opcode
-                            )));
+                    Immediate::Lit(addr) => {
+                        // For binaries/ELF: addr is the already-resolved address
+                        match opcode {
+                            OpCode::ADR => *addr as Word,
+                            OpCode::ADRP => (*addr as Word) & 0xFFFF_FFFF_FFFF_F000,
+                            _ => {
+                                return Err(EmuError::InternalError(format!(
+                                    "Invalid ADR opcode: {:?}",
+                                    opcode
+                                )));
+                            }
                         }
                     }
-                } else {
-                    // Text label: always return IR index
-                    raw
+                    _ => {
+                        return Err(EmuError::InternalError(format!(
+                            "Invalid ADR immediate type: {:?}",
+                            immediate
+                        )));
+                    }
                 };
 
                 self.set_reg_with_width(rd_id, target_addr as i64, is_w);
