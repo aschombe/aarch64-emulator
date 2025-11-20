@@ -55,12 +55,15 @@ Options:
   -p, --plugins <files>   Comma-separated list of Lua plugin file paths to load. Cannot be used with debug  
   -f, --filesystem <path> Folder path to give the emulated program access to the files within. Mounts to VFS root ('/')  
   -e, --entry <label>     Specify a custom entry point label [default: _start]  
+  -o, --optimize          Enable optimization passes during assembly  
+  -b, --binary <binary>   Path to a pre-compiled ELF binary to parse and execute
   -h, --help              Print help information  
   -V, --version           Print version information  
 
 Example:  
     cargo run -- --debug --plugins ./plugins/logger.lua examples/hello_world.s  
     cargo run -- --filesystem /tmp examples/file_io.s # This mounts /tmp as the VFS root  
+    cargo run -- --binary examples/hello_world  # hello_world is a pre-compiled ELF binary
 
 ---
 
