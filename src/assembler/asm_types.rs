@@ -467,4 +467,5 @@ pub struct AssemblyBlock {
     pub label: String,
     pub _is_entry: bool,
     pub content: AssemblyContent,
+    pub base_addr: Word,
 }

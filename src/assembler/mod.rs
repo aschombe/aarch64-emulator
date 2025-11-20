@@ -150,6 +150,9 @@ fn flatten_and_resolve(
 
     // First pass finds all data/bss labels
     for block in sorted_blocks.iter() {
+        if [".data", ".text", ".bss", ".rodata"].contains(&block.label.as_str()) {
+            continue;
+        }
         match &block.content {
             AssemblyContent::Data(_) | AssemblyContent::Bss(_) => {
                 // We'll update these addresses in the main loop,

@@ -11,6 +11,7 @@ use crate::types::{EmuError, EmuResult, Word};
 use bad64::{Imm, Op, Operand as Bad64Operand, Shift, decode};
 
 use elf::{ElfBytes, endian::AnyEndian};
+
 use std::collections::{HashMap, HashSet};
 
 // Helper to get section name from section header
@@ -34,6 +35,23 @@ pub fn parse_elf(path: &str) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock
         std::fs::read(path).map_err(|e| EmuError::IoError(format!("ELF read failed: {}", e)))?;
     let elf = ElfBytes::<AnyEndian>::minimal_parse(&file_data)
         .map_err(|e| EmuError::InternalError(format!("ELF parse failed: {:?}", e)))?;
+
+    // Maps for labels to addresses
+    let mut label_to_ip = HashMap::new();
+    let mut label_is_addr = HashMap::new();
+
+    // Loads symbols and names from the tuple returned by symbol_table()
+    if let Ok(Some((symtab, strtab))) = elf.symbol_table() {
+        for sym in symtab {
+            if sym.st_value != 0 && sym.st_name != 0 && sym.st_shndx != 0 {
+                let name = strtab.get(sym.st_name as usize).unwrap_or("");
+                if !name.is_empty() && !name.starts_with('.') {
+                    label_to_ip.insert(name.to_string(), sym.st_value as Word);
+                    label_is_addr.insert(name.to_string(), true);
+                }
+            }
+        }
+    }
 
     // Locate section headers and .text
     let shdrs = elf
@@ -71,6 +89,7 @@ pub fn parse_elf(path: &str) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock
                     label: name.to_string(),
                     _is_entry: false,
                     content: AssemblyContent::Data(items),
+                    base_addr: sh.sh_addr,
                 });
             }
             // .bss: uninitialized, size-only!
@@ -80,6 +99,7 @@ pub fn parse_elf(path: &str) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock
                     label: name.to_string(),
                     _is_entry: false,
                     content: AssemblyContent::Bss(sz),
+                    base_addr: sh.sh_addr,
                 });
             }
         }
@@ -114,8 +134,8 @@ pub fn parse_elf(path: &str) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock
     Ok((
         InterpretedProgram {
             instructions,
-            label_to_ip: HashMap::new(),
-            label_is_addr: HashMap::new(),
+            label_to_ip,
+            label_is_addr,
             entry_ip,
             extern_labels: HashSet::new(),
             text_base: text_shdr.sh_addr,
@@ -475,14 +495,17 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                         amount,
                     })))
                 }
-                Bad64Operand::QualReg { reg, qual } => Err(EmuError::InternalError(
+                Bad64Operand::QualReg { reg: _, qual: _ } => Err(EmuError::InternalError(
                     "QualReg operands not yet supported".to_string(),
                 )),
                 Bad64Operand::Reg { reg, arrspec: _ } => {
                     let r = bad64_reg_to_ir(*reg)?;
                     Ok(Operand::Reg(r))
                 }
-                Bad64Operand::MultiReg { regs, arrspec: _ } => Err(EmuError::InternalError(
+                Bad64Operand::MultiReg {
+                    regs: _,
+                    arrspec: _,
+                } => Err(EmuError::InternalError(
                     "MultiReg operands not yet supported".to_string(),
                 )),
                 Bad64Operand::SysReg(_sysreg) => Err(EmuError::InternalError(
@@ -577,15 +600,15 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                     )))
                 }
                 Bad64Operand::SmeTile {
-                    tile,
-                    slice,
-                    arrspec,
-                    reg,
-                    imm,
+                    tile: _,
+                    slice: _,
+                    arrspec: _,
+                    reg: _,
+                    imm: _,
                 } => Err(EmuError::InternalError(
                     "SmeTile operands not supported.".to_string(),
                 )),
-                Bad64Operand::AccumArray { reg, imm } => Err(EmuError::InternalError(
+                Bad64Operand::AccumArray { reg: _, imm: _ } => Err(EmuError::InternalError(
                     "AccumArray operands not yet supported".to_string(),
                 )),
                 Bad64Operand::IndexedElement {
@@ -607,23 +630,26 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                         },
                     )))
                 }
-                // Bad64Operand::Label(imm) => Err(EmuError::InternalError(
-                //     "Label operands not yet supported".to_string(),
-                // )),
                 Bad64Operand::Label(imm) => match imm {
                     Imm::Signed(val) => Ok(Operand::Imm(Immediate::Lit(*val))),
                     Imm::Unsigned(val) => Ok(Operand::Imm(Immediate::Lit(*val as i64))),
                 },
-                Bad64Operand::ImplSpec { o0, o1, cm, cn, o2 } => Err(EmuError::InternalError(
+                Bad64Operand::ImplSpec {
+                    o0: _,
+                    o1: _,
+                    cm: _,
+                    cn: _,
+                    o2: _,
+                } => Err(EmuError::InternalError(
                     "ImplSpec operands not yet supported".to_string(),
                 )),
-                Bad64Operand::Cond(cond) => Err(EmuError::InternalError(
+                Bad64Operand::Cond(_cond) => Err(EmuError::InternalError(
                     "Cond operands not yet supported".to_string(),
                 )),
-                Bad64Operand::Name(name) => Err(EmuError::InternalError(
+                Bad64Operand::Name(_name) => Err(EmuError::InternalError(
                     "Name operands not yet supported".to_string(),
                 )),
-                Bad64Operand::StrImm { str, imm } => Err(EmuError::InternalError(
+                Bad64Operand::StrImm { str: _, imm: _ } => Err(EmuError::InternalError(
                     "StrImm operands not yet supported".to_string(),
                 )),
             })

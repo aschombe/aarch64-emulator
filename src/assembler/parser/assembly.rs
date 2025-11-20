@@ -72,6 +72,7 @@ impl AsmParser {
                                 label: label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Data(current_data.clone()),
+                                base_addr: 0,
                             });
                             current_data.clear();
                         }
@@ -81,6 +82,7 @@ impl AsmParser {
                                     label: label.clone(),
                                     _is_entry: current_is_entry_flag,
                                     content: AssemblyContent::Text(current_text.clone()),
+                                    base_addr: 0,
                                 });
                                 current_text.clear();
                             }
@@ -91,6 +93,7 @@ impl AsmParser {
                                 label: label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Bss(size as u64),
+                                base_addr: 0,
                             });
                             current_data.clear();
                         }
@@ -141,6 +144,7 @@ impl AsmParser {
                                 label: label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Data(current_data.clone()),
+                                base_addr: 0,
                             });
                             current_data.clear();
                             _flushed_block = true;
@@ -151,6 +155,7 @@ impl AsmParser {
                                     label: label.clone(),
                                     _is_entry: current_is_entry_flag,
                                     content: AssemblyContent::Text(current_text.clone()),
+                                    base_addr: 0,
                                 });
                                 current_text.clear();
                                 _flushed_block = true;
@@ -162,6 +167,7 @@ impl AsmParser {
                                 label: label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Bss(size as u64),
+                                base_addr: 0,
                             });
                             current_data.clear();
                             _flushed_block = true;
@@ -229,6 +235,7 @@ impl AsmParser {
                         label,
                         _is_entry: current_is_entry_flag,
                         content: AssemblyContent::Data(current_data.clone()),
+                        base_addr: 0,
                     });
                 }
                 "text" => {
@@ -237,6 +244,7 @@ impl AsmParser {
                             label,
                             _is_entry: current_is_entry_flag,
                             content: AssemblyContent::Text(current_text.clone()),
+                            base_addr: 0,
                         });
                     }
                 }
@@ -246,6 +254,7 @@ impl AsmParser {
                         label,
                         _is_entry: current_is_entry_flag,
                         content: AssemblyContent::Bss(size as u64),
+                        base_addr: 0,
                     });
                 }
                 _ => {}
