@@ -132,6 +132,10 @@ Example command to run with multiple plugins:
 
 ## TODO
 **Architecture**:
+- [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
+- [ ] Allow labels to start with '.' (currently reserved for directives)
+- Do you have to explicitly define a label as extern to call it from another file?
+- Allow the use of real c library/other library functions?
 - Resolve labels to addresses instead of having labels?
 <!-- - ELF parser and loader: -->
 <!--     - These two subpoints might be irrelevant. The real issue is figuring out how to map ELF's label to IP offsets into my format -->
@@ -146,19 +150,12 @@ Example command to run with multiple plugins:
     - How will plugins or the filesystem or debugger work in this scenario?
 - [ ] SIMD/FP support
 - [ ] SME and SVE support?
-- [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
-- [ ] Allow labels to start with '.' (currently reserved for directives)
-- Do you have to explicitly define a label as extern to call it from another file?
-- Allow the use of real c library/other library functions?
 
 **Instructions**:
 - https://developer.arm.com/documentation/ddi0487/latest:
-- Address (C1.3):
-    - ldr immediates? (ldr xn, xm where xm is the adr of a variable)
-
+- https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf
 - Test negative offsets with ldr/str instructions
-- https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - [ ] Add directives:
     - .org
     - Readd and DEBUG .rept and .endr
@@ -190,7 +187,7 @@ Example command to run with multiple plugins:
 - [ ] Synchronize highlight scrolling
 
 **Plugins**:
-- [ ] Allow pre and post svc hooks know the syscall number
+- [ ] Allow pre and post svc hooks to know the syscall number
 - [ ] Test calling convention (CC) plugin
 - [ ] Add more hooks as needed
 - [ ] Add more API functions to Lua CPU object
