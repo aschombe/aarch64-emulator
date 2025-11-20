@@ -8,6 +8,22 @@ use crate::cpu;
 use crate::cpu::state::CpuState;
 use crate::types::{EmuError, EmuResult, Word};
 
+impl CpuState {
+    /// Convert a virtual address to instruction pointer (ip) index.
+    pub fn vaddr_to_ip(&self, vaddr: i64) -> Option<usize> {
+        let base = self.program.text_base as i64;
+        if vaddr < base {
+            return None;
+        }
+        let ip = ((vaddr - base) / 4) as usize;
+        if ip < self.program.instructions.len() {
+            Some(ip)
+        } else {
+            None
+        }
+    }
+}
+
 /// Trait for data transfer instructions: MOV, LDR/STR, ADR/ADRP.
 pub trait InstructionDataTransfer {
     fn execute_mov(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool>;

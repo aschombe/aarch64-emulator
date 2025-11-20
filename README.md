@@ -129,6 +129,7 @@ Example command to run with multiple plugins:
 
 ## TODO
 **Architecture**:
+- Resolve labels to addresses instead of having labels?
 - ELF parser and loader:
     - These two subpoints might be irrelevant. The real issue is figuring out how to map ELF's label to IP offsets into my format
         - Allow entry point of emulator to be an offset or a label (since ELF files have offsets as entry points)

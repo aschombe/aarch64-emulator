@@ -113,6 +113,7 @@ pub fn assemble_multiple_files(
             })
             .collect(),
         extern_labels: all_extern_labels,
+        text_base: 0,
     };
 
     Ok((program, data_blocks))

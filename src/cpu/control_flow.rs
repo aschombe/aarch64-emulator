@@ -42,7 +42,7 @@ impl InstructionControl for CpuState {
     }
 
     fn execute_branch(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
-        // B/B.cond/BL
+        // Branch to label (source assembly IR)
         if let OpCode::B(condition_opt) = opcode {
             if let [Operand::Imm(Immediate::Lbl(label))] = operands {
                 if *self.program.label_is_addr.get(label).unwrap_or(&false) {
@@ -77,7 +77,22 @@ impl InstructionControl for CpuState {
                 self.did_branch.set(true);
                 return Ok(false);
             }
+            // Branch to literal (ELF/linked/binary IR)
+            if let [Operand::Imm(Immediate::Lit(addr))] = operands {
+                // B.cond: check condition
+                if !self.check_condition(condition_opt) {
+                    return Ok(false);
+                }
+                // Map virtual address to instruction pointer
+                let ip = self.vaddr_to_ip(*addr).ok_or_else(|| {
+                    EmuError::InternalError(format!("Branch to unknown address: 0x{:x}", addr))
+                })?;
+                *self.ip.borrow_mut() = ip;
+                self.did_branch.set(true);
+                return Ok(false);
+            }
         }
+
         if let OpCode::BL = opcode {
             if let [Operand::Imm(Immediate::Lbl(label))] = operands {
                 if *self.program.label_is_addr.get(label).unwrap_or(&false) {
@@ -116,9 +131,29 @@ impl InstructionControl for CpuState {
                 }
                 return Ok(false);
             }
+            if let [Operand::Imm(Immediate::Lit(addr))] = operands {
+                let ip = self.vaddr_to_ip(*addr).ok_or_else(|| {
+                    EmuError::InternalError(format!("BL to unknown address: 0x{:x}", addr))
+                })?;
+                if let Some(pm_rc) = &self.plugin_manager {
+                    let mut pm = pm_rc.borrow_mut();
+                    pm.run_hooks("pre_bl", self)?;
+                }
+                let return_addr = *self.ip.borrow() + 1;
+                self.set_reg(30, return_addr as i64);
+                *self.ip.borrow_mut() = ip;
+                self.did_branch.set(true);
+                if let Some(pm_rc) = &self.plugin_manager {
+                    let mut pm = pm_rc.borrow_mut();
+                    pm.run_hooks("post_bl", self)?;
+                }
+                return Ok(false);
+            }
         }
+
         // CBZ/CBNZ
         if matches!(opcode, OpCode::CBZ | OpCode::CBNZ) {
+            // Label form
             if let [Operand::Reg(reg), Operand::Imm(Immediate::Lbl(label))] = operands {
                 if *self.program.label_is_addr.get(label).unwrap_or(&false) {
                     return Err(EmuError::InternalError(format!(
@@ -159,21 +194,79 @@ impl InstructionControl for CpuState {
                 }
                 return Ok(false);
             }
+            // Literal form
+            if let [Operand::Reg(reg), Operand::Imm(Immediate::Lit(addr))] = operands {
+                let raw_val = self.get_reg(reg.to_id());
+                let reg_val = if reg.is_w_register() {
+                    raw_val & 0xFFFF_FFFF
+                } else {
+                    raw_val
+                };
+                let should_branch = match opcode {
+                    OpCode::CBZ => reg_val == 0,
+                    OpCode::CBNZ => reg_val != 0,
+                    _ => false,
+                };
+                if should_branch {
+                    let ip = self.vaddr_to_ip(*addr).ok_or_else(|| {
+                        EmuError::InternalError(format!(
+                            "CBZ/CBNZ to unknown address: 0x{:x}",
+                            addr
+                        ))
+                    })?;
+                    *self.ip.borrow_mut() = ip;
+                    self.did_branch.set(true);
+                }
+                return Ok(false);
+            }
         }
-        // TBZ/TBNZ
+
+        // TBZ/TBNZ: lit as label or address (this depends on your IR form)
         if matches!(opcode, OpCode::TBZ | OpCode::TBNZ) {
+            // Literal version (address)
+            if let [
+                Operand::Reg(reg),
+                Operand::Imm(Immediate::Lit(bit_pos)),
+                Operand::Imm(Immediate::Lit(addr)),
+            ] = operands
+            {
+                let raw_val = self.get_reg(reg.to_id());
+                let reg_val = if reg.is_w_register() {
+                    raw_val & 0xFFFF_FFFF
+                } else {
+                    raw_val
+                };
+                if *bit_pos >= if reg.is_w_register() { 32 } else { 64 } {
+                    return Err(EmuError::InternalError(format!(
+                        "Bit position {} out of range for register {:?}",
+                        bit_pos, reg
+                    )));
+                }
+                let bit_set = (reg_val & (1 << bit_pos)) != 0;
+                let should_branch = match opcode {
+                    OpCode::TBZ => !bit_set,
+                    OpCode::TBNZ => bit_set,
+                    _ => false,
+                };
+                if should_branch {
+                    let ip = self.vaddr_to_ip(*addr).ok_or_else(|| {
+                        EmuError::InternalError(format!(
+                            "TBZ/TBNZ to unknown address: 0x{:x}",
+                            addr
+                        ))
+                    })?;
+                    *self.ip.borrow_mut() = ip;
+                    self.did_branch.set(true);
+                }
+                return Ok(false);
+            }
+            // Label version (classic assembler)
             if let [
                 Operand::Reg(reg),
                 Operand::Imm(Immediate::Lit(bit_pos)),
                 Operand::Imm(Immediate::Lbl(label)),
             ] = operands
             {
-                if *self.program.label_is_addr.get(label).unwrap_or(&false) {
-                    return Err(EmuError::InternalError(format!(
-                        "TBZ/TBNZ to data label not allowed: {}",
-                        label
-                    )));
-                }
                 let raw_val = self.get_reg(reg.to_id());
                 let reg_val = if reg.is_w_register() {
                     raw_val & 0xFFFF_FFFF
@@ -215,6 +308,7 @@ impl InstructionControl for CpuState {
                 return Ok(false);
             }
         }
+
         // BR (indirect)
         if let OpCode::BR = opcode {
             if let [Operand::Reg(reg)] = operands {

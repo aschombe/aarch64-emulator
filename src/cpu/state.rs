@@ -25,6 +25,7 @@ pub struct InterpretedProgram {
     pub label_is_addr: std::collections::HashMap<String, bool>,
     pub entry_ip: usize,
     pub extern_labels: std::collections::HashSet<String>,
+    pub text_base: u64,
 
     pub files: Vec<FileSource>,
     pub ip_map: Vec<SourceMapEntry>,

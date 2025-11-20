@@ -118,6 +118,7 @@ pub fn parse_elf(path: &str) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock
             label_is_addr: HashMap::new(),
             entry_ip,
             extern_labels: HashSet::new(),
+            text_base: text_shdr.sh_addr,
             files: Vec::new(),
             ip_map: Vec::new(),
         },
@@ -301,6 +302,7 @@ fn bad64_opcode_to_ir(op: Op) -> EmuResult<OpCode> {
         Op::STUR => Ok(OpCode::STUR),
         Op::STURB => Ok(OpCode::STURB),
         Op::STURH => Ok(OpCode::STURH),
+        Op::B => Ok(OpCode::B(Condition::Al)),
         Op::B_AL => Ok(OpCode::B(Condition::Al)),
         Op::B_CC => Ok(OpCode::B(Condition::Cc)),
         Op::B_CS => Ok(OpCode::B(Condition::Cs)),
@@ -367,207 +369,266 @@ fn extract_shift_extend_type_and_amount(shift: &Option<Shift>) -> Option<(ShiftO
     }
 }
 
-// Map disarm64::Insn to your InstructionIR
+// Decodes a single Bad64 instruction word into InstructionIR
 fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
     let instr = decode(word, addr)
         .map_err(|e| EmuError::InternalError(format!("Decode error: {:?}", e)))?;
 
     let opcode = bad64_opcode_to_ir(instr.op())?;
 
-    let operands = instr
-        .operands()
-        .iter()
-        .map(|op| match op {
-            Bad64Operand::Imm32 { imm, shift } => {
-                let (shift_type, amount) = match extract_shift_extend_type_and_amount(shift) {
-                    Some((stype, amt)) => (stype, amt),
-                    None => {
-                        return Ok(Operand::Imm(Immediate::Lit(extract_imm_value(imm))));
+    let operands = match instr.op() {
+        Op::B_AL
+        | Op::B_CC
+        | Op::B_CS
+        | Op::B_EQ
+        | Op::B_GE
+        | Op::B_GT
+        | Op::B_HI
+        | Op::B_LE
+        | Op::B_LS
+        | Op::B_LT
+        | Op::B_MI
+        | Op::B_NE
+        | Op::B_NV
+        | Op::B_PL
+        | Op::B_VC
+        | Op::B_VS
+        | Op::BL
+        | Op::BR
+        | Op::BLR
+        | Op::CBZ
+        | Op::CBNZ
+        | Op::TBZ
+        | Op::TBNZ => {
+            // For bad64, first operand should be the branch target (imm, reg, or address)
+            instr
+                .operands()
+                .iter()
+                .map(|op| {
+                    match op {
+                        // Branch target is an immediate value (address offset or absolute)
+                        Bad64Operand::Imm32 { imm, .. } | Bad64Operand::Imm64 { imm, .. } => {
+                            let val = extract_imm_value(imm);
+                            Ok(Operand::Imm(Immediate::Lit(val)))
+                        }
+                        // Some branches may take a register (indirect branch)
+                        Bad64Operand::Reg { reg, .. } => {
+                            let r = bad64_reg_to_ir(*reg)?;
+                            Ok(Operand::Reg(r))
+                        }
+                        // Labels as branch targets
+                        Bad64Operand::Label(imm) => {
+                            let val = extract_imm_value(imm);
+                            Ok(Operand::Imm(Immediate::Lit(val)))
+                        }
+                        _ => Err(EmuError::InternalError(format!(
+                            "Unsupported branch operand form: {:?}",
+                            op
+                        ))),
                     }
-                };
-                Ok(Operand::ImmWithShift(
-                    extract_imm_value(imm),
-                    shift_type,
-                    amount,
-                ))
-            }
-            Bad64Operand::Imm64 { imm, shift } => {
-                let (shift_type, amount) = match extract_shift_extend_type_and_amount(shift) {
-                    Some((stype, amt)) => (stype, amt),
-                    None => {
-                        return Ok(Operand::Imm(Immediate::Lit(extract_imm_value(imm))));
-                    }
-                };
-                Ok(Operand::ImmWithShift(
-                    extract_imm_value(imm),
-                    shift_type,
-                    amount,
-                ))
-            }
-            Bad64Operand::FImm32(_fimm) => Err(EmuError::InternalError(
-                "FImm32 operands not supported.".to_string(),
-            )),
-            Bad64Operand::ShiftReg { reg, shift } => {
-                let base_reg = bad64_reg_to_ir(*reg)?;
-                let (modifier, amount) = match extract_shift_extend_type_and_amount(&Some(*shift)) {
-                    Some((stype, amt)) => (Some(stype), amt),
-                    None => (None, 0),
-                };
-                Ok(Operand::RegWithMod(Box::new(OperandWithShiftExtend {
-                    base: Operand::Reg(base_reg),
-                    modifier,
-                    amount,
-                })))
-            }
-            Bad64Operand::QualReg { reg, qual } => Err(EmuError::InternalError(
-                "QualReg operands not yet supported".to_string(),
-            )),
-            Bad64Operand::Reg { reg, arrspec: _ } => {
-                let r = bad64_reg_to_ir(*reg)?;
-                Ok(Operand::Reg(r))
-            }
-            Bad64Operand::MultiReg { regs, arrspec: _ } => Err(EmuError::InternalError(
-                "MultiReg operands not yet supported".to_string(),
-            )),
-            Bad64Operand::SysReg(_sysreg) => Err(EmuError::InternalError(
-                "SysReg operands not supported.".to_string(),
-            )),
-            Bad64Operand::MemReg(reg) => {
-                let base_reg = bad64_reg_to_ir(*reg)?;
-                Ok(Operand::Offset(Offset::Ind2(base_reg)))
-            }
-            Bad64Operand::MemOffset {
-                reg,
-                offset,
-                mul_vl: _,
-                arrspec: _,
-            } => {
-                let base_reg = bad64_reg_to_ir(*reg)?;
-                let offset = Operand::Imm(Immediate::Lit(extract_imm_value(offset)));
-                Ok(Operand::Offset(Offset::Ind3(
-                    base_reg,
-                    match offset {
-                        Operand::Imm(immediate) => immediate,
-                        _ => {
-                            return Err(EmuError::InternalError(
-                                "Expected immediate for MemOffset".to_string(),
-                            ));
+                })
+                .collect::<Result<Vec<_>, _>>()?
+        }
+        _ => instr
+            .operands()
+            .iter()
+            .map(|op| match op {
+                Bad64Operand::Imm32 { imm, shift } => {
+                    let (shift_type, amount) = match extract_shift_extend_type_and_amount(shift) {
+                        Some((stype, amt)) => (stype, amt),
+                        None => {
+                            return Ok(Operand::Imm(Immediate::Lit(extract_imm_value(imm))));
                         }
-                    },
-                )))
-            }
-            Bad64Operand::MemPreIdx { reg, imm } => {
-                let base_reg = bad64_reg_to_ir(*reg)?;
-                let offset = Operand::Imm(Immediate::Lit(extract_imm_value(imm)));
-                Ok(Operand::Offset(Offset::PreIndexed(
-                    base_reg,
-                    match offset {
-                        Operand::Imm(immediate) => immediate,
-                        _ => {
-                            return Err(EmuError::InternalError(
-                                "Expected immediate for pre-index offset".to_string(),
-                            ));
+                    };
+                    Ok(Operand::ImmWithShift(
+                        extract_imm_value(imm),
+                        shift_type,
+                        amount,
+                    ))
+                }
+                Bad64Operand::Imm64 { imm, shift } => {
+                    let (shift_type, amount) = match extract_shift_extend_type_and_amount(shift) {
+                        Some((stype, amt)) => (stype, amt),
+                        None => {
+                            return Ok(Operand::Imm(Immediate::Lit(extract_imm_value(imm))));
                         }
-                    },
-                )))
-            }
-            Bad64Operand::MemPostIdxReg(regs) => {
-                let base_reg = bad64_reg_to_ir(regs[0])?;
-                let offset_reg = bad64_reg_to_ir(regs[1])?;
-                Ok(Operand::Offset(Offset::PostIndexedReg(
-                    base_reg,
-                    Box::new(Operand::Reg(offset_reg)),
-                )))
-            }
-            Bad64Operand::MemPostIdxImm { reg, imm } => {
-                let base_reg = bad64_reg_to_ir(*reg)?;
-                let offset = Operand::Imm(Immediate::Lit(extract_imm_value(imm)));
-                Ok(Operand::Offset(Offset::PostIndexed(
-                    base_reg,
-                    match offset {
-                        Operand::Imm(immediate) => immediate,
-                        _ => {
-                            return Err(EmuError::InternalError(
-                                "Expected immediate for post-index offset".to_string(),
-                            ));
-                        }
-                    },
-                )))
-            }
-            Bad64Operand::MemExt {
-                regs,
-                shift,
-                arrspec: _,
-            } => {
-                let base_reg = bad64_reg_to_ir(regs[0])?;
-                let offset_operand = if regs.len() > 1 {
+                    };
+                    Ok(Operand::ImmWithShift(
+                        extract_imm_value(imm),
+                        shift_type,
+                        amount,
+                    ))
+                }
+                Bad64Operand::FImm32(_fimm) => Err(EmuError::InternalError(
+                    "FImm32 operands not supported.".to_string(),
+                )),
+                Bad64Operand::ShiftReg { reg, shift } => {
+                    let base_reg = bad64_reg_to_ir(*reg)?;
+                    let (modifier, amount) =
+                        match extract_shift_extend_type_and_amount(&Some(*shift)) {
+                            Some((stype, amt)) => (Some(stype), amt),
+                            None => (None, 0),
+                        };
+                    Ok(Operand::RegWithMod(Box::new(OperandWithShiftExtend {
+                        base: Operand::Reg(base_reg),
+                        modifier,
+                        amount,
+                    })))
+                }
+                Bad64Operand::QualReg { reg, qual } => Err(EmuError::InternalError(
+                    "QualReg operands not yet supported".to_string(),
+                )),
+                Bad64Operand::Reg { reg, arrspec: _ } => {
+                    let r = bad64_reg_to_ir(*reg)?;
+                    Ok(Operand::Reg(r))
+                }
+                Bad64Operand::MultiReg { regs, arrspec: _ } => Err(EmuError::InternalError(
+                    "MultiReg operands not yet supported".to_string(),
+                )),
+                Bad64Operand::SysReg(_sysreg) => Err(EmuError::InternalError(
+                    "SysReg operands not supported.".to_string(),
+                )),
+                Bad64Operand::MemReg(reg) => {
+                    let base_reg = bad64_reg_to_ir(*reg)?;
+                    Ok(Operand::Offset(Offset::Ind2(base_reg)))
+                }
+                Bad64Operand::MemOffset {
+                    reg,
+                    offset,
+                    mul_vl: _,
+                    arrspec: _,
+                } => {
+                    let base_reg = bad64_reg_to_ir(*reg)?;
+                    let offset = Operand::Imm(Immediate::Lit(extract_imm_value(offset)));
+                    Ok(Operand::Offset(Offset::Ind3(
+                        base_reg,
+                        match offset {
+                            Operand::Imm(immediate) => immediate,
+                            _ => {
+                                return Err(EmuError::InternalError(
+                                    "Expected immediate for MemOffset".to_string(),
+                                ));
+                            }
+                        },
+                    )))
+                }
+                Bad64Operand::MemPreIdx { reg, imm } => {
+                    let base_reg = bad64_reg_to_ir(*reg)?;
+                    let offset = Operand::Imm(Immediate::Lit(extract_imm_value(imm)));
+                    Ok(Operand::Offset(Offset::PreIndexed(
+                        base_reg,
+                        match offset {
+                            Operand::Imm(immediate) => immediate,
+                            _ => {
+                                return Err(EmuError::InternalError(
+                                    "Expected immediate for pre-index offset".to_string(),
+                                ));
+                            }
+                        },
+                    )))
+                }
+                Bad64Operand::MemPostIdxReg(regs) => {
+                    let base_reg = bad64_reg_to_ir(regs[0])?;
                     let offset_reg = bad64_reg_to_ir(regs[1])?;
-                    Operand::Reg(offset_reg)
-                } else {
-                    Operand::Imm(Immediate::Lit(0))
-                };
-                let (modifier, amount) = match extract_shift_extend_type_and_amount(shift) {
-                    Some((stype, amt)) => (Some(stype), amt),
-                    None => (None, 0),
-                };
-                let operand_with_mod = OperandWithShiftExtend {
-                    base: offset_operand,
-                    modifier,
-                    amount,
-                };
-                Ok(Operand::Offset(Offset::Ind5(
-                    base_reg,
-                    Box::new(Operand::RegWithMod(Box::new(operand_with_mod))),
-                )))
-            }
-            Bad64Operand::SmeTile {
-                tile,
-                slice,
-                arrspec,
-                reg,
-                imm,
-            } => Err(EmuError::InternalError(
-                "SmeTile operands not supported.".to_string(),
-            )),
-            Bad64Operand::AccumArray { reg, imm } => Err(EmuError::InternalError(
-                "AccumArray operands not yet supported".to_string(),
-            )),
-            Bad64Operand::IndexedElement {
-                regs,
-                arrspec: _,
-                imm,
-            } => {
-                let base_reg = bad64_reg_to_ir(regs[0])?;
-                let offset = Operand::Imm(Immediate::Lit(extract_imm_value(imm)));
-                Ok(Operand::Offset(Offset::Ind3(
-                    base_reg,
-                    match offset {
-                        Operand::Imm(immediate) => immediate,
-                        _ => {
-                            return Err(EmuError::InternalError(
-                                "Expected immediate for IndexedElement".to_string(),
-                            ));
-                        }
-                    },
-                )))
-            }
-            Bad64Operand::Label(imm) => Err(EmuError::InternalError(
-                "Label operands not yet supported".to_string(),
-            )),
-            Bad64Operand::ImplSpec { o0, o1, cm, cn, o2 } => Err(EmuError::InternalError(
-                "ImplSpec operands not yet supported".to_string(),
-            )),
-            Bad64Operand::Cond(cond) => Err(EmuError::InternalError(
-                "Cond operands not yet supported".to_string(),
-            )),
-            Bad64Operand::Name(name) => Err(EmuError::InternalError(
-                "Name operands not yet supported".to_string(),
-            )),
-            Bad64Operand::StrImm { str, imm } => Err(EmuError::InternalError(
-                "StrImm operands not yet supported".to_string(),
-            )),
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+                    Ok(Operand::Offset(Offset::PostIndexedReg(
+                        base_reg,
+                        Box::new(Operand::Reg(offset_reg)),
+                    )))
+                }
+                Bad64Operand::MemPostIdxImm { reg, imm } => {
+                    let base_reg = bad64_reg_to_ir(*reg)?;
+                    let offset = Operand::Imm(Immediate::Lit(extract_imm_value(imm)));
+                    Ok(Operand::Offset(Offset::PostIndexed(
+                        base_reg,
+                        match offset {
+                            Operand::Imm(immediate) => immediate,
+                            _ => {
+                                return Err(EmuError::InternalError(
+                                    "Expected immediate for post-index offset".to_string(),
+                                ));
+                            }
+                        },
+                    )))
+                }
+                Bad64Operand::MemExt {
+                    regs,
+                    shift,
+                    arrspec: _,
+                } => {
+                    let base_reg = bad64_reg_to_ir(regs[0])?;
+                    let offset_operand = if regs.len() > 1 {
+                        let offset_reg = bad64_reg_to_ir(regs[1])?;
+                        Operand::Reg(offset_reg)
+                    } else {
+                        Operand::Imm(Immediate::Lit(0))
+                    };
+                    let (modifier, amount) = match extract_shift_extend_type_and_amount(shift) {
+                        Some((stype, amt)) => (Some(stype), amt),
+                        None => (None, 0),
+                    };
+                    let operand_with_mod = OperandWithShiftExtend {
+                        base: offset_operand,
+                        modifier,
+                        amount,
+                    };
+                    Ok(Operand::Offset(Offset::Ind5(
+                        base_reg,
+                        Box::new(Operand::RegWithMod(Box::new(operand_with_mod))),
+                    )))
+                }
+                Bad64Operand::SmeTile {
+                    tile,
+                    slice,
+                    arrspec,
+                    reg,
+                    imm,
+                } => Err(EmuError::InternalError(
+                    "SmeTile operands not supported.".to_string(),
+                )),
+                Bad64Operand::AccumArray { reg, imm } => Err(EmuError::InternalError(
+                    "AccumArray operands not yet supported".to_string(),
+                )),
+                Bad64Operand::IndexedElement {
+                    regs,
+                    arrspec: _,
+                    imm,
+                } => {
+                    let base_reg = bad64_reg_to_ir(regs[0])?;
+                    let offset = Operand::Imm(Immediate::Lit(extract_imm_value(imm)));
+                    Ok(Operand::Offset(Offset::Ind3(
+                        base_reg,
+                        match offset {
+                            Operand::Imm(immediate) => immediate,
+                            _ => {
+                                return Err(EmuError::InternalError(
+                                    "Expected immediate for IndexedElement".to_string(),
+                                ));
+                            }
+                        },
+                    )))
+                }
+                // Bad64Operand::Label(imm) => Err(EmuError::InternalError(
+                //     "Label operands not yet supported".to_string(),
+                // )),
+                Bad64Operand::Label(imm) => match imm {
+                    Imm::Signed(val) => Ok(Operand::Imm(Immediate::Lit(*val))),
+                    Imm::Unsigned(val) => Ok(Operand::Imm(Immediate::Lit(*val as i64))),
+                },
+                Bad64Operand::ImplSpec { o0, o1, cm, cn, o2 } => Err(EmuError::InternalError(
+                    "ImplSpec operands not yet supported".to_string(),
+                )),
+                Bad64Operand::Cond(cond) => Err(EmuError::InternalError(
+                    "Cond operands not yet supported".to_string(),
+                )),
+                Bad64Operand::Name(name) => Err(EmuError::InternalError(
+                    "Name operands not yet supported".to_string(),
+                )),
+                Bad64Operand::StrImm { str, imm } => Err(EmuError::InternalError(
+                    "StrImm operands not yet supported".to_string(),
+                )),
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+    };
 
     Ok(InstructionIR { opcode, operands })
 }
