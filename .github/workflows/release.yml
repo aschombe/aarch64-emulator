@@ -2,70 +2,48 @@ name: Release Binaries
 
 on:
   push:
-    # Triggers on tags matching vX.Y.Z
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
-  # Allows manual triggering from the GitHub Actions tab
   workflow_dispatch:
 
 env:
   BINARY_NAME: aarch64-emulator
 
-
-
 jobs:
   # Parallel compilation for all targets
   build:
     strategy:
-      # Allows other builds to continue if one fails, but the overall job will fail
       fail-fast: false
       matrix:
         include:
-          # Linux targets (Cross-compile from Ubuntu via 'cross' for ARM)
+          # Linux targets
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
-            use-cross: false # Native build on Ubuntu (x86_64)
+            use-cross: false
             asset_name: linux-amd64
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-latest
-            use-cross: true # Use 'cross' tool for ARM Linux build
+            runner: ubuntu-arm64   # Use native ARM64 runners
+            use-cross: false
             asset_name: linux-arm64
-          # macOS targets (Native runners required)
+          # macOS targets
           - target: x86_64-apple-darwin
             runner: macos-latest
-            use-cross: false # Native build on Intel Mac runner
+            use-cross: false
             asset_name: macos-intel
           - target: aarch64-apple-darwin
             runner: macos-latest
-            use-cross: false # Native build on Apple Silicon (ARM) Mac runner
+            use-cross: false
             asset_name: macos-arm64
-          # Windows target (Native runner)
+          # Windows
           - target: x86_64-pc-windows-msvc
             runner: windows-latest
             use-cross: false
             asset_name: windows-amd64
-    
+
     runs-on: ${{ matrix.runner }}
 
     steps:
       - uses: actions/checkout@v4
-
-      # No need for apt-get for AR or clang; cross will use ghcr.io/cross-rs/aarch64-unknown-linux-gnu:main which has them
-      # DEBUG: Show cross.toml and Dockerfile existence/content
-      - name: Debug - Show cross.toml and Dockerfile
-        run: |
-          echo "WORKSPACE DIRECTORY:"
-          pwd
-          echo "--- ROOT:"
-          ls -lh .
-          echo "--- .github:"
-          ls -lh .github
-          echo "--- .github/docker:"
-          ls -lh .github/docker
-          echo "--- cross.toml content:"
-          cat cross.toml
-          echo "--- aarch64-cross.dockerfile content:"
-          cat .github/docker/aarch64-cross.dockerfile
 
       # 1. Install Rust toolchain and target
       - name: Install Rust Toolchain and Target
@@ -74,20 +52,22 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
-      # 2. Build the application
+      # 2. Install ARM Linux sysroot & clang for aarch64 only
+      - name: Install ARM sysroot (Linux ARM64 only)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross clang-14 libclang-14-dev
+
+      # 3. Build the application
       - name: Build
-        uses: houseabsolute/actions-rust-cross@v1
-        with:
-          command: build
-          args: --release
-          target: ${{ matrix.target }}
-          force-use-cross: ${{ matrix.use-cross }}
-          
-      # 3. Prepare and upload the compiled binary as an artifact
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+
+      # 4. Prepare and upload the compiled binary as an artifact
       - name: Prepare and Upload Artifact
         shell: bash
         run: |
-          # Set the file extension based on the OS
           if [[ "${{ matrix.runner }}" == "windows-latest" ]]; then
             BIN_EXT=".exe"
           else
@@ -97,7 +77,6 @@ jobs:
           BIN_PATH="target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}${BIN_EXT}"
           FINAL_ASSET_NAME="${{ env.BINARY_NAME }}-${{ matrix.asset_name }}${BIN_EXT}"
 
-          # Stage the binary for upload
           mkdir -p staging
           cp $BIN_PATH staging/$FINAL_ASSET_NAME
 
@@ -111,21 +90,18 @@ jobs:
 
   # Create release and upload assets/changelog
   release:
-    # Only run after all compilation jobs are successful
     needs: build
     runs-on: ubuntu-latest
-    # Only run this job if the workflow was triggered by a tag push
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
-      contents: write # Needed for creating the release and uploading assets
-      pull-requests: read # Needed for linking PRs in the changelog
+      contents: write
+      pull-requests: read
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # fetches full history for accurate changelog generation
+          fetch-depth: 0
 
-      # 1. Generate the Changelog from Git History
       - name: Generate Changelog
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v1
@@ -135,22 +111,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 2. Create a GitHub release with the generated notes
-      # This step attempts to create the release. If it exists, the next step handles assets.
       - name: Create or Update Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
           name: Release ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref_name, '-') }}
-          # Injects the automatically generated changelog as the release body
           body: ${{ steps.changelog.outputs.changelog }}
-          # Allows the action to update the body if the release already exists.
           overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-      # 3. Download all compiled binaries from the 'build' job
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -158,14 +129,11 @@ jobs:
           path: .
           merge-multiple: true 
 
-      # 4. Upload all artifacts to the created release (This step is where the assets attach)
       - name: Upload binaries to Release
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ env.BINARY_NAME }}-*
-          # Pass the tag_name so the action knows which existing release to target
           tag_name: ${{ github.ref_name }}
-          # This ensures files are uploaded and replace old ones on re-run
           overwrite: true 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
