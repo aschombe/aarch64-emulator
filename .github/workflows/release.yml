@@ -11,6 +11,8 @@ on:
 env:
   BINARY_NAME: aarch64-emulator
 
+
+
 jobs:
   # Parallel compilation for all targets
   build:
@@ -49,6 +51,21 @@ jobs:
       - uses: actions/checkout@v4
 
       # No need for apt-get for AR or clang; cross will use ghcr.io/cross-rs/aarch64-unknown-linux-gnu:main which has them
+      # DEBUG: Show cross.toml and Dockerfile existence/content
+      - name: Debug - Show cross.toml and Dockerfile
+        run: |
+          echo "WORKSPACE DIRECTORY:"
+          pwd
+          echo "--- ROOT:"
+          ls -lh .
+          echo "--- .github:"
+          ls -lh .github
+          echo "--- .github/docker:"
+          ls -lh .github/docker
+          echo "--- cross.toml content:"
+          cat cross.toml
+          echo "--- aarch64-cross.dockerfile content:"
+          cat .github/docker/aarch64-cross.dockerfile
 
       # 1. Install Rust toolchain and target
       - name: Install Rust Toolchain and Target
