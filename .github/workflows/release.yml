@@ -10,34 +10,23 @@ env:
   BINARY_NAME: aarch64-emulator
 
 jobs:
-  # Parallel compilation for all targets
+  # Matrix build for everything except Linux aarch64
   build:
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Linux targets
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
-            use-cross: false
             asset_name: linux-amd64
-          - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-arm64   # Use native ARM64 runners
-            use-cross: false
-            asset_name: linux-arm64
-          # macOS targets
           - target: x86_64-apple-darwin
             runner: macos-latest
-            use-cross: false
             asset_name: macos-intel
           - target: aarch64-apple-darwin
             runner: macos-latest
-            use-cross: false
             asset_name: macos-arm64
-          # Windows
           - target: x86_64-pc-windows-msvc
             runner: windows-latest
-            use-cross: false
             asset_name: windows-amd64
 
     runs-on: ${{ matrix.runner }}
@@ -45,26 +34,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Install Rust toolchain and target
       - name: Install Rust Toolchain and Target
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           target: ${{ matrix.target }}
 
-      # 2. Install ARM Linux sysroot & clang for aarch64 only
-      - name: Install ARM sysroot (Linux ARM64 only)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross clang-14 libclang-14-dev
-
-      # 3. Build the application
       - name: Build
-        run: |
-          cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
 
-      # 4. Prepare and upload the compiled binary as an artifact
       - name: Prepare and Upload Artifact
         shell: bash
         run: |
@@ -73,24 +51,55 @@ jobs:
           else
             BIN_EXT=""
           fi
-
           BIN_PATH="target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}${BIN_EXT}"
           FINAL_ASSET_NAME="${{ env.BINARY_NAME }}-${{ matrix.asset_name }}${BIN_EXT}"
-
           mkdir -p staging
           cp $BIN_PATH staging/$FINAL_ASSET_NAME
-
           echo "FINAL_ASSET_NAME=$FINAL_ASSET_NAME" >> $GITHUB_ENV
           echo "STAGING_PATH=staging/$FINAL_ASSET_NAME" >> $GITHUB_ENV
-          
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.FINAL_ASSET_NAME }}
           path: ${{ env.STAGING_PATH }}
 
-  # Create release and upload assets/changelog
+  # Dedicated ARM64 Linux build on native runner
+  build-aarch64-linux:
+    runs-on: ubuntu-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain and Target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: aarch64-unknown-linux-gnu
+
+      - name: Install ARM sysroot
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross clang-14 libclang-14-dev
+
+      - name: Build
+        run: cargo build --release --target aarch64-unknown-linux-gnu
+
+      - name: Prepare and Upload Artifact
+        shell: bash
+        run: |
+          BIN_PATH="target/aarch64-unknown-linux-gnu/release/${{ env.BINARY_NAME }}"
+          FINAL_ASSET_NAME="${{ env.BINARY_NAME }}-linux-arm64"
+          mkdir -p staging
+          cp $BIN_PATH staging/$FINAL_ASSET_NAME
+          echo "FINAL_ASSET_NAME=$FINAL_ASSET_NAME" >> $GITHUB_ENV
+          echo "STAGING_PATH=staging/$FINAL_ASSET_NAME" >> $GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FINAL_ASSET_NAME }}
+          path: ${{ env.STAGING_PATH }}
+
   release:
-    needs: build
+    needs: [build, build-aarch64-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -106,8 +115,8 @@ jobs:
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v1
         with:
-          configuration: .github/release-changelog-config.yml 
-          toTag: ${{ github.ref }} 
+          configuration: .github/release-changelog-config.yml
+          toTag: ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -121,19 +130,19 @@ jobs:
           overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: ${{ env.BINARY_NAME }}-*
           path: .
-          merge-multiple: true 
+          merge-multiple: true
 
       - name: Upload binaries to Release
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ env.BINARY_NAME }}-*
           tag_name: ${{ github.ref_name }}
-          overwrite: true 
+          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
