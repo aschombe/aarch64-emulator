@@ -10,21 +10,24 @@ env:
   BINARY_NAME: aarch64-emulator
 
 jobs:
-  # Matrix build for everything except Linux aarch64
+  # Parallel compilation
   build:
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Linux x86_64
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
             asset_name: linux-amd64
+          # macOS
           - target: x86_64-apple-darwin
             runner: macos-latest
             asset_name: macos-intel
           - target: aarch64-apple-darwin
             runner: macos-latest
             asset_name: macos-arm64
+          # Windows
           - target: x86_64-pc-windows-msvc
             runner: windows-latest
             asset_name: windows-amd64
@@ -63,43 +66,8 @@ jobs:
           name: ${{ env.FINAL_ASSET_NAME }}
           path: ${{ env.STAGING_PATH }}
 
-  # Dedicated ARM64 Linux build on native runner
-  build-aarch64-linux:
-    runs-on: ubuntu-arm64
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust Toolchain and Target
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          target: aarch64-unknown-linux-gnu
-
-      - name: Install ARM sysroot
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross clang-14 libclang-14-dev
-
-      - name: Build
-        run: cargo build --release --target aarch64-unknown-linux-gnu
-
-      - name: Prepare and Upload Artifact
-        shell: bash
-        run: |
-          BIN_PATH="target/aarch64-unknown-linux-gnu/release/${{ env.BINARY_NAME }}"
-          FINAL_ASSET_NAME="${{ env.BINARY_NAME }}-linux-arm64"
-          mkdir -p staging
-          cp $BIN_PATH staging/$FINAL_ASSET_NAME
-          echo "FINAL_ASSET_NAME=$FINAL_ASSET_NAME" >> $GITHUB_ENV
-          echo "STAGING_PATH=staging/$FINAL_ASSET_NAME" >> $GITHUB_ENV
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.FINAL_ASSET_NAME }}
-          path: ${{ env.STAGING_PATH }}
-
   release:
-    needs: [build, build-aarch64-linux]
+    needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -115,8 +83,8 @@ jobs:
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v1
         with:
-          configuration: .github/release-changelog-config.yml
-          toTag: ${{ github.ref }}
+          configuration: .github/release-changelog-config.yml 
+          toTag: ${{ github.ref }} 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -136,13 +104,13 @@ jobs:
         with:
           pattern: ${{ env.BINARY_NAME }}-*
           path: .
-          merge-multiple: true
+          merge-multiple: true 
 
       - name: Upload binaries to Release
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ env.BINARY_NAME }}-*
           tag_name: ${{ github.ref_name }}
-          overwrite: true
+          overwrite: true 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
