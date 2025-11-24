@@ -13,6 +13,7 @@ dependencies = [
  "elf",
  "fs",
  "mlua",
+ "num-traits",
  "pest",
  "pest_derive",
  "ratatui",

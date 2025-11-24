@@ -3,6 +3,7 @@
 
 use crate::assembler::asm_types::Data;
 use crate::types::{EmuError, EmuResult};
+use num_traits::{Num, NumCast};
 
 fn parse_char_literal(s: &str) -> Option<i64> {
     let t = s.trim();
@@ -30,6 +31,21 @@ fn parse_char_literal(s: &str) -> Option<i64> {
         })
     } else {
         None
+    }
+}
+
+// Parses an integer from a string
+// Supports: decimal, hexadecimal (0x), binary (0b), and octal (0o) formats
+fn parse_int_with_bases<T: std::str::FromStr + Num + NumCast>(s: &str) -> Option<T> {
+    let s = s.trim();
+    if s.starts_with("0x") || s.starts_with("0X") {
+        T::from_str_radix(&s[2..], 16).ok()
+    } else if s.starts_with("0b") || s.starts_with("0B") {
+        T::from_str_radix(&s[2..], 2).ok()
+    } else if s.starts_with("0o") || s.starts_with("0O") {
+        T::from_str_radix(&s[2..], 8).ok()
+    } else {
+        s.parse::<T>().ok()
     }
 }
 
@@ -94,13 +110,13 @@ pub fn parse_data_definition(
             *val as u8
         } else if let Some(c) = parse_char_literal(value_str) {
             c as u8
+        } else if let Some(v) = parse_int_with_bases::<u8>(value_str) {
+            v
         } else {
-            value_str.parse::<u8>().map_err(|_| {
-                EmuError::InternalError(format!(
-                    "Invalid .byte value on line {}: {}",
-                    original_line_number, line_content
-                ))
-            })?
+            return Err(EmuError::InternalError(format!(
+                "Invalid .byte value on line {}: {}",
+                original_line_number, line_content
+            )));
         };
         return Ok(Data::ByteArr(vec![value]));
     }
@@ -124,8 +140,10 @@ pub fn parse_data_definition(
                         Ok(*val as u8)
                     } else if let Some(c) = parse_char_literal(s_trim) {
                         Ok(c as u8)
+                    } else if let Some(v) = parse_int_with_bases::<u8>(s_trim) {
+                        Ok(v)
                     } else {
-                        s_trim.parse::<u8>()
+                        Err(())
                     }
                 })
                 .collect();
@@ -178,10 +196,12 @@ pub fn parse_data_definition(
                         Ok(*val)
                     } else if let Some(c) = parse_char_literal(trimmed) {
                         Ok(c as i64)
-                    } else if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
-                        i64::from_str_radix(&trimmed[2..], 16)
+                    } else if let Some(v) = parse_int_with_bases::<i64>(trimmed) {
+                        Ok(v)
+                    } else if let Some(v) = parse_int_with_bases::<u64>(trimmed) {
+                        Ok(v as i64) // Interpret bit pattern, may be negative.
                     } else {
-                        trimmed.parse::<i64>()
+                        Err(())
                     }
                 })
                 .collect();
@@ -189,6 +209,34 @@ pub fn parse_data_definition(
                 Ok(v) => Ok(Data::QuadArr(v)),
                 Err(_) => Err(EmuError::InternalError(format!(
                     "Invalid .quad values on line {}: {}",
+                    original_line_number, line_content
+                ))),
+            }
+        }
+        ".word" | ".int" => {
+            let values_str = parts[1..].join(" ");
+            let values: Result<Vec<i32>, _> = values_str
+                .split(',')
+                .filter(|s| !s.is_empty())
+                .map(|s| {
+                    let s_trim = s.trim();
+                    if let Some(val) = equ_map.get(s_trim) {
+                        Ok(*val as i32)
+                    } else if let Some(c) = parse_char_literal(s_trim) {
+                        Ok(c as i32)
+                    } else if let Some(v) = parse_int_with_bases::<i32>(s_trim) {
+                        Ok(v)
+                    } else if let Some(v) = parse_int_with_bases::<u32>(s_trim) {
+                        Ok(v as i32)
+                    } else {
+                        Err(())
+                    }
+                })
+                .collect();
+            match values {
+                Ok(v) => Ok(Data::IntArr(v)),
+                Err(_) => Err(EmuError::InternalError(format!(
+                    "Invalid .word/.int values on line {}: {}",
                     original_line_number, line_content
                 ))),
             }
@@ -213,38 +261,9 @@ pub fn parse_data_definition(
             let size = if let Some(val) = equ_map.get(arg) {
                 *val as usize
             } else {
-                arg.parse::<usize>().map_err(|_| {
-                    EmuError::InternalError(format!(
-                        "Invalid directive size on line {}: {}",
-                        original_line_number, arg
-                    ))
-                })?
+                parse_int_with_bases::<usize>(arg).unwrap_or(0)
             };
             Ok(Data::ByteArr(vec![0u8; size]))
-        }
-        ".word" | ".int" => {
-            let values_str = parts[1..].join(" ");
-            let values: Result<Vec<i32>, _> = values_str
-                .split(',')
-                .filter(|s| !s.is_empty())
-                .map(|s| {
-                    let s_trim = s.trim();
-                    if let Some(val) = equ_map.get(s_trim) {
-                        Ok(*val as i32)
-                    } else if let Some(c) = parse_char_literal(s_trim) {
-                        Ok(c as i32)
-                    } else {
-                        s_trim.parse::<i32>()
-                    }
-                })
-                .collect();
-            match values {
-                Ok(v) => Ok(Data::IntArr(v)),
-                Err(_) => Err(EmuError::InternalError(format!(
-                    "Invalid .word/.int values on line {}: {}",
-                    original_line_number, line_content
-                ))),
-            }
         }
         ".fill" => {
             let fill_args_line = parts[1..].join(" ");
@@ -255,7 +274,8 @@ pub fn parse_data_definition(
                     equ_map
                         .get(*x)
                         .copied()
-                        .or_else(|| x.parse::<usize>().ok().map(|n| n as i64))
+                        .or_else(|| parse_int_with_bases::<i64>(x))
+                        .map(|n| n as i64)
                 })
                 .unwrap_or(0) as usize;
             let size = fill_args
@@ -264,7 +284,8 @@ pub fn parse_data_definition(
                     equ_map
                         .get(*x)
                         .copied()
-                        .or_else(|| x.parse::<usize>().ok().map(|n| n as i64))
+                        .or_else(|| parse_int_with_bases::<i64>(x))
+                        .map(|n| n as i64)
                 })
                 .unwrap_or(1) as usize;
             let value = fill_args
@@ -273,7 +294,8 @@ pub fn parse_data_definition(
                     equ_map
                         .get(*x)
                         .copied()
-                        .or_else(|| x.parse::<u8>().ok().map(|n| n as i64))
+                        .or_else(|| parse_int_with_bases::<i64>(x))
+                        .map(|n| n as i64)
                 })
                 .unwrap_or(0) as u8;
             let total_bytes = repeat * size;
@@ -290,12 +312,7 @@ pub fn parse_data_definition(
             let alignment = if let Some(val) = equ_map.get(arg) {
                 *val as usize
             } else {
-                arg.parse::<usize>().map_err(|_| {
-                    EmuError::InternalError(format!(
-                        "Invalid .balign alignment argument on line {}: {}",
-                        original_line_number, arg
-                    ))
-                })?
+                parse_int_with_bases::<usize>(arg).unwrap_or(0)
             };
             Ok(Data::Align(alignment))
         }

@@ -158,7 +158,7 @@ Example command to run with multiple plugins:
 - Test negative offsets with ldr/str instructions
 - [ ] Add directives:
     - .org
-    - Readd and DEBUG .rept and .endr
+    - .REPT doesn't work if its capitalized
 
 **Optimizer**:
 - [ ] Constant folding (e.g. mov x1, 3; add x2, x1 7; -> mov x2, 10)

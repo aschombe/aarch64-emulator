@@ -253,11 +253,15 @@ impl InstructionDataTransfer for CpuState {
     }
 
     fn execute_ldr(&mut self, opcode: OpCode, operands: &[Operand]) -> EmuResult<bool> {
+        println!("LDRB operands: {:?}", operands);
+
         match opcode {
             OpCode::LDR => match operands {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let value = self.memory.borrow().read_word(effective_addr)?;
                     self.set_reg_with_width(rt_id, value as i64, is_w);
                     Ok(false)
@@ -275,6 +279,8 @@ impl InstructionDataTransfer for CpuState {
                     let (rt1_id, is_w1) = self.resolve_operand_dest(dest_op1)?;
                     let (rt2_id, is_w2) = self.resolve_operand_dest(dest_op2)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let value1 = self.memory.borrow().read_word(effective_addr)?;
                     let value2 = self.memory.borrow().read_word(effective_addr + 8)?;
                     self.set_reg_with_width(rt1_id, value1 as i64, is_w1);
@@ -288,6 +294,8 @@ impl InstructionDataTransfer for CpuState {
                     let (rt1_id, is_w1) = self.resolve_operand_dest(dest_op1)?;
                     let (rt2_id, is_w2) = self.resolve_operand_dest(dest_op2)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let value1 =
                         self.memory.borrow().read_word(effective_addr)? as i32 as i64 as Word;
                     let value2 =
@@ -302,7 +310,14 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let byte_value = self.memory.borrow().read_byte(effective_addr)? as Word;
+                    println!(
+                        "LDRB: loaded value from 0x{:X}: 0x{:X}",
+                        effective_addr, byte_value
+                    );
+
                     self.set_reg_with_width(rt_id, byte_value as i64 & 0xFF, is_w);
                     Ok(false)
                 }
@@ -312,6 +327,8 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let halfword_value =
                         self.memory.borrow().read_halfword(effective_addr)? as Word;
                     self.set_reg_with_width(rt_id, halfword_value as i64 & 0xFFFF, is_w);
@@ -323,7 +340,14 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let byte_value = self.memory.borrow().read_byte(effective_addr)? as i8;
+                    println!(
+                        "LDRB: loaded value from 0x{:X}: 0x{:X}",
+                        effective_addr, byte_value
+                    );
+
                     let sign_extended = byte_value as i64 as Word;
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
@@ -334,6 +358,8 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let halfword_value = self.memory.borrow().read_halfword(effective_addr)? as i16;
                     let sign_extended = halfword_value as i32 as Word;
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
@@ -345,6 +371,8 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let word_value = self.memory.borrow().read_word(effective_addr)? as i32;
                     let sign_extended = word_value as i64 as Word;
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
@@ -356,6 +384,8 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let value = self.memory.borrow().read_word(effective_addr)?;
                     self.set_reg_with_width(rt_id, value as i64, is_w);
                     Ok(false)
@@ -366,7 +396,14 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let byte_value = self.memory.borrow().read_byte(effective_addr)? as Word;
+                    println!(
+                        "LDRB: loaded value from 0x{:X}: 0x{:X}",
+                        effective_addr, byte_value
+                    );
+
                     self.set_reg_with_width(rt_id, byte_value as i64 & 0xFF, is_w);
                     Ok(false)
                 }
@@ -376,6 +413,8 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let halfword_value =
                         self.memory.borrow().read_halfword(effective_addr)? as Word;
                     self.set_reg_with_width(rt_id, halfword_value as i64 & 0xFFFF, is_w);
@@ -387,7 +426,14 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let byte_value = self.memory.borrow().read_byte(effective_addr)? as i8;
+                    println!(
+                        "LDRB: loaded value from 0x{:X}: 0x{:X}",
+                        effective_addr, byte_value
+                    );
+
                     let sign_extended = byte_value as i64 as Word;
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
@@ -398,6 +444,8 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let halfword_value = self.memory.borrow().read_halfword(effective_addr)? as i16;
                     let sign_extended = halfword_value as i32 as Word;
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
@@ -409,6 +457,8 @@ impl InstructionDataTransfer for CpuState {
                 [dest_op, Operand::Offset(offset)] => {
                     let (rt_id, is_w) = self.resolve_operand_dest(dest_op)?;
                     let effective_addr = self.resolve_offset_address(offset)?;
+                    println!("LDRB: reading address {:?}", effective_addr);
+
                     let word_value = self.memory.borrow().read_word(effective_addr)? as i32;
                     let sign_extended = word_value as i64 as Word;
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);

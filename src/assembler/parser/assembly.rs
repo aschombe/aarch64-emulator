@@ -55,6 +55,14 @@ impl AsmParser {
         let mut current_text: Vec<InstructionIR> = Vec::new();
         let mut global_entry_flag = false;
         let mut i = 0;
+
+        let mut in_rept = false;
+        let mut rept_lines: Vec<String> = Vec::new();
+        let mut rept_count = 0;
+        let mut rept_line_number = 0;
+
+        let mut pending_base_addr: Option<u64> = None;
+
         while i < cleaned_source_lines.len() {
             let line = &cleaned_source_lines[i];
             let original_line_number = i + 1;
@@ -63,6 +71,38 @@ impl AsmParser {
                 i += 1;
                 continue;
             }
+
+            if line_content.to_lowercase().starts_with(".org") {
+                let org_arg = line_content.split_whitespace().nth(1).ok_or_else(|| {
+                    crate::types::EmuError::InternalError(format!(
+                        ".org requires an address, got nothing on line {}",
+                        original_line_number
+                    ))
+                })?;
+                let addr = if org_arg.starts_with("0x") || org_arg.starts_with("0X") {
+                    u64::from_str_radix(
+                        org_arg.trim_start_matches("0x").trim_start_matches("0X"),
+                        16,
+                    )
+                    .map_err(|_| {
+                        crate::types::EmuError::InternalError(format!(
+                            "Invalid hex value for .org on line {}: '{}'",
+                            original_line_number, org_arg
+                        ))
+                    })?
+                } else {
+                    org_arg.parse::<u64>().map_err(|_| {
+                        crate::types::EmuError::InternalError(format!(
+                            "Invalid value for .org on line {}: '{}'",
+                            original_line_number, org_arg
+                        ))
+                    })?
+                };
+                pending_base_addr = Some(addr);
+                i += 1;
+                continue;
+            }
+
             // Section change (flush block)
             if is_section_directive(line_content) {
                 if let Some(label) = current_label.take() {
@@ -72,7 +112,8 @@ impl AsmParser {
                                 label: label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Data(current_data.clone()),
-                                base_addr: 0,
+                                // base_addr: 0,
+                                base_addr: pending_base_addr.take().unwrap_or(0),
                             });
                             current_data.clear();
                         }
@@ -82,7 +123,8 @@ impl AsmParser {
                                     label: label.clone(),
                                     _is_entry: current_is_entry_flag,
                                     content: AssemblyContent::Text(current_text.clone()),
-                                    base_addr: 0,
+                                    // base_addr: 0,
+                                    base_addr: pending_base_addr.take().unwrap_or(0),
                                 });
                                 current_text.clear();
                             }
@@ -93,7 +135,8 @@ impl AsmParser {
                                 label: label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Bss(size as u64),
-                                base_addr: 0,
+                                // base_addr: 0,
+                                base_addr: pending_base_addr.take().unwrap_or(0),
                             });
                             current_data.clear();
                         }
@@ -150,7 +193,8 @@ impl AsmParser {
                                 label: prev_label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Data(current_data.clone()),
-                                base_addr: 0,
+                                // base_addr: 0,
+                                base_addr: pending_base_addr.take().unwrap_or(0),
                             });
                             current_data.clear();
                         }
@@ -160,7 +204,8 @@ impl AsmParser {
                                     label: prev_label.clone(),
                                     _is_entry: current_is_entry_flag,
                                     content: AssemblyContent::Text(current_text.clone()),
-                                    base_addr: 0,
+                                    // base_addr: 0,
+                                    base_addr: pending_base_addr.take().unwrap_or(0),
                                 });
                                 current_text.clear();
                             }
@@ -171,7 +216,8 @@ impl AsmParser {
                                 label: prev_label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Bss(size as u64),
-                                base_addr: 0,
+                                // base_addr: 0,
+                                base_addr: pending_base_addr.take().unwrap_or(0),
                             });
                             current_data.clear();
                         }
@@ -200,9 +246,58 @@ impl AsmParser {
                 continue;
             }
 
-            // DATA/BSS: accumulate .directives under the last seen label
+            // DATA/BSS: accumulate .directives under the last seen label, handle .rept/.endr
             if (current_section == "data" || current_section == "bss") && current_label.is_some() {
                 let directive_line = line_content.trim_start();
+
+                if in_rept {
+                    if directive_line.eq_ignore_ascii_case(".endr") {
+                        for _ in 0..rept_count {
+                            for (j, rept_line) in rept_lines.iter().enumerate() {
+                                match parse_data_definition(
+                                    rept_line,
+                                    rept_line_number + j,
+                                    &equ_map,
+                                ) {
+                                    Ok(data_item) => current_data.push(data_item),
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
+                        in_rept = false;
+                        rept_count = 0;
+                        rept_lines.clear();
+                        i += 1;
+                        continue;
+                    } else {
+                        rept_lines.push(directive_line.to_string());
+                        i += 1;
+                        continue;
+                    }
+                }
+
+                if directive_line.to_lowercase().starts_with(".rept") {
+                    let tokens: Vec<&str> = directive_line.split_whitespace().collect();
+                    if tokens.len() != 2 {
+                        return Err(crate::types::EmuError::InternalError(format!(
+                            "Malformed .rept on line {}: {}",
+                            original_line_number, directive_line
+                        )));
+                    }
+                    rept_count = tokens[1].parse::<usize>().map_err(|_| {
+                        crate::types::EmuError::InternalError(format!(
+                            "Could not parse .rept repeat count: '{}' on line {}",
+                            tokens[1], original_line_number
+                        ))
+                    })?;
+                    in_rept = true;
+                    rept_line_number = original_line_number;
+                    rept_lines.clear();
+                    i += 1;
+                    continue;
+                }
+
+                // Regular data directive
                 if directive_line.starts_with('.') {
                     match parse_data_definition(directive_line, original_line_number, &equ_map) {
                         Ok(data_item) => current_data.push(data_item),
@@ -234,7 +329,8 @@ impl AsmParser {
                         label,
                         _is_entry: current_is_entry_flag,
                         content: AssemblyContent::Data(current_data.clone()),
-                        base_addr: 0,
+                        // base_addr: 0,
+                        base_addr: pending_base_addr.take().unwrap_or(0),
                     });
                 }
                 "text" => {
@@ -243,7 +339,8 @@ impl AsmParser {
                             label,
                             _is_entry: current_is_entry_flag,
                             content: AssemblyContent::Text(current_text.clone()),
-                            base_addr: 0,
+                            // base_addr: 0,
+                            base_addr: pending_base_addr.take().unwrap_or(0),
                         });
                     }
                 }
@@ -253,7 +350,8 @@ impl AsmParser {
                         label,
                         _is_entry: current_is_entry_flag,
                         content: AssemblyContent::Bss(size as u64),
-                        base_addr: 0,
+                        // base_addr: 0,
+                        base_addr: pending_base_addr.take().unwrap_or(0),
                     });
                 }
                 _ => {}
