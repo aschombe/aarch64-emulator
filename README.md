@@ -158,6 +158,7 @@ Example command to run with multiple plugins:
 - Test negative offsets with ldr/str instructions
 - [ ] Add directives:
     - .org
+    - Allow data definitions to be on different lines than labels (e.g. label: \n .word 5; arr: \n .byte 1 \n .byte 2 \n .byte 3)
     - Readd and DEBUG .rept and .endr
 
 **Optimizer**:
