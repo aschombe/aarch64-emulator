@@ -136,53 +136,54 @@ impl AsmParser {
             }
             // LABEL
             if line_content.contains(':') && !line_content.contains(":lo12:") {
-                let mut _flushed_block = false;
-                if let Some(label) = current_label.take() {
-                    match current_section {
-                        "data" => {
-                            blocks.push(AssemblyBlock {
-                                label: label.clone(),
-                                _is_entry: current_is_entry_flag,
-                                content: AssemblyContent::Data(current_data.clone()),
-                                base_addr: 0,
-                            });
-                            current_data.clear();
-                            _flushed_block = true;
-                        }
-                        "text" => {
-                            if !current_text.is_empty() {
-                                blocks.push(AssemblyBlock {
-                                    label: label.clone(),
-                                    _is_entry: current_is_entry_flag,
-                                    content: AssemblyContent::Text(current_text.clone()),
-                                    base_addr: 0,
-                                });
-                                current_text.clear();
-                                _flushed_block = true;
-                            }
-                        }
-                        "bss" => {
-                            let size: usize = current_data.iter().map(|d| d.size_in_bytes()).sum();
-                            blocks.push(AssemblyBlock {
-                                label: label.clone(),
-                                _is_entry: current_is_entry_flag,
-                                content: AssemblyContent::Bss(size as u64),
-                                base_addr: 0,
-                            });
-                            current_data.clear();
-                            _flushed_block = true;
-                        }
-                        _ => {}
-                    }
-                }
                 let parts: Vec<&str> = line_content.splitn(2, ':').collect();
                 let raw_label = parts[0].trim().to_string();
                 let is_global = global_labels.contains(&raw_label);
                 let label = mangle_label(&raw_label, filename, is_global);
                 let is_entry_flag = global_entry_flag || raw_label == entry_label;
+
+                // Flush previous label block
+                if let Some(prev_label) = current_label.take() {
+                    match current_section {
+                        "data" => {
+                            blocks.push(AssemblyBlock {
+                                label: prev_label.clone(),
+                                _is_entry: current_is_entry_flag,
+                                content: AssemblyContent::Data(current_data.clone()),
+                                base_addr: 0,
+                            });
+                            current_data.clear();
+                        }
+                        "text" => {
+                            if !current_text.is_empty() {
+                                blocks.push(AssemblyBlock {
+                                    label: prev_label.clone(),
+                                    _is_entry: current_is_entry_flag,
+                                    content: AssemblyContent::Text(current_text.clone()),
+                                    base_addr: 0,
+                                });
+                                current_text.clear();
+                            }
+                        }
+                        "bss" => {
+                            let size: usize = current_data.iter().map(|d| d.size_in_bytes()).sum();
+                            blocks.push(AssemblyBlock {
+                                label: prev_label.clone(),
+                                _is_entry: current_is_entry_flag,
+                                content: AssemblyContent::Bss(size as u64),
+                                base_addr: 0,
+                            });
+                            current_data.clear();
+                        }
+                        _ => {}
+                    }
+                }
+
                 current_label = Some(label);
                 current_is_entry_flag = is_entry_flag;
+
                 let rest_of_line = parts.get(1).map(|s| s.trim()).unwrap_or("");
+                // Support both foo: .quad 1 and just foo:
                 if (current_section == "data" || current_section == "bss")
                     && !rest_of_line.is_empty()
                 {
@@ -198,19 +199,17 @@ impl AsmParser {
                 i += 1;
                 continue;
             }
-            // DATA/BSS: accumulate .directives
+
+            // DATA/BSS: accumulate .directives under the last seen label
             if (current_section == "data" || current_section == "bss") && current_label.is_some() {
                 let directive_line = line_content.trim_start();
                 if directive_line.starts_with('.') {
                     match parse_data_definition(directive_line, original_line_number, &equ_map) {
-                        Ok(data_item) => {
-                            current_data.push(data_item);
-                        }
+                        Ok(data_item) => current_data.push(data_item),
                         Err(e) => return Err(e),
                     }
                     i += 1;
                     continue;
-                } else {
                 }
             }
             // TEXT
