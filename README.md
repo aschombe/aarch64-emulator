@@ -171,6 +171,8 @@ Example command to run with multiple plugins:
 - [ ] Come up with more things to add
 
 **Syscall Layer**:
+- openat doesn't consider x3 as of now
+- write maybe should return -1 on write failure instead of 0 count
 - [ ] Expand syscall coverage (see syscalls.txt)
 
 **Debugger (TUI)**:
@@ -184,7 +186,7 @@ Example command to run with multiple plugins:
 - [ ] Add more API functions to Lua CPU object
 
 **Documentation**:
-- Add syntaxes to [DIRECTIVES.md](DIRECTIVES.md), [INSTRUCTIONS.md](INSTRUCTIONS.md), and [SYSCALLS.md](SYSCALLS.md)
+- Add syntaxes to [INSTRUCTIONS.md](INSTRUCTIONS.md)
 - [ ] Expand inline comments and Rustdocs
 
 ---
