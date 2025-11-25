@@ -12,7 +12,11 @@ It features a modular CPU core, assembler, Linux syscall emulation, Ratatui-base
 - Ratatui-based debugger with source, register, and memory views
 - Virtual memory and virtual filesystem (VFS)
 - Partial Linux syscall emulation
+- ELF binary loading and execution
 - Lua plugin support with lifecycle and execution hooks
+- For a list of all implemented instructions, see [INSTRUCTIONS.md](INSTRUCTIONS.md)
+- For a list of supported syscalls, see [SYSCALLS.md](SYSCALLS.md)
+- For a list of supported directives, see [DIRECTIVES.md](DIRECTIVES.md)
 
 ---
 
@@ -180,6 +184,7 @@ Example command to run with multiple plugins:
 - [ ] Add more API functions to Lua CPU object
 
 **Documentation**:
+- Add syntaxes to [DIRECTIVES.md](DIRECTIVES.md), [INSTRUCTIONS.md](INSTRUCTIONS.md), and [SYSCALLS.md](SYSCALLS.md)
 - [ ] Expand inline comments and Rustdocs
 
 ---
