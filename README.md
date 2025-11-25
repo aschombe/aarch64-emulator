@@ -132,6 +132,7 @@ Example command to run with multiple plugins:
 
 ## TODO
 **Architecture**:
+- Make errors better, not everything is an InternalError
 - [ ] Allow labels to start with '.' (currently reserved for directives)
 - Do you have to explicitly define a label as extern to call it from another file?
 - Rewrite tokenizing and parsing to use something like pest, as it is getting messy.
