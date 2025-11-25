@@ -29,7 +29,7 @@ exit:
     // MOV  X2, 8
     // MOV  X8, 64
     // SVC  0
-    MOV  X0, 0
+    MOV X0, X3
     MOV  X8, 93
     SVC  0
     /* End of the code. */

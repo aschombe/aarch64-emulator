@@ -132,17 +132,9 @@ Example command to run with multiple plugins:
 
 ## TODO
 **Architecture**:
-- [ ] Memory segment/boundary checks/enforcement (no writing to code segments, etc.)
 - [ ] Allow labels to start with '.' (currently reserved for directives)
 - Do you have to explicitly define a label as extern to call it from another file?
 - Allow the use of real c library/other library functions?
-- Resolve labels to addresses instead of having labels?
-<!-- - ELF parser and loader: -->
-<!--     - These two subpoints might be irrelevant. The real issue is figuring out how to map ELF's label to IP offsets into my format -->
-<!--         - Allow entry point of emulator to be an offset or a label (since ELF files have offsets as entry points) -->
-<!--         - Allow branching instructions to take offsets as targets as well as labels (since ELF files use offsets) -->
-<!--     - https://docs.rs/elf/latest/elf/ -->
-<!--     - https://github.com/gimli-rs/object -->
 - Rewrite tokenizing and parsing to use something like pest, as it is getting messy.
 - [ ] Use AWS Lambda and API gateway to provide an online emulator service
     - HTML/CSS/JS frontend that allows users to upload assembly files or select options
@@ -156,9 +148,7 @@ Example command to run with multiple plugins:
 - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf
 - Test negative offsets with ldr/str instructions
-- [ ] Add directives:
-    - .org
-    - .REPT doesn't work if its capitalized
+- Add more directives
 
 **Optimizer**:
 - [ ] Constant folding (e.g. mov x1, 3; add x2, x1 7; -> mov x2, 10)

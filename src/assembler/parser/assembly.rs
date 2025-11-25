@@ -72,37 +72,6 @@ impl AsmParser {
                 continue;
             }
 
-            if line_content.to_lowercase().starts_with(".org") {
-                let org_arg = line_content.split_whitespace().nth(1).ok_or_else(|| {
-                    crate::types::EmuError::InternalError(format!(
-                        ".org requires an address, got nothing on line {}",
-                        original_line_number
-                    ))
-                })?;
-                let addr = if org_arg.starts_with("0x") || org_arg.starts_with("0X") {
-                    u64::from_str_radix(
-                        org_arg.trim_start_matches("0x").trim_start_matches("0X"),
-                        16,
-                    )
-                    .map_err(|_| {
-                        crate::types::EmuError::InternalError(format!(
-                            "Invalid hex value for .org on line {}: '{}'",
-                            original_line_number, org_arg
-                        ))
-                    })?
-                } else {
-                    org_arg.parse::<u64>().map_err(|_| {
-                        crate::types::EmuError::InternalError(format!(
-                            "Invalid value for .org on line {}: '{}'",
-                            original_line_number, org_arg
-                        ))
-                    })?
-                };
-                pending_base_addr = Some(addr);
-                i += 1;
-                continue;
-            }
-
             // Section change (flush block)
             if is_section_directive(line_content) {
                 if let Some(label) = current_label.take() {
@@ -112,8 +81,7 @@ impl AsmParser {
                                 label: label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Data(current_data.clone()),
-                                // base_addr: 0,
-                                base_addr: pending_base_addr.take().unwrap_or(0),
+                                base_addr: 0,
                             });
                             current_data.clear();
                         }
@@ -123,8 +91,7 @@ impl AsmParser {
                                     label: label.clone(),
                                     _is_entry: current_is_entry_flag,
                                     content: AssemblyContent::Text(current_text.clone()),
-                                    // base_addr: 0,
-                                    base_addr: pending_base_addr.take().unwrap_or(0),
+                                    base_addr: 0,
                                 });
                                 current_text.clear();
                             }
@@ -135,8 +102,7 @@ impl AsmParser {
                                 label: label.clone(),
                                 _is_entry: current_is_entry_flag,
                                 content: AssemblyContent::Bss(size as u64),
-                                // base_addr: 0,
-                                base_addr: pending_base_addr.take().unwrap_or(0),
+                                base_addr: 0,
                             });
                             current_data.clear();
                         }
