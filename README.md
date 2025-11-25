@@ -134,7 +134,6 @@ Example command to run with multiple plugins:
 **Architecture**:
 - [ ] Allow labels to start with '.' (currently reserved for directives)
 - Do you have to explicitly define a label as extern to call it from another file?
-- Allow the use of real c library/other library functions?
 - Rewrite tokenizing and parsing to use something like pest, as it is getting messy.
 - [ ] Use AWS Lambda and API gateway to provide an online emulator service
     - HTML/CSS/JS frontend that allows users to upload assembly files or select options
@@ -147,7 +146,6 @@ Example command to run with multiple plugins:
 - https://developer.arm.com/documentation/ddi0487/latest:
 - https://developer.arm.com/documentation/ddi0602/2025-09/Base-Instructions
 - https://www.cs.princeton.edu/courses/archive/fall19/cos217/reading/ArmInstructionSetOverview.pdf
-- Test negative offsets with ldr/str instructions
 - Add more directives
 
 **Optimizer**:
