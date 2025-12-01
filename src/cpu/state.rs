@@ -68,7 +68,9 @@ impl CpuState {
 
     pub fn step_instruction(&mut self) -> EmuResult<()> {
         if self.halted() {
-            return Err(EmuError::InternalError("CPU already halted".into()));
+            return Err(EmuError::CpuError {
+                message: "CPU already halted".into(),
+            });
         }
 
         let current_ip = *self.ip.borrow();
@@ -77,7 +79,9 @@ impl CpuState {
             .instructions
             .get(current_ip)
             .cloned()
-            .ok_or_else(|| EmuError::InternalError("IP out of range".into()))?;
+            .ok_or_else(|| EmuError::CpuError {
+                message: format!("Instruction pointer out of bounds: {}", current_ip),
+            })?;
 
         let halted = self.execute_instruction_ir(&ir_insn)?;
         if halted {
@@ -97,11 +101,8 @@ impl CpuState {
             .instructions
             .get(current_ip)
             .cloned()
-            .ok_or_else(|| {
-                EmuError::InternalError(format!(
-                    "Instruction pointer out of bounds: {}",
-                    current_ip
-                ))
+            .ok_or_else(|| EmuError::CpuError {
+                message: format!("Instruction pointer out of bounds: {}", current_ip),
             })
     }
 
@@ -125,8 +126,8 @@ impl CpuState {
                 .instructions
                 .get(current_ip)
                 .cloned()
-                .ok_or_else(|| {
-                    EmuError::InternalError(format!("Invalid instruction pointer: {}", current_ip))
+                .ok_or_else(|| EmuError::CpuError {
+                    message: format!("Instruction pointer out of bounds: {}", current_ip),
                 })?;
 
             let halted = self.execute_instruction_ir(&ir_insn)?;
@@ -227,15 +228,16 @@ impl CpuState {
                     Some(x) => *x as Word,
                     None => {
                         if self.program.extern_labels.contains(label) {
-                            return Err(EmuError::InternalError(format!(
-                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                ),
+                            });
                         } else {
-                            return Err(EmuError::InternalError(format!(
-                                "Undefined label: {}",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!("Undefined label: {}", label),
+                            });
                         }
                     }
                 };
@@ -251,15 +253,16 @@ impl CpuState {
                     Some(x) => *x as Word,
                     None => {
                         if self.program.extern_labels.contains(label) {
-                            return Err(EmuError::InternalError(format!(
-                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                ),
+                            });
                         } else {
-                            return Err(EmuError::InternalError(format!(
-                                "Undefined label: {}",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!("Undefined label: {}", label),
+                            });
                         }
                     }
                 };
@@ -277,10 +280,12 @@ impl CpuState {
                     Operand::Reg(r) => self.get_reg(r.to_id()),
                     Operand::Imm(Immediate::Lit(v)) => *v as u64,
                     _ => {
-                        return Err(EmuError::InternalError(format!(
-                            "Unsupported base for shift/extend operand: {:?}",
-                            owse.base
-                        )));
+                        return Err(EmuError::CpuError {
+                            message: format!(
+                                "Unsupported base for shift/extend operand: {:?}",
+                                owse.base
+                            ),
+                        });
                     }
                 };
                 // src width logic
@@ -297,20 +302,18 @@ impl CpuState {
                     out_width,
                 ))
             }
-            _ => Err(EmuError::InternalError(format!(
-                "Unsupported source operand: {:?}",
-                operand
-            ))),
+            _ => Err(EmuError::CpuError {
+                message: format!("Unsupported source operand: {:?}", operand),
+            }),
         }
     }
 
     pub fn resolve_operand_dest(&self, operand: &Operand) -> EmuResult<(usize, bool)> {
         match operand {
             Operand::Reg(r) => Ok((r.to_id(), r.is_w_register())),
-            _ => Err(EmuError::InternalError(format!(
-                "Invalid dest operand: {:?}",
-                operand
-            ))),
+            _ => Err(EmuError::CpuError {
+                message: format!("Unsupported dest operand: {:?}", operand),
+            }),
         }
     }
 
@@ -455,10 +458,9 @@ impl CpuState {
             OpCode::RET => self.execute_ret(),
             OpCode::SVC => self.execute_svc(&ir_insn.operands),
             OpCode::NOP => Ok(false),
-            _ => Err(EmuError::InvalidInstructionIR(format!(
-                "{:?}",
-                ir_insn.opcode
-            ))),
+            _ => Err(EmuError::CpuError {
+                message: format!("Unsupported instruction: {:?}", ir_insn.opcode),
+            }),
         }
     }
 }
@@ -484,6 +486,7 @@ impl CpuState {
                 extern_labels: HashSet::new(),
                 files: vec![],
                 ip_map: vec![],
+                text_base: 0,
             },
             ip: RefCell::new(0),
             vfs: None,

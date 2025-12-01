@@ -58,9 +58,7 @@ impl EmuConfig {
     /// Validates that assembly files are provided.
     fn validate(&self) -> EmuResult<()> {
         if self.assembly_files.is_empty() && self.binary.is_none() {
-            Err(EmuError::InternalError(
-                "No input file(s) specified.".to_string(),
-            ))
+            Err(EmuError::NoInputFilesProvided)
         } else {
             Ok(())
         }
@@ -121,9 +119,7 @@ fn start() -> Result<(), EmuError> {
     let (mut program, data_blocks) = if !config.assembly_files.is_empty() {
         assemble_multiple_files(&config.assembly_files, &config.entry)?
     } else {
-        return Err(EmuError::InternalError(
-            "No input file specified. Use assembly file(s).".to_string(),
-        ));
+        return Err(EmuError::NoInputFilesProvided);
     };
 
     // Override entry point if custom entry label is specified
@@ -132,11 +128,8 @@ fn start() -> Result<(), EmuError> {
             .label_to_ip
             .get(&config.entry)
             .copied()
-            .ok_or_else(|| {
-                EmuError::InternalError(format!(
-                    "Custom entry point '{}' not found in assembled program",
-                    config.entry
-                ))
+            .ok_or_else(|| EmuError::CustomEntryPointNotFound {
+                symbol: config.entry.clone(),
             })?;
         program.entry_ip = custom_entry_ip as usize;
         if config.verbose {
@@ -190,7 +183,9 @@ fn start() -> Result<(), EmuError> {
             plugin_manager
                 .borrow_mut()
                 .load_lua_plugin(plugin_path, plugin_name)
-                .expect("Failed to load Lua plugin");
+                .map_err(|e| EmuError::PluginError {
+                    message: format!("Failed to load Lua plugin '{}': {}", plugin_path, e),
+                })?;
         }
 
         // call on_plugin_load for each plugin

@@ -19,7 +19,9 @@ pub fn parse_operand(
     let token = token.trim();
 
     if token.is_empty() {
-        return Err(EmuError::InternalError("Operand is empty.".to_string()));
+        return Err(EmuError::AssemblerError {
+            message: "Operand is empty.".to_string(),
+        });
     }
 
     // Pre-indexed ([reg, ...]!)
@@ -35,10 +37,9 @@ pub fn parse_operand(
             let idx = parse_operand(&offset_str, filename, global_labels, equ_map)?;
             return Ok(Operand::Offset(Offset::PreIndexedReg(reg, Box::new(idx))));
         } else {
-            return Err(EmuError::InternalError(format!(
-                "Invalid pre-indexed address format: '{}'",
-                token
-            )));
+            return Err(EmuError::AssemblerError {
+                message: format!("Invalid pre-indexed address format: '{}'", token),
+            });
         }
     }
 
@@ -79,10 +80,9 @@ pub fn parse_operand(
                 return Ok(Operand::Offset(Offset::Ind5(reg, Box::new(idx_op))));
             }
             _ => {
-                return Err(EmuError::InternalError(format!(
-                    "Invalid offset format: {}",
-                    token
-                )));
+                return Err(EmuError::AssemblerError {
+                    message: format!("Invalid offset format: '{}'", token),
+                });
             }
         }
     }
@@ -110,10 +110,12 @@ pub fn parse_operand(
             let value = match imm {
                 Immediate::Lit(v) => v,
                 Immediate::Lbl(ref s) | Immediate::Lo12Lbl(ref s) => {
-                    return Err(EmuError::InternalError(format!(
-                        "Immediate with shift/extend not supported for label immediates: {}",
-                        s
-                    )));
+                    return Err(EmuError::AssemblerError {
+                        message: format!(
+                            "Immediate with shift/extend not supported for label immediates: {}",
+                            s
+                        ),
+                    });
                 }
             };
             return Ok(Operand::ImmWithShift(value, mk, amount));
@@ -191,8 +193,7 @@ pub fn parse_operand(
         )?));
     }
 
-    Err(EmuError::InternalError(format!(
-        "Unrecognized token/operand: {}",
-        token
-    )))
+    Err(EmuError::AssemblerError {
+        message: format!("Unrecognized token/operand: {}", token),
+    })
 }

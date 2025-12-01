@@ -99,10 +99,9 @@ pub fn parse_reg(s: &str) -> EmuResult<Reg> {
         "W31" => Ok(Reg::W31),
         "WZR" => Ok(Reg::W31),
         "SP" => Ok(Reg::SP),
-        _ => Err(EmuError::InternalError(format!(
-            "Invalid register name: {}",
-            s
-        ))),
+        _ => Err(EmuError::AssemblerError {
+            message: format!("Invalid register name: {}", s),
+        }),
     }
 }
 

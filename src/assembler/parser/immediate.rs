@@ -18,10 +18,9 @@ pub fn parse_immediate(
             let mangled = mangle_label(label, filename, is_global);
             return Ok(Immediate::Lo12Lbl(mangled));
         } else {
-            return Err(EmuError::InternalError(format!(
-                "Invalid label after :lo12:: {}",
-                label
-            )));
+            return Err(EmuError::AssemblerError {
+                message: format!("Invalid label after :lo12:: {}", label),
+            });
         }
     }
     let clean_token = token.trim_start_matches(|c| c == '#' || c == '=').trim();
@@ -52,17 +51,18 @@ pub fn parse_immediate(
                 "\"" => '"',
                 "\\" => '\\',
                 other => {
-                    return Err(EmuError::InternalError(format!(
-                        "Invalid char escape: \\{} in immediate '{}'",
-                        other, token
-                    )));
+                    return Err(EmuError::AssemblerError {
+                        message: format!(
+                            "Invalid char escape: \\{} in immediate '{}'",
+                            other, token
+                        ),
+                    });
                 }
             }
         } else {
-            return Err(EmuError::InternalError(format!(
-                "Invalid char literal (too many chars): '{}'",
-                token
-            )));
+            return Err(EmuError::AssemblerError {
+                message: format!("Invalid char literal (too many chars): '{}'", token),
+            });
         };
         return Ok(Immediate::Lit(ch as i64));
     }
@@ -81,19 +81,17 @@ pub fn parse_immediate(
         };
         match val {
             Ok(v) => Ok(Immediate::Lit(v)),
-            Err(_) => Err(EmuError::InternalError(format!(
-                "Invalid number format: {}",
-                clean_token
-            ))),
+            Err(e) => Err(EmuError::AssemblerError {
+                message: format!("Invalid number format '{}': {}", clean_token, e),
+            }),
         }
     } else if is_label(clean_token) {
         let is_global = global_labels.contains(clean_token);
         let mangled = mangle_label(clean_token, filename, is_global);
         Ok(Immediate::Lbl(mangled))
     } else {
-        Err(EmuError::InternalError(format!(
-            "Invalid immediate value: {}",
-            token
-        )))
+        Err(EmuError::AssemblerError {
+            message: format!("Invalid immediate value: {}", token),
+        })
     }
 }

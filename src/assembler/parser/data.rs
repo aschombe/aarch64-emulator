@@ -63,15 +63,14 @@ pub fn parse_string_literal(literal: &str) -> EmuResult<Vec<u8>> {
                 Some('"') => b'"',
                 Some('0') => 0,
                 Some(other) => {
-                    return Err(EmuError::InternalError(format!(
-                        "Unknown escape sequence: \\{}",
-                        other
-                    )));
+                    return Err(EmuError::AssemblerError {
+                        message: format!("Unknown escape sequence: \\{}", other),
+                    });
                 }
                 None => {
-                    return Err(EmuError::InternalError(
-                        "Incomplete escape sequence at end of string.".to_string(),
-                    ));
+                    return Err(EmuError::AssemblerError {
+                        message: "Incomplete escape sequence at end of string.".to_string(),
+                    });
                 }
             };
             bytes.push(escaped_char);
@@ -113,19 +112,23 @@ pub fn parse_data_definition(
         } else if let Some(v) = parse_int_with_bases::<u8>(value_str) {
             v
         } else {
-            return Err(EmuError::InternalError(format!(
-                "Invalid .byte value on line {}: {}",
-                original_line_number, line_content
-            )));
+            return Err(EmuError::AssemblerError {
+                message: format!(
+                    "Invalid .byte value on line {}: {}",
+                    original_line_number, line_content
+                ),
+            });
         };
         return Ok(Data::ByteArr(vec![value]));
     }
 
     if parts.len() < 2 {
-        return Err(EmuError::InternalError(format!(
-            "Data directive '{}' requires arguments on line {}.",
-            directive, original_line_number
-        )));
+        return Err(EmuError::AssemblerError {
+            message: format!(
+                "Data directive '{}' requires arguments on line {}.",
+                directive, original_line_number
+            ),
+        });
     }
 
     match directive.as_str() {
@@ -149,10 +152,12 @@ pub fn parse_data_definition(
                 .collect();
             match values {
                 Ok(v) => Ok(Data::ByteArr(v)),
-                Err(_) => Err(EmuError::InternalError(format!(
-                    "Invalid .byte values on line {}: {}",
-                    original_line_number, line_content
-                ))),
+                Err(_) => Err(EmuError::AssemblerError {
+                    message: format!(
+                        "Invalid .byte values on line {}: {}",
+                        original_line_number, line_content
+                    ),
+                }),
             }
         }
         ".single" | ".float" => {
@@ -164,10 +169,12 @@ pub fn parse_data_definition(
                 .collect();
             match values {
                 Ok(v) => Ok(Data::FloatArr(v)),
-                Err(_) => Err(EmuError::InternalError(format!(
-                    "Invalid .single/.float values on line {}: {}",
-                    original_line_number, line_content
-                ))),
+                Err(_) => Err(EmuError::AssemblerError {
+                    message: format!(
+                        "Invalid .single/.float values on line {}: {}",
+                        original_line_number, line_content
+                    ),
+                }),
             }
         }
         ".double" | ".doubleword" => {
@@ -179,10 +186,12 @@ pub fn parse_data_definition(
                 .collect();
             match values {
                 Ok(v) => Ok(Data::DoubleArr(v)),
-                Err(_) => Err(EmuError::InternalError(format!(
-                    "Invalid .double/.doubleword values on line {}: {}",
-                    original_line_number, line_content
-                ))),
+                Err(_) => Err(EmuError::AssemblerError {
+                    message: format!(
+                        "Invalid .double/.doubleword values on line {}: {}",
+                        original_line_number, line_content
+                    ),
+                }),
             }
         }
         ".quad" | ".dword" => {
@@ -207,10 +216,12 @@ pub fn parse_data_definition(
                 .collect();
             match values {
                 Ok(v) => Ok(Data::QuadArr(v)),
-                Err(_) => Err(EmuError::InternalError(format!(
-                    "Invalid .quad values on line {}: {}",
-                    original_line_number, line_content
-                ))),
+                Err(_) => Err(EmuError::AssemblerError {
+                    message: format!(
+                        "Invalid .quad/.dword values on line {}: {}",
+                        original_line_number, line_content
+                    ),
+                }),
             }
         }
         ".word" | ".int" => {
@@ -235,19 +246,23 @@ pub fn parse_data_definition(
                 .collect();
             match values {
                 Ok(v) => Ok(Data::IntArr(v)),
-                Err(_) => Err(EmuError::InternalError(format!(
-                    "Invalid .word/.int values on line {}: {}",
-                    original_line_number, line_content
-                ))),
+                Err(_) => Err(EmuError::AssemblerError {
+                    message: format!(
+                        "Invalid .word/.int values on line {}: {}",
+                        original_line_number, line_content
+                    ),
+                }),
             }
         }
         ".string" | ".ascii" | ".asciiz" | ".asciz" => {
-            let quote_pos = line_content.find('"').ok_or_else(|| {
-                EmuError::InternalError(format!(
-                    "Missing opening quote on line {}",
-                    original_line_number
-                ))
-            })?;
+            let quote_pos = line_content
+                .find('"')
+                .ok_or_else(|| EmuError::AssemblerError {
+                    message: format!(
+                        "Missing opening quote for string literal on line {}: {}",
+                        original_line_number, line_content
+                    ),
+                })?;
             let literal = &line_content[quote_pos..];
             let mut bytes = parse_string_literal(literal)?;
             // Add null terminator for .asciiz/.asciz/.string
@@ -316,9 +331,11 @@ pub fn parse_data_definition(
             };
             Ok(Data::Align(alignment))
         }
-        _ => Err(EmuError::InternalError(format!(
-            "Unimplemented data definition on line {}: {}",
-            original_line_number, line_content
-        ))),
+        _ => Err(EmuError::AssemblerError {
+            message: format!(
+                "Unknown data directive '{}' on line {}: {}",
+                directive, original_line_number, line_content
+            ),
+        }),
     }
 }

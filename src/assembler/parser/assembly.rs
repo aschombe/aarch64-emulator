@@ -6,7 +6,7 @@ use super::instruction::parse_instruction;
 use super::utils::{clean_source_code, mangle_label};
 use crate::assembler::Data;
 use crate::assembler::asm_types::{AssemblyBlock, AssemblyContent, InstructionIR};
-use crate::types::EmuResult;
+use crate::types::{EmuError, EmuResult};
 use std::collections::{HashMap, HashSet};
 
 pub struct AsmParser;
@@ -245,17 +245,22 @@ impl AsmParser {
                 if directive_line.to_lowercase().starts_with(".rept") {
                     let tokens: Vec<&str> = directive_line.split_whitespace().collect();
                     if tokens.len() != 2 {
-                        return Err(crate::types::EmuError::InternalError(format!(
-                            "Malformed .rept on line {}: {}",
-                            original_line_number, directive_line
-                        )));
+                        return Err(EmuError::AssemblerError {
+                            message: format!(
+                                "Malformed .rept directive on line {}: '{}'",
+                                original_line_number, directive_line
+                            ),
+                        });
                     }
-                    rept_count = tokens[1].parse::<usize>().map_err(|_| {
-                        crate::types::EmuError::InternalError(format!(
-                            "Could not parse .rept repeat count: '{}' on line {}",
-                            tokens[1], original_line_number
-                        ))
-                    })?;
+                    rept_count =
+                        tokens[1]
+                            .parse::<usize>()
+                            .map_err(|_| EmuError::AssemblerError {
+                                message: format!(
+                                    "Could not parse .rept repeat count: '{}' on line {}",
+                                    tokens[1], original_line_number
+                                ),
+                            })?;
                     in_rept = true;
                     rept_line_number = original_line_number;
                     rept_lines.clear();

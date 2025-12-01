@@ -80,7 +80,11 @@ impl Memory {
             buf.push(b);
             cur_addr += 1;
         }
-        String::from_utf8(buf).map_err(|e| EmuError::InternalError(format!("UTF8 Error: {}", e)))
+        // String::from_utf8(buf).map_err(|e| EmuError::InternalError(format!("UTF8 Error: {}", e)))
+
+        String::from_utf8(buf).map_err(|e| EmuError::Utf8Error {
+            message: format!("UTF8 Error: {}", e),
+        })
     }
 
     /// Given an address range, find the region name it belongs to if any
@@ -104,7 +108,7 @@ impl Memory {
             .filter(|&end| end <= MEMORY_SIZE)
             .is_none()
         {
-            return Err(EmuError::MemoryAccessViolation(addr));
+            return Err(EmuError::MemoryAccessViolation { addr });
         }
         Ok(())
     }
@@ -143,7 +147,7 @@ impl Memory {
         let start_index = addr as usize;
         let end_index = start_index
             .checked_add(len)
-            .ok_or_else(|| EmuError::MemoryAccessViolation(addr))?;
+            .ok_or_else(|| EmuError::MemoryAccessViolation { addr })?;
         Ok(&mut self.ram[start_index..end_index])
     }
 
@@ -153,7 +157,7 @@ impl Memory {
         let start_index = addr as usize;
         let end_index = start_index
             .checked_add(len)
-            .ok_or_else(|| EmuError::MemoryAccessViolation(addr))?;
+            .ok_or_else(|| EmuError::MemoryAccessViolation { addr })?;
         Ok(&self.ram[start_index..end_index])
     }
 

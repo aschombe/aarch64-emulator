@@ -46,10 +46,9 @@ impl InstructionControl for CpuState {
         if let OpCode::B(condition_opt) = opcode {
             if let [Operand::Imm(Immediate::Lbl(label))] = operands {
                 if *self.program.label_is_addr.get(label).unwrap_or(&false) {
-                    return Err(EmuError::InternalError(format!(
-                        "Branch to data label not allowed: {}",
-                        label
-                    )));
+                    return Err(EmuError::CpuError {
+                        message: format!("Branch to data label not allowed: {}", label),
+                    });
                 }
 
                 // B.cond: check condition
@@ -61,15 +60,16 @@ impl InstructionControl for CpuState {
                     Some(x) => *x as usize,
                     None => {
                         if self.program.extern_labels.contains(label) {
-                            return Err(EmuError::InternalError(format!(
-                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                ),
+                            });
                         } else {
-                            return Err(EmuError::InternalError(format!(
-                                "Undefined label: {}",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!("Undefined label: {}", label),
+                            });
                         }
                     }
                 };
@@ -84,8 +84,8 @@ impl InstructionControl for CpuState {
                     return Ok(false);
                 }
                 // Map virtual address to instruction pointer
-                let ip = self.vaddr_to_ip(*addr).ok_or_else(|| {
-                    EmuError::InternalError(format!("Branch to unknown address: 0x{:x}", addr))
+                let ip = self.vaddr_to_ip(*addr).ok_or_else(|| EmuError::CpuError {
+                    message: format!("Branch to unknown address: 0x{:x}", addr),
                 })?;
                 *self.ip.borrow_mut() = ip;
                 self.did_branch.set(true);
@@ -96,24 +96,24 @@ impl InstructionControl for CpuState {
         if let OpCode::BL = opcode {
             if let [Operand::Imm(Immediate::Lbl(label))] = operands {
                 if *self.program.label_is_addr.get(label).unwrap_or(&false) {
-                    return Err(EmuError::InternalError(format!(
-                        "Branch to data label not allowed: {}",
-                        label
-                    )));
+                    return Err(EmuError::CpuError {
+                        message: format!("Branch to data label not allowed: {}", label),
+                    });
                 }
                 let target_ip = match self.program.label_to_ip.get(label) {
                     Some(x) => *x as usize,
                     None => {
                         if self.program.extern_labels.contains(label) {
-                            return Err(EmuError::InternalError(format!(
-                                "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!(
+                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                    label
+                                ),
+                            });
                         } else {
-                            return Err(EmuError::InternalError(format!(
-                                "Undefined label: {}",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!("Undefined label: {}", label),
+                            });
                         }
                     }
                 };
@@ -132,8 +132,8 @@ impl InstructionControl for CpuState {
                 return Ok(false);
             }
             if let [Operand::Imm(Immediate::Lit(addr))] = operands {
-                let ip = self.vaddr_to_ip(*addr).ok_or_else(|| {
-                    EmuError::InternalError(format!("BL to unknown address: 0x{:x}", addr))
+                let ip = self.vaddr_to_ip(*addr).ok_or_else(|| EmuError::CpuError {
+                    message: format!("BL to unknown address: 0x{:x}", addr),
                 })?;
                 if let Some(pm_rc) = &self.plugin_manager {
                     let mut pm = pm_rc.borrow_mut();
@@ -156,10 +156,9 @@ impl InstructionControl for CpuState {
             // Label form
             if let [Operand::Reg(reg), Operand::Imm(Immediate::Lbl(label))] = operands {
                 if *self.program.label_is_addr.get(label).unwrap_or(&false) {
-                    return Err(EmuError::InternalError(format!(
-                        "Conditional branch to data label not allowed: {}",
-                        label
-                    )));
+                    return Err(EmuError::CpuError {
+                        message: format!("Conditional branch to data label not allowed: {}", label),
+                    });
                 }
                 let raw_val = self.get_reg(reg.to_id());
                 let reg_val = if reg.is_w_register() {
@@ -177,15 +176,16 @@ impl InstructionControl for CpuState {
                         Some(x) => *x as usize,
                         None => {
                             if self.program.extern_labels.contains(label) {
-                                return Err(EmuError::InternalError(format!(
-                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                    label
-                                )));
+                                return Err(EmuError::CpuError {
+                                    message: format!(
+                                        "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                        label
+                                    ),
+                                });
                             } else {
-                                return Err(EmuError::InternalError(format!(
-                                    "Undefined label: {}",
-                                    label
-                                )));
+                                return Err(EmuError::CpuError {
+                                    message: format!("Undefined label: {}", label),
+                                });
                             }
                         }
                     };
@@ -208,11 +208,8 @@ impl InstructionControl for CpuState {
                     _ => false,
                 };
                 if should_branch {
-                    let ip = self.vaddr_to_ip(*addr).ok_or_else(|| {
-                        EmuError::InternalError(format!(
-                            "CBZ/CBNZ to unknown address: 0x{:x}",
-                            addr
-                        ))
+                    let ip = self.vaddr_to_ip(*addr).ok_or_else(|| EmuError::CpuError {
+                        message: format!("CBZ/CBNZ to unknown address: 0x{:x}", addr),
                     })?;
                     *self.ip.borrow_mut() = ip;
                     self.did_branch.set(true);
@@ -221,7 +218,7 @@ impl InstructionControl for CpuState {
             }
         }
 
-        // TBZ/TBNZ: lit as label or address (this depends on your IR form)
+        // TBZ/TBNZ: lit as label or address
         if matches!(opcode, OpCode::TBZ | OpCode::TBNZ) {
             // Literal version (address)
             if let [
@@ -237,10 +234,12 @@ impl InstructionControl for CpuState {
                     raw_val
                 };
                 if *bit_pos >= if reg.is_w_register() { 32 } else { 64 } {
-                    return Err(EmuError::InternalError(format!(
-                        "Bit position {} out of range for register {:?}",
-                        bit_pos, reg
-                    )));
+                    return Err(EmuError::CpuError {
+                        message: format!(
+                            "Bit position {} out of range for register {:?}",
+                            bit_pos, reg
+                        ),
+                    });
                 }
                 let bit_set = (reg_val & (1 << bit_pos)) != 0;
                 let should_branch = match opcode {
@@ -249,11 +248,8 @@ impl InstructionControl for CpuState {
                     _ => false,
                 };
                 if should_branch {
-                    let ip = self.vaddr_to_ip(*addr).ok_or_else(|| {
-                        EmuError::InternalError(format!(
-                            "TBZ/TBNZ to unknown address: 0x{:x}",
-                            addr
-                        ))
+                    let ip = self.vaddr_to_ip(*addr).ok_or_else(|| EmuError::CpuError {
+                        message: format!("TBZ/TBNZ to unknown address: 0x{:x}", addr),
                     })?;
                     *self.ip.borrow_mut() = ip;
                     self.did_branch.set(true);
@@ -274,10 +270,12 @@ impl InstructionControl for CpuState {
                     raw_val
                 };
                 if *bit_pos >= if reg.is_w_register() { 32 } else { 64 } {
-                    return Err(EmuError::InternalError(format!(
-                        "Bit position {} out of range for register {:?}",
-                        bit_pos, reg
-                    )));
+                    return Err(EmuError::CpuError {
+                        message: format!(
+                            "Bit position {} out of range for register {:?}",
+                            bit_pos, reg
+                        ),
+                    });
                 }
                 let bit_set = (reg_val & (1 << bit_pos)) != 0;
                 let should_branch = match opcode {
@@ -290,15 +288,16 @@ impl InstructionControl for CpuState {
                         Some(x) => *x as usize,
                         None => {
                             if self.program.extern_labels.contains(label) {
-                                return Err(EmuError::InternalError(format!(
-                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                    label
-                                )));
+                                return Err(EmuError::CpuError {
+                                    message: format!(
+                                        "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                        label
+                                    ),
+                                });
                             } else {
-                                return Err(EmuError::InternalError(format!(
-                                    "Undefined label: {}",
-                                    label
-                                )));
+                                return Err(EmuError::CpuError {
+                                    message: format!("Undefined label: {}", label),
+                                });
                             }
                         }
                     };
@@ -329,10 +328,9 @@ impl InstructionControl for CpuState {
                 return Ok(false);
             }
         }
-        Err(EmuError::InternalError(format!(
-            "Invalid branch operands: {:?} {:?}",
-            opcode, operands
-        )))
+        Err(EmuError::CpuError {
+            message: format!("Invalid branch operands: {:?} {:?}", opcode, operands),
+        })
     }
 
     fn execute_ret(&mut self) -> EmuResult<bool> {
@@ -344,9 +342,9 @@ impl InstructionControl for CpuState {
 
         let lr_value = self.get_reg(30);
         if lr_value == 0 {
-            return Err(EmuError::InternalError(
-                "LR is zero on RET; cannot return.".to_string(),
-            ));
+            return Err(EmuError::CpuError {
+                message: "LR is zero on RET; cannot return.".to_string(),
+            });
         }
 
         *self.ip.borrow_mut() = lr_value as usize;

@@ -18,9 +18,9 @@ pub fn parse_instruction(
     let mut parts = cleaned_line.split_whitespace();
     let full_mnemonic = parts.next().unwrap_or("").to_uppercase();
     if full_mnemonic.is_empty() {
-        return Err(EmuError::InternalError(
-            "Empty instruction line.".to_string(),
-        ));
+        return Err(EmuError::AssemblerError {
+            message: "Empty instruction line.".to_string(),
+        });
     }
     let rest_of_line_parts: Vec<&str> = parts.collect();
     if rest_of_line_parts.is_empty() {
@@ -31,10 +31,9 @@ pub fn parse_instruction(
                 operands: Vec::new(),
             });
         } else {
-            return Err(EmuError::InternalError(format!(
-                "Instruction '{}' requires operands.",
-                full_mnemonic
-            )));
+            return Err(EmuError::AssemblerError {
+                message: format!("Instruction '{}' requires operands.", full_mnemonic),
+            });
         }
     }
 
@@ -170,10 +169,12 @@ pub fn parse_instruction(
     ];
     if condsel_mnemonics.contains(&full_mnemonic.as_str()) {
         if tokens.len() < 2 {
-            return Err(EmuError::InternalError(format!(
-                "Instruction '{}' requires at least two operands.",
-                full_mnemonic
-            )));
+            return Err(EmuError::AssemblerError {
+                message: format!(
+                    "Instruction '{}' requires at least two operands.",
+                    full_mnemonic
+                ),
+            });
         }
         let condition_token = tokens.last().unwrap();
         let cond = parse_csel_like_condition(condition_token)?;
@@ -199,10 +200,12 @@ pub fn parse_instruction(
     let condcmp_mnemonics = ["CCMP", "CCMN"];
     if condcmp_mnemonics.contains(&full_mnemonic.as_str()) {
         if tokens.len() < 4 {
-            return Err(EmuError::InternalError(format!(
-                "Instruction '{}' requires at least four operands.",
-                full_mnemonic
-            )));
+            return Err(EmuError::AssemblerError {
+                message: format!(
+                    "Instruction '{}' requires at least four operands.",
+                    full_mnemonic
+                ),
+            });
         }
         let condition_token = tokens.last().unwrap();
         let cond = parse_csel_like_condition(condition_token)?;
@@ -214,12 +217,20 @@ pub fn parse_instruction(
             "CCMP" => match (&ops[1], &ops[2]) {
                 (Operand::Imm(_), Operand::Imm(_)) => OpCode::CCMPImm(cond),
                 (Operand::Reg(_), Operand::Imm(_)) => OpCode::CCMPReg(cond),
-                _ => return Err(EmuError::InternalError("Invalid operands for CCMP".into())),
+                _ => {
+                    return Err(EmuError::AssemblerError {
+                        message: "Invalid operands for CCMP".into(),
+                    });
+                }
             },
             "CCMN" => match (&ops[1], &ops[2]) {
                 (Operand::Imm(_), Operand::Imm(_)) => OpCode::CCMNImm(cond),
                 (Operand::Reg(_), Operand::Imm(_)) => OpCode::CCMNReg(cond),
-                _ => return Err(EmuError::InternalError("Invalid operands for CCMN".into())),
+                _ => {
+                    return Err(EmuError::AssemblerError {
+                        message: "Invalid operands for CCMN".into(),
+                    });
+                }
             },
             _ => unreachable!(),
         };
@@ -262,10 +273,9 @@ pub fn parse_condition(full_mnemonic: &str) -> EmuResult<Condition> {
         "VC" => Ok(Condition::Vc),
         "HI" => Ok(Condition::Hi),
         "LS" => Ok(Condition::Ls),
-        _ => Err(EmuError::InternalError(format!(
-            "Invalid condition code: {}",
-            cond_str
-        ))),
+        _ => Err(EmuError::AssemblerError {
+            message: format!("Invalid condition code: {}", cond_str),
+        }),
     }
 }
 
@@ -415,10 +425,9 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
                 let condition = parse_condition(&full_mnemonic)?;
                 Ok(OpCode::B(condition))
             } else {
-                Err(EmuError::InternalError(format!(
-                    "Unknown mnemonic: {}",
-                    full_mnemonic
-                )))
+                Err(EmuError::AssemblerError {
+                    message: format!("Unknown mnemonic: {}", full_mnemonic),
+                })
             }
         }
     }

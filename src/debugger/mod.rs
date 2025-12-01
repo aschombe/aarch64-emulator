@@ -351,9 +351,11 @@ fn handle_command(
 
         // Set breakpoint
         ["b", line_str] | ["break", line_str] => {
-            let line = line_str.parse::<usize>().map_err(|_| {
-                EmuError::InternalError(format!("Invalid line number: {}", line_str))
-            })?;
+            let line = line_str
+                .parse::<usize>()
+                .map_err(|_| EmuError::DebuggerError {
+                    message: format!("Invalid line number: {}", line_str),
+                })?;
             dbg.breakpoints.insert(line);
             Ok((
                 true,
@@ -364,9 +366,11 @@ fn handle_command(
 
         // Delete breakpoint
         ["d", line_str] | ["delete", line_str] => {
-            let line = line_str.parse::<usize>().map_err(|_| {
-                EmuError::InternalError(format!("Invalid line number: {}", line_str))
-            })?;
+            let line = line_str
+                .parse::<usize>()
+                .map_err(|_| EmuError::DebuggerError {
+                    message: format!("Invalid line number: {}", line_str),
+                })?;
             dbg.breakpoints.remove(&line);
             Ok((
                 true,
@@ -377,11 +381,17 @@ fn handle_command(
 
         // Examine memory (x <size> <addr>)
         ["x", size_str, addr_str] => {
-            let size = size_str.parse::<usize>().map_err(|_| {
-                EmuError::InternalError(format!("Invalid memory size: {}", size_str))
-            })?;
-            let addr = Word::from_str_radix(addr_str.trim_start_matches("0x"), 16)
-                .map_err(|_| EmuError::InternalError(format!("Invalid address: {}", addr_str)))?;
+            let size = size_str
+                .parse::<usize>()
+                .map_err(|_| EmuError::DebuggerError {
+                    message: format!("Invalid memory size: {}", size_str),
+                })?;
+            let addr =
+                Word::from_str_radix(addr_str.trim_start_matches("0x"), 16).map_err(|_| {
+                    EmuError::DebuggerError {
+                        message: format!("Invalid memory address: {}", addr_str),
+                    }
+                })?;
             match cpu.memory.borrow().read_bytes(addr, size) {
                 Ok(bytes) => {
                     let hex = bytes
@@ -395,7 +405,7 @@ fn handle_command(
                         Some(format!("0x{:016X}: {}", addr, hex)),
                     ))
                 }
-                Err(EmuError::MemoryAccessViolation(_)) => Ok((
+                Err(EmuError::MemoryAccessViolation { addr }) => Ok((
                     true,
                     dbg.last_command,
                     Some(format!(

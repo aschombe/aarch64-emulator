@@ -54,10 +54,13 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rd_id, src_val as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError(format!(
-                    "Invalid MOV operands: {:?}",
-                    operands
-                ))),
+                // _ => Err(EmuError::InternalError(format!(
+                //     "Invalid MOV operands: {:?}",
+                //     operands
+                // ))),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid MOV operands: {:?}", operands),
+                }),
             },
             OpCode::MOV(MovType::K) => match operands {
                 [dest_op, Operand::Imm(Immediate::Lit(v))] => {
@@ -81,10 +84,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rd_id, shifted as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError(format!(
-                    "Invalid MOV K operands: {:?}",
-                    operands
-                ))),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid MOV K operands: {:?}", operands),
+                }),
             },
             OpCode::MOV(MovType::Z) => match operands {
                 [dest_op, Operand::Imm(Immediate::Lit(v))] => {
@@ -122,10 +124,9 @@ impl InstructionDataTransfer for CpuState {
                     *self.cpsr.borrow_mut() = cpsr;
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError(format!(
-                    "Invalid MOV Z operands: {:?}",
-                    operands
-                ))),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid MOV Z operands: {:?}", operands),
+                }),
             },
             OpCode::MOV(MovType::N) => match operands {
                 [dest_op, Operand::Imm(Immediate::Lit(v))] => {
@@ -165,15 +166,13 @@ impl InstructionDataTransfer for CpuState {
                     *self.cpsr.borrow_mut() = cpsr;
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError(format!(
-                    "Invalid MOV N operands: {:?}",
-                    operands
-                ))),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid MOV N operands: {:?}", operands),
+                }),
             },
-            _ => Err(EmuError::InternalError(format!(
-                "Invalid MOV opcode: {:?}",
-                opcode
-            ))),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid MOV opcode: {:?}", opcode),
+            }),
         }
     }
 
@@ -189,15 +188,16 @@ impl InstructionDataTransfer for CpuState {
                             Some(x) => *x as Word,
                             None => {
                                 if self.program.extern_labels.contains(label) {
-                                    return Err(EmuError::InternalError(format!(
-                                        "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                        label
-                                    )));
+                                    return Err(EmuError::CpuError {
+                                        message: format!(
+                                            "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                            label
+                                        ),
+                                    });
                                 } else {
-                                    return Err(EmuError::InternalError(format!(
-                                        "Undefined label: {}",
-                                        label
-                                    )));
+                                    return Err(EmuError::CpuError {
+                                        message: format!("Undefined label: {}", label),
+                                    });
                                 }
                             }
                         };
@@ -209,10 +209,9 @@ impl InstructionDataTransfer for CpuState {
                                 OpCode::ADR => raw,
                                 OpCode::ADRP => raw & 0xFFFF_FFFF_FFFF_F000,
                                 _ => {
-                                    return Err(EmuError::InternalError(format!(
-                                        "Invalid ADR opcode: {:?}",
-                                        opcode
-                                    )));
+                                    return Err(EmuError::CpuError {
+                                        message: format!("Invalid ADR opcode: {:?}", opcode),
+                                    });
                                 }
                             }
                         } else {
@@ -227,28 +226,25 @@ impl InstructionDataTransfer for CpuState {
                             OpCode::ADR => *addr as Word,
                             OpCode::ADRP => (*addr as Word) & 0xFFFF_FFFF_FFFF_F000,
                             _ => {
-                                return Err(EmuError::InternalError(format!(
-                                    "Invalid ADR opcode: {:?}",
-                                    opcode
-                                )));
+                                return Err(EmuError::CpuError {
+                                    message: format!("Invalid ADR opcode: {:?}", opcode),
+                                });
                             }
                         }
                     }
                     _ => {
-                        return Err(EmuError::InternalError(format!(
-                            "Invalid ADR immediate type: {:?}",
-                            immediate
-                        )));
+                        return Err(EmuError::CpuError {
+                            message: format!("Invalid ADR immediate type: {:?}", immediate),
+                        });
                     }
                 };
 
                 self.set_reg_with_width(rd_id, target_addr as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError(format!(
-                "Invalid ADR operands: {:?}",
-                operands
-            ))),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid ADR operands: {:?}", operands),
+            }),
         }
     }
 
@@ -268,7 +264,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, address_value as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDR operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDR operands: {:?}", operands),
+                }),
             },
             OpCode::LDP => match operands {
                 [dest_op1, dest_op2, Operand::Offset(offset)] => {
@@ -281,7 +279,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt2_id, value2 as i64, is_w2);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDP operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDP operands: {:?}", operands),
+                }),
             },
             OpCode::LDPSW => match operands {
                 [dest_op1, dest_op2, Operand::Offset(offset)] => {
@@ -296,7 +296,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt2_id, value2 as i64, is_w2);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDPSW operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDPSW operands: {:?}", operands),
+                }),
             },
             OpCode::LDRB => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -306,7 +308,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, byte_value as i64 & 0xFF, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDRB operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDRB operands: {:?}", operands),
+                }),
             },
             OpCode::LDRH => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -317,7 +321,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, halfword_value as i64 & 0xFFFF, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDRH operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDRH operands: {:?}", operands),
+                }),
             },
             OpCode::LDRSB => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -328,7 +334,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDRSB operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDRSB operands: {:?}", operands),
+                }),
             },
             OpCode::LDRSH => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -339,7 +347,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDRSH operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDRSH operands: {:?}", operands),
+                }),
             },
             OpCode::LDRSW => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -350,7 +360,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDRSW operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDRSW operands: {:?}", operands),
+                }),
             },
             OpCode::LDUR => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -360,7 +372,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, value as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDUR operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDUR operands: {:?}", operands),
+                }),
             },
             OpCode::LDURB => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -370,7 +384,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, byte_value as i64 & 0xFF, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDRUB operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDURB operands: {:?}", operands),
+                }),
             },
             OpCode::LDURH => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -381,7 +397,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, halfword_value as i64 & 0xFFFF, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDRUH operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDURH operands: {:?}", operands),
+                }),
             },
             OpCode::LDURSB => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -392,7 +410,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDURSB operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDURSB operands: {:?}", operands),
+                }),
             },
             OpCode::LDURSH => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -403,7 +423,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDURSH operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDURSH operands: {:?}", operands),
+                }),
             },
             OpCode::LDURSW => match operands {
                 [dest_op, Operand::Offset(offset)] => {
@@ -414,9 +436,13 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rt_id, sign_extended as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid LDURSW operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid LDURSW operands: {:?}", operands),
+                }),
             },
-            _ => Err(EmuError::InternalError("Invalid LDR opcode".into())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid LDR opcode: {:?}", opcode),
+            }),
         }
     }
 
@@ -461,7 +487,9 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg(reg_id, new_base as i64);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid STR operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid STR operands: {:?}", operands),
+                }),
             },
             OpCode::STP => match operands {
                 [source_op1, source_op2, Operand::Offset(offset)] => {
@@ -476,7 +504,9 @@ impl InstructionDataTransfer for CpuState {
                         .write_word(effective_addr + 8, value2)?;
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid STP operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid STP operands: {:?}", operands),
+                }),
             },
             OpCode::STRB => match operands {
                 [source_op, Operand::Offset(offset)] => {
@@ -485,7 +515,9 @@ impl InstructionDataTransfer for CpuState {
                     self.memory.borrow_mut().write_byte(effective_addr, value)?;
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid STRB operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid STRB operands: {:?}", operands),
+                }),
             },
             OpCode::STRH => match operands {
                 [source_op, Operand::Offset(offset)] => {
@@ -496,7 +528,9 @@ impl InstructionDataTransfer for CpuState {
                         .write_halfword(effective_addr, value as u32)?;
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid STRH operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid STRH operands: {:?}", operands),
+                }),
             },
             OpCode::STUR => match operands {
                 [source_op, Operand::Offset(offset)] => {
@@ -505,7 +539,9 @@ impl InstructionDataTransfer for CpuState {
                     self.memory.borrow_mut().write_word(effective_addr, value)?;
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid STUR operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid STUR operands: {:?}", operands),
+                }),
             },
             OpCode::STURB => match operands {
                 [source_op, Operand::Offset(offset)] => {
@@ -514,7 +550,9 @@ impl InstructionDataTransfer for CpuState {
                     self.memory.borrow_mut().write_byte(effective_addr, value)?;
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid STURB operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid STURB operands: {:?}", operands),
+                }),
             },
             OpCode::STURH => match operands {
                 [source_op, Operand::Offset(offset)] => {
@@ -525,9 +563,13 @@ impl InstructionDataTransfer for CpuState {
                         .write_halfword(effective_addr, value as u32)?;
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid STURH operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid STURH operands: {:?}", operands),
+                }),
             },
-            _ => Err(EmuError::InternalError("Invalid STR opcode".into())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid STR opcode: {:?}", opcode),
+            }),
         }
     }
 
@@ -536,15 +578,16 @@ impl InstructionDataTransfer for CpuState {
             Some(x) => *x as Word,
             None => {
                 if self.program.extern_labels.contains(label) {
-                    return Err(EmuError::InternalError(format!(
-                        "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                        label
-                    )));
+                    return Err(EmuError::CpuError {
+                        message: format!(
+                            "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                            label
+                        ),
+                    });
                 } else {
-                    return Err(EmuError::InternalError(format!(
-                        "Undefined label: {}",
-                        label
-                    )));
+                    return Err(EmuError::CpuError {
+                        message: format!("Undefined label: {}", label),
+                    });
                 }
             }
         };
@@ -567,15 +610,16 @@ impl InstructionDataTransfer for CpuState {
                         Some(x) => *x as Word,
                         None => {
                             if cpu.program.extern_labels.contains(label) {
-                                return Err(EmuError::InternalError(format!(
-                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                    label
-                                )));
+                                return Err(EmuError::CpuError {
+                                    message: format!(
+                                        "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                        label
+                                    ),
+                                });
                             }
-                            return Err(EmuError::InternalError(format!(
-                                "Undefined label: {}",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!("Undefined label: {}", label),
+                            });
                         }
                     };
                     let is_addr = *cpu.program.label_is_addr.get(label).unwrap_or(&false);
@@ -590,15 +634,16 @@ impl InstructionDataTransfer for CpuState {
                         Some(x) => *x as Word,
                         None => {
                             if cpu.program.extern_labels.contains(label) {
-                                return Err(EmuError::InternalError(format!(
-                                    "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
-                                    label
-                                )));
+                                return Err(EmuError::CpuError {
+                                    message: format!(
+                                        "Attempted to call or branch to extern function '{}' but it was not defined in any input file.",
+                                        label
+                                    ),
+                                });
                             }
-                            return Err(EmuError::InternalError(format!(
-                                "Undefined label: {}",
-                                label
-                            )));
+                            return Err(EmuError::CpuError {
+                                message: format!("Undefined label: {}", label),
+                            });
                         }
                     };
                     let is_addr = *cpu.program.label_is_addr.get(label).unwrap_or(&false);
@@ -666,10 +711,12 @@ impl InstructionDataTransfer for CpuState {
                     Operand::Reg(reg) => self.get_reg(reg.to_id()),
                     Operand::RegWithMod(modop) => resolve_regwithmod(modop, self)?,
                     _ => {
-                        return Err(EmuError::InternalError(format!(
-                            "Unsupported indexed addressing form for Ind5: {:?}",
-                            index_mod_op
-                        )));
+                        return Err(EmuError::CpuError {
+                            message: format!(
+                                "Unsupported indexed addressing form for Ind5: {:?}",
+                                index_mod_op
+                            ),
+                        });
                     }
                 };
                 Ok(base_val.wrapping_add(idx_val))
@@ -690,10 +737,12 @@ impl InstructionDataTransfer for CpuState {
                     Operand::Reg(reg) => self.get_reg(reg.to_id()),
                     Operand::RegWithMod(modop) => resolve_regwithmod(modop, self)?,
                     _ => {
-                        return Err(EmuError::InternalError(format!(
-                            "Unsupported pre-indexed register offset: {:?}",
-                            idx_op
-                        )));
+                        return Err(EmuError::CpuError {
+                            message: format!(
+                                "Unsupported pre-indexed register offset: {:?}",
+                                idx_op
+                            ),
+                        });
                     }
                 };
                 let new_base = base_addr.wrapping_add(idx_val);
@@ -716,10 +765,12 @@ impl InstructionDataTransfer for CpuState {
                     Operand::Reg(reg) => self.get_reg(reg.to_id()),
                     Operand::RegWithMod(modop) => resolve_regwithmod(modop, self)?,
                     _ => {
-                        return Err(EmuError::InternalError(format!(
-                            "Unsupported post-indexed register offset: {:?}",
-                            idx_op
-                        )));
+                        return Err(EmuError::CpuError {
+                            message: format!(
+                                "Unsupported post-indexed register offset: {:?}",
+                                idx_op
+                            ),
+                        });
                     }
                 };
                 let new_base = base_addr.wrapping_add(idx_val);

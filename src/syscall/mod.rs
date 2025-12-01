@@ -220,10 +220,9 @@ pub fn handle_syscall(state: &mut CpuState) -> EmuResult<bool> {
 
         _ => {
             println!("[SYS] UNKNOWN syscall {}", syscall_num);
-            Err(EmuError::InternalError(format!(
-                "Unimplemented system call number: {}",
-                syscall_num
-            )))
+            Err(EmuError::SyscallError {
+                message: format!("Unimplemented system call number: {}", syscall_num),
+            })
         }
     }
 }

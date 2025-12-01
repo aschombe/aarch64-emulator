@@ -49,8 +49,10 @@ pub fn assemble_multiple_files(
     let equ_map: HashMap<String, i64> = HashMap::new();
 
     for path in file_paths {
-        let raw_content = fs::read_to_string(path)
-            .map_err(|e| EmuError::IoError(format!("Failed to open {}: {}", path, e)))?;
+        let raw_content = fs::read_to_string(path).map_err(|e| EmuError::FileError {
+            path: Some(path.clone()),
+            message: format!("Failed to open {}: {}", path, e),
+        })?;
         let lines: Vec<String> = raw_content.lines().map(|s| s.to_string()).collect();
         for line in &lines {
             let line_content = line.trim();
@@ -171,10 +173,9 @@ fn flatten_and_resolve(
         if label_to_ip.contains_key(&block.label)
             && matches!(block.content, AssemblyContent::Text(_))
         {
-            return Err(EmuError::InternalError(format!(
-                "Duplicate label definition: {}",
-                block.label
-            )));
+            return Err(EmuError::AssemblerError {
+                message: format!("Duplicate label definition: {}", block.label),
+            });
         }
 
         match &block.content {
@@ -224,10 +225,9 @@ fn flatten_and_resolve(
     if label_to_ip.contains_key(entry_label) {
         entry_ip = *label_to_ip.get(entry_label).unwrap() as usize;
     } else if entry_ip == 0 {
-        return Err(EmuError::InternalError(format!(
-            "Entry point label '{}' not found in program",
-            entry_label
-        )));
+        return Err(EmuError::CustomEntryPointNotFound {
+            symbol: entry_label.to_string(),
+        });
     }
 
     for (ir, line_num) in ir_to_line_map {

@@ -90,7 +90,12 @@ impl InstructionDataProcessing for CpuState {
                 }
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Bad binary op".into())),
+            _ => Err(EmuError::CpuError {
+                message: format!(
+                    "Invalid binary operation operands for operation: {:?} operands: {:?}",
+                    opfunc, operands
+                ),
+            }),
         }
     }
 
@@ -104,7 +109,9 @@ impl InstructionDataProcessing for CpuState {
 
             Ok(false)
         } else {
-            Err(EmuError::InternalError("Invalid CMP".into()))
+            Err(EmuError::CpuError {
+                message: format!("Invalid CMP operands: {:?}", operands),
+            })
         }
     }
 
@@ -115,9 +122,9 @@ impl InstructionDataProcessing for CpuState {
                 let b = match imm {
                     Immediate::Lit(val) => *val as Word,
                     Immediate::Lbl(_) | Immediate::Lo12Lbl(_) => {
-                        return Err(EmuError::InternalError(format!(
-                            "CMN does not support label immediates"
-                        )));
+                        return Err(EmuError::CpuError {
+                            message: "CMN does not support label immediates".into(),
+                        });
                     }
                 };
                 let res = a.wrapping_add(b);
@@ -135,10 +142,9 @@ impl InstructionDataProcessing for CpuState {
                 self.update_cpsr_nzcv(res, carry, overflow, false, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError(format!(
-                "Invalid CMN operands: {:?}",
-                operands
-            ))),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid CMN operands: {:?}", operands),
+            }),
         }
     }
 
@@ -152,7 +158,9 @@ impl InstructionDataProcessing for CpuState {
                 self.update_cpsr_nzcv(result, carry, overflow, false, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Bad TST operands".into())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid TST operands: {:?}", operands),
+            }),
         }
     }
 
@@ -168,10 +176,9 @@ impl InstructionDataProcessing for CpuState {
                 }
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError(format!(
-                "Invalid operands for NEG/NEGS: {:?}",
-                operands
-            ))),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid NEG/NEGS operands: {:?}", operands),
+            }),
         }
     }
 
@@ -188,7 +195,9 @@ impl InstructionDataProcessing for CpuState {
                     self.set_reg_with_width(dest_id, old_val as i64, is_w);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid SWP operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid SWP operands: {:?}", operands),
+                }),
             },
             OpCode::SWPB => match operands {
                 [dest_op, src_op, Operand::Offset(Offset::Ind2(addr_reg))] => {
@@ -201,7 +210,9 @@ impl InstructionDataProcessing for CpuState {
                     self.set_reg_with_width(dest_id, old_val as i64, true);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid SWPB operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid SWPB operands: {:?}", operands),
+                }),
             },
             OpCode::SWPH => match operands {
                 [dest_op, src_op, Operand::Offset(Offset::Ind2(addr_reg))] => {
@@ -216,7 +227,9 @@ impl InstructionDataProcessing for CpuState {
                     self.set_reg_with_width(dest_id, old_val as i64, true);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid SWPH operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid SWPH operands: {:?}", operands),
+                }),
             },
             OpCode::SWPP => match operands {
                 [
@@ -240,9 +253,13 @@ impl InstructionDataProcessing for CpuState {
                     self.set_reg_with_width(rd2, old2 as i64, false);
                     Ok(false)
                 }
-                _ => Err(EmuError::InternalError("Invalid SWPP operands".into())),
+                _ => Err(EmuError::CpuError {
+                    message: format!("Invalid SWPP operands: {:?}", operands),
+                }),
             },
-            _ => Err(EmuError::InternalError("Invalid SWP opcode".into())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid SWP opcode: {:?}", opcode),
+            }),
         }
     }
 
@@ -261,9 +278,9 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError(
-                "Invalid operands for min/max.".to_string(),
-            )),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid MIN/MAX operands: {:?}", operands),
+            }),
         }
     }
 
@@ -281,7 +298,9 @@ impl InstructionDataProcessing for CpuState {
                 }
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Invalid ADC operands.".to_string())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid ADC operands: {:?}", operands),
+            }),
         }
     }
 
@@ -299,7 +318,9 @@ impl InstructionDataProcessing for CpuState {
                 }
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Invalid SBC operands.".to_string())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid SBC operands: {:?}", operands),
+            }),
         }
     }
 
@@ -316,7 +337,9 @@ impl InstructionDataProcessing for CpuState {
                 }
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Invalid NGC operands.".to_string())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid NGC operands: {:?}", operands),
+            }),
         }
     }
 
@@ -343,9 +366,9 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError(
-                "Invalid operands for ABS".to_string(),
-            )),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid ABS operands: {:?}", operands),
+            }),
         }
     }
 
@@ -360,7 +383,9 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Invalid MADD operands".to_string())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid MADD operands: {:?}", operands),
+            }),
         }
     }
     fn execute_msub(&mut self, operands: &[Operand]) -> EmuResult<bool> {
@@ -374,7 +399,9 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Invalid MSUB operands".to_string())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid MSUB operands: {:?}", operands),
+            }),
         }
     }
     fn execute_mneg(&mut self, operands: &[Operand]) -> EmuResult<bool> {
@@ -387,7 +414,9 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Invalid MNEG operands".to_string())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid MNEG operands: {:?}", operands),
+            }),
         }
     }
     // Same style for wide variants
@@ -406,9 +435,12 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, false); // These always write 64-bit
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError(
-                "Invalid wide 3-op operands".to_string(),
-            )),
+            _ => Err(EmuError::CpuError {
+                message: format!(
+                    "Invalid wide 3-op operands for operation: {:?} operands: {:?}",
+                    op, operands
+                ),
+            }),
         }
     }
     fn execute_wide_2op(
@@ -425,9 +457,12 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, false);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError(
-                "Invalid wide 2-op operands".to_string(),
-            )),
+            _ => Err(EmuError::CpuError {
+                message: format!(
+                    "Invalid wide 2-op operands for operation: {:?} operands: {:?}",
+                    op, operands
+                ),
+            }),
         }
     }
 
@@ -440,7 +475,13 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Invalid bit op operands".into())),
+            // _ => Err(EmuError::InternalError("Invalid bit op operands".into())),
+            _ => Err(EmuError::CpuError {
+                message: format!(
+                    "Invalid bit op operands for operation: {:?} operands: {:?}",
+                    op, operands
+                ),
+            }),
         }
     }
 
@@ -558,9 +599,12 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, chosen as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError(
-                "Invalid operands for conditional select".into(),
-            )),
+            _ => Err(EmuError::CpuError {
+                message: format!(
+                    "Invalid operands for conditional select: {:?} operands: {:?}",
+                    op, operands
+                ),
+            }),
         }
     }
 
@@ -581,7 +625,9 @@ impl InstructionDataProcessing for CpuState {
             }
             Ok(false)
         } else {
-            Err(EmuError::InternalError("Bad CCMP reg ops".into()))
+            Err(EmuError::CpuError {
+                message: format!("Bad CCMP reg operands: {:?}", operands),
+            })
         }
     }
 
@@ -606,7 +652,9 @@ impl InstructionDataProcessing for CpuState {
             }
             Ok(false)
         } else {
-            Err(EmuError::InternalError("Bad CCMP imm ops".into()))
+            Err(EmuError::CpuError {
+                message: format!("Bad CCMP imm operands: {:?}", operands),
+            })
         }
     }
 
@@ -626,7 +674,9 @@ impl InstructionDataProcessing for CpuState {
             }
             Ok(false)
         } else {
-            Err(EmuError::InternalError("Bad CCMN reg ops".into()))
+            Err(EmuError::CpuError {
+                message: format!("Bad CCMN reg operands: {:?}", operands),
+            })
         }
     }
 
@@ -650,7 +700,9 @@ impl InstructionDataProcessing for CpuState {
             }
             Ok(false)
         } else {
-            Err(EmuError::InternalError("Bad CCMN imm ops".into()))
+            Err(EmuError::CpuError {
+                message: format!("Bad CCMN imm operands: {:?}", operands),
+            })
         }
     }
 
@@ -663,7 +715,9 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError("Invalid MVN operands".to_string())),
+            _ => Err(EmuError::CpuError {
+                message: format!("Invalid MVN operands: {:?}", operands),
+            }),
         }
     }
 
@@ -681,9 +735,12 @@ impl InstructionDataProcessing for CpuState {
                 self.set_reg_with_width(rd, result as i64, is_w);
                 Ok(false)
             }
-            _ => Err(EmuError::InternalError(
-                "Invalid operands for extension".into(),
-            )),
+            _ => Err(EmuError::CpuError {
+                message: format!(
+                    "Invalid operands for extension operation: {:?} operands: {:?}",
+                    op, operands
+                ),
+            }),
         }
     }
 }

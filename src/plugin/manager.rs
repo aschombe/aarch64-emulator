@@ -52,20 +52,21 @@ impl PluginManager {
             let globals = plugin.lua_vm.globals();
             let snapshot = create_snapshot(cpu, &plugin.plugin_name);
 
-            globals.set("cpu", snapshot.clone()).map_err(|e| {
-                EmuError::InternalError(format!(
-                    "[PluginManager][Lua] Error injecting snapshot: {}",
-                    e
-                ))
-            })?;
+            globals
+                .set("cpu", snapshot.clone())
+                .map_err(|e| EmuError::PluginError {
+                    message: format!("[PluginManager][Lua] Error injecting snapshot: {}", e),
+                })?;
 
             if let Some(fn_name) = plugin.hook_map.get(&hook_name) {
                 if let Ok(func) = globals.get::<mlua::Function>(fn_name.as_str()) {
                     if let Err(e) = func.call::<()>(()) {
-                        return Err(EmuError::InternalError(format!(
-                            "[PluginManager][{}] Error calling '{}' hook: {}",
-                            plugin.plugin_name, fn_name, e
-                        )));
+                        return Err(EmuError::PluginError {
+                            message: format!(
+                                "[PluginManager][Lua][{}] Error calling '{}' hook: {}",
+                                plugin.plugin_name, fn_name, e
+                            ),
+                        });
                     }
                 }
             }
@@ -75,14 +76,21 @@ impl PluginManager {
 
     pub fn load_lua_plugin(&mut self, file_path: &str, plugin_name: String) -> EmuResult<()> {
         let script_code = fs::read_to_string(file_path).map_err(|e| {
-            EmuError::IoError(format!("Failed to read Lua script {}: {}", file_path, e))
+            // EmuError::IoError(format!("Failed to read Lua script {}: {}", file_path, e))
+            EmuError::FileError {
+                path: Some(file_path.to_string()),
+                message: format!("Failed to read Lua script {}: {}", file_path, e),
+            }
         })?;
         let lua = Lua::new();
-        initialize_lua_environment(&lua)
-            .map_err(|e| EmuError::InternalError(format!("Lua env init failed: {}", e)))?;
+        initialize_lua_environment(&lua).map_err(|e| EmuError::PluginError {
+            message: format!("Lua env init failed: {}", e),
+        })?;
         lua.load(&script_code)
             .exec()
-            .map_err(|e| EmuError::InternalError(format!("Lua initial execution failed: {}", e)))?;
+            .map_err(|e| EmuError::PluginError {
+                message: format!("Lua initial execution failed: {}", e),
+            })?;
 
         let hook_map = HashMap::from([
             ("on_plugin_load".to_string(), "on_plugin_load".to_string()),
