@@ -405,7 +405,10 @@ fn handle_command(
                         Some(format!("0x{:016X}: {}", addr, hex)),
                     ))
                 }
-                Err(EmuError::MemoryAccessViolation { addr }) => Ok((
+                Err(EmuError::MemoryAccessViolation {
+                    addr,
+                    snippet: None, // TODO: add snippet?
+                }) => Ok((
                     true,
                     dbg.last_command,
                     Some(format!(

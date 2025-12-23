@@ -21,6 +21,7 @@ pub fn parse_operand(
     if token.is_empty() {
         return Err(EmuError::AssemblerError {
             message: "Operand is empty.".to_string(),
+            snippet: None, // TODO: add snippet
         });
     }
 
@@ -39,6 +40,7 @@ pub fn parse_operand(
         } else {
             return Err(EmuError::AssemblerError {
                 message: format!("Invalid pre-indexed address format: '{}'", token),
+                snippet: None, // TODO: add snippet
             });
         }
     }
@@ -82,6 +84,7 @@ pub fn parse_operand(
             _ => {
                 return Err(EmuError::AssemblerError {
                     message: format!("Invalid offset format: '{}'", token),
+                    snippet: None, // TODO: add snippet
                 });
             }
         }
@@ -115,6 +118,7 @@ pub fn parse_operand(
                             "Immediate with shift/extend not supported for label immediates: {}",
                             s
                         ),
+                        snippet: None, // TODO: add snippet
                     });
                 }
             };
@@ -195,5 +199,6 @@ pub fn parse_operand(
 
     Err(EmuError::AssemblerError {
         message: format!("Unrecognized token/operand: {}", token),
+        snippet: None, // TODO: add snippet
     })
 }

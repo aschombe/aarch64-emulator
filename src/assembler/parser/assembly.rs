@@ -6,7 +6,7 @@ use super::instruction::parse_instruction;
 use super::utils::{clean_source_code, mangle_label};
 use crate::assembler::Data;
 use crate::assembler::asm_types::{AssemblyBlock, AssemblyContent, InstructionIR};
-use crate::types::{EmuError, EmuResult};
+use crate::types::{EmuError, EmuResult, Snippet};
 use std::collections::{HashMap, HashSet};
 
 pub struct AsmParser;
@@ -250,6 +250,10 @@ impl AsmParser {
                                 "Malformed .rept directive on line {}: '{}'",
                                 original_line_number, directive_line
                             ),
+                            snippet: Some(Snippet::new(
+                                original_line_number,
+                                directive_line.to_string(),
+                            )),
                         });
                     }
                     rept_count =
@@ -260,6 +264,10 @@ impl AsmParser {
                                     "Could not parse .rept repeat count: '{}' on line {}",
                                     tokens[1], original_line_number
                                 ),
+                                snippet: Some(Snippet::new(
+                                    original_line_number,
+                                    directive_line.to_string(),
+                                )),
                             })?;
                     in_rept = true;
                     rept_line_number = original_line_number;

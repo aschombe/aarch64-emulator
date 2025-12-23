@@ -101,6 +101,7 @@ pub fn parse_reg(s: &str) -> EmuResult<Reg> {
         "SP" => Ok(Reg::SP),
         _ => Err(EmuError::AssemblerError {
             message: format!("Invalid register name: {}", s),
+            snippet: None, // TODO: add snippet
         }),
     }
 }

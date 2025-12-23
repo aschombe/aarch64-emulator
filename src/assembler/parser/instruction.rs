@@ -20,6 +20,7 @@ pub fn parse_instruction(
     if full_mnemonic.is_empty() {
         return Err(EmuError::AssemblerError {
             message: "Empty instruction line.".to_string(),
+            snippet: None,
         });
     }
     let rest_of_line_parts: Vec<&str> = parts.collect();
@@ -33,6 +34,7 @@ pub fn parse_instruction(
         } else {
             return Err(EmuError::AssemblerError {
                 message: format!("Instruction '{}' requires operands.", full_mnemonic),
+                snippet: None, // TODO: add snippet
             });
         }
     }
@@ -174,6 +176,7 @@ pub fn parse_instruction(
                     "Instruction '{}' requires at least two operands.",
                     full_mnemonic
                 ),
+                snippet: None, // TODO: add snippet
             });
         }
         let condition_token = tokens.last().unwrap();
@@ -205,6 +208,7 @@ pub fn parse_instruction(
                     "Instruction '{}' requires at least four operands.",
                     full_mnemonic
                 ),
+                snippet: None, // TODO: add snippet
             });
         }
         let condition_token = tokens.last().unwrap();
@@ -220,6 +224,7 @@ pub fn parse_instruction(
                 _ => {
                     return Err(EmuError::AssemblerError {
                         message: "Invalid operands for CCMP".into(),
+                        snippet: None, // TODO: add snippet
                     });
                 }
             },
@@ -229,6 +234,7 @@ pub fn parse_instruction(
                 _ => {
                     return Err(EmuError::AssemblerError {
                         message: "Invalid operands for CCMN".into(),
+                        snippet: None, // TODO: add snippet
                     });
                 }
             },
@@ -275,6 +281,7 @@ pub fn parse_condition(full_mnemonic: &str) -> EmuResult<Condition> {
         "LS" => Ok(Condition::Ls),
         _ => Err(EmuError::AssemblerError {
             message: format!("Invalid condition code: {}", cond_str),
+            snippet: None, // TODO: add snippet
         }),
     }
 }
@@ -427,6 +434,7 @@ pub fn full_mnemonic_to_opcode(full_mnemonic: &str) -> EmuResult<OpCode> {
             } else {
                 Err(EmuError::AssemblerError {
                     message: format!("Unknown mnemonic: {}", full_mnemonic),
+                    snippet: None, // TODO: add snippet
                 })
             }
         }

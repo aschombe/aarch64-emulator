@@ -175,6 +175,7 @@ fn flatten_and_resolve(
         {
             return Err(EmuError::AssemblerError {
                 message: format!("Duplicate label definition: {}", block.label),
+                snippet: None, // TODO: add snippet
             });
         }
 

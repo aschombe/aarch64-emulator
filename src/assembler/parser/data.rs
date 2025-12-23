@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE for details.
 
 use crate::assembler::asm_types::Data;
-use crate::types::{EmuError, EmuResult};
+use crate::types::{EmuError, EmuResult, Snippet};
 use num_traits::{Num, NumCast};
 
 fn parse_char_literal(s: &str) -> Option<i64> {
@@ -64,12 +64,15 @@ pub fn parse_string_literal(literal: &str) -> EmuResult<Vec<u8>> {
                 Some('0') => 0,
                 Some(other) => {
                     return Err(EmuError::AssemblerError {
-                        message: format!("Unknown escape sequence: \\{}", other),
+                        message: format!("Unknown escape sequence:"),
+                        snippet: Some(Snippet::new(0, format!("Escape sequence: \\{}", other))),
                     });
                 }
                 None => {
+                    // TODO: make this one better
                     return Err(EmuError::AssemblerError {
                         message: "Incomplete escape sequence at end of string.".to_string(),
+                        snippet: Some(Snippet::new(0, "Incomplete escape sequence".to_string())),
                     });
                 }
             };
@@ -113,10 +116,8 @@ pub fn parse_data_definition(
             v
         } else {
             return Err(EmuError::AssemblerError {
-                message: format!(
-                    "Invalid .byte value on line {}: {}",
-                    original_line_number, line_content
-                ),
+                message: format!("Invalid .byte value:"),
+                snippet: Some(Snippet::new(original_line_number, line_content.to_string())),
             });
         };
         return Ok(Data::ByteArr(vec![value]));
@@ -124,10 +125,8 @@ pub fn parse_data_definition(
 
     if parts.len() < 2 {
         return Err(EmuError::AssemblerError {
-            message: format!(
-                "Data directive '{}' requires arguments on line {}.",
-                directive, original_line_number
-            ),
+            message: format!("Data directive '{}' missing arguments", directive),
+            snippet: Some(Snippet::new(original_line_number, line_content.to_string())),
         });
     }
 
@@ -153,10 +152,8 @@ pub fn parse_data_definition(
             match values {
                 Ok(v) => Ok(Data::ByteArr(v)),
                 Err(_) => Err(EmuError::AssemblerError {
-                    message: format!(
-                        "Invalid .byte values on line {}: {}",
-                        original_line_number, line_content
-                    ),
+                    message: format!("Invalid .byte values:"),
+                    snippet: Some(Snippet::new(original_line_number, line_content.to_string())),
                 }),
             }
         }
@@ -170,10 +167,8 @@ pub fn parse_data_definition(
             match values {
                 Ok(v) => Ok(Data::FloatArr(v)),
                 Err(_) => Err(EmuError::AssemblerError {
-                    message: format!(
-                        "Invalid .single/.float values on line {}: {}",
-                        original_line_number, line_content
-                    ),
+                    message: format!("Invalid .single/.float values:"),
+                    snippet: Some(Snippet::new(original_line_number, line_content.to_string())),
                 }),
             }
         }
@@ -187,10 +182,8 @@ pub fn parse_data_definition(
             match values {
                 Ok(v) => Ok(Data::DoubleArr(v)),
                 Err(_) => Err(EmuError::AssemblerError {
-                    message: format!(
-                        "Invalid .double/.doubleword values on line {}: {}",
-                        original_line_number, line_content
-                    ),
+                    message: format!("Invalid .double/.doubleword values:"),
+                    snippet: Some(Snippet::new(original_line_number, line_content.to_string())),
                 }),
             }
         }
@@ -217,10 +210,8 @@ pub fn parse_data_definition(
             match values {
                 Ok(v) => Ok(Data::QuadArr(v)),
                 Err(_) => Err(EmuError::AssemblerError {
-                    message: format!(
-                        "Invalid .quad/.dword values on line {}: {}",
-                        original_line_number, line_content
-                    ),
+                    message: format!("Invalid .quad/.dword values:"),
+                    snippet: Some(Snippet::new(original_line_number, line_content.to_string())),
                 }),
             }
         }
@@ -247,10 +238,8 @@ pub fn parse_data_definition(
             match values {
                 Ok(v) => Ok(Data::IntArr(v)),
                 Err(_) => Err(EmuError::AssemblerError {
-                    message: format!(
-                        "Invalid .word/.int values on line {}: {}",
-                        original_line_number, line_content
-                    ),
+                    message: format!("Invalid .word/.int values:",),
+                    snippet: Some(Snippet::new(original_line_number, line_content.to_string())),
                 }),
             }
         }
@@ -258,10 +247,8 @@ pub fn parse_data_definition(
             let quote_pos = line_content
                 .find('"')
                 .ok_or_else(|| EmuError::AssemblerError {
-                    message: format!(
-                        "Missing opening quote for string literal on line {}: {}",
-                        original_line_number, line_content
-                    ),
+                    message: format!("Missing opening quote for string literal:"),
+                    snippet: Some(Snippet::new(original_line_number, line_content.to_string())),
                 })?;
             let literal = &line_content[quote_pos..];
             let mut bytes = parse_string_literal(literal)?;
@@ -332,10 +319,8 @@ pub fn parse_data_definition(
             Ok(Data::Align(alignment))
         }
         _ => Err(EmuError::AssemblerError {
-            message: format!(
-                "Unknown data directive '{}' on line {}: {}",
-                directive, original_line_number, line_content
-            ),
+            message: format!("Unknown data directive '{}':", directive),
+            snippet: Some(Snippet::new(original_line_number, line_content.to_string())),
         }),
     }
 }

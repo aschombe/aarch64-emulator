@@ -20,6 +20,7 @@ pub fn parse_immediate(
         } else {
             return Err(EmuError::AssemblerError {
                 message: format!("Invalid label after :lo12:: {}", label),
+                snippet: None, // TODO: add snippet
             });
         }
     }
@@ -56,12 +57,14 @@ pub fn parse_immediate(
                             "Invalid char escape: \\{} in immediate '{}'",
                             other, token
                         ),
+                        snippet: None, // TODO: add snippet
                     });
                 }
             }
         } else {
             return Err(EmuError::AssemblerError {
                 message: format!("Invalid char literal (too many chars): '{}'", token),
+                snippet: None, // TODO: add snippet
             });
         };
         return Ok(Immediate::Lit(ch as i64));
@@ -83,6 +86,7 @@ pub fn parse_immediate(
             Ok(v) => Ok(Immediate::Lit(v)),
             Err(e) => Err(EmuError::AssemblerError {
                 message: format!("Invalid number format '{}': {}", clean_token, e),
+                snippet: None, // TODO: add snippet
             }),
         }
     } else if is_label(clean_token) {
@@ -92,6 +96,7 @@ pub fn parse_immediate(
     } else {
         Err(EmuError::AssemblerError {
             message: format!("Invalid immediate value: {}", token),
+            snippet: None, // TODO: add snippet
         })
     }
 }

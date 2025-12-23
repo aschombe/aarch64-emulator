@@ -63,6 +63,7 @@ pub fn parse_elf(path: &str) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock
         .section_headers()
         .ok_or_else(|| EmuError::AssemblerError {
             message: format!("No section headers in ELF file: {}", path),
+            snippet: None,
         })?;
     let text_shdr = shdrs
         .iter()
@@ -73,6 +74,7 @@ pub fn parse_elf(path: &str) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock
         })
         .ok_or_else(|| EmuError::AssemblerError {
             message: format!(".text section not found in ELF file: {}", path),
+            snippet: None,
         })?;
 
     // Extract .text bytes
@@ -80,6 +82,7 @@ pub fn parse_elf(path: &str) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock
         .section_data(&text_shdr)
         .map_err(|e| EmuError::AssemblerError {
             message: format!("Failed to extract .text data: {:?}", e),
+            snippet: None,
         })?;
 
     // Extract .data, .rodata, .bss sections
@@ -92,6 +95,7 @@ pub fn parse_elf(path: &str) -> EmuResult<(InterpretedProgram, Vec<AssemblyBlock
                     .section_data(&sh)
                     .map_err(|e| EmuError::AssemblerError {
                         message: format!("Failed to extract {} data: {:?}", name, e),
+                        snippet: None,
                     })?;
                 let mut items = Vec::new();
                 // Chop into quad/word/byte as appropriate:
@@ -229,6 +233,7 @@ fn bad64_reg_to_ir(reg: bad64::Reg) -> EmuResult<Reg> {
         bad64::Reg::WSP => Ok(Reg::SP),
         _ => Err(EmuError::AssemblerError {
             message: format!("Unsupported register: {:?}", reg),
+            snippet: None,
         }),
     }
 }
@@ -366,6 +371,7 @@ fn bad64_opcode_to_ir(op: Op) -> EmuResult<OpCode> {
         Op::NOP => Ok(OpCode::NOP),
         _ => Err(EmuError::AssemblerError {
             message: format!("Unsupported instruction: {:?}", op),
+            snippet: None,
         }),
     }
 }
@@ -402,6 +408,7 @@ fn extract_shift_extend_type_and_amount(shift: &Option<Shift>) -> Option<(ShiftO
 fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
     let instr = decode(word, addr).map_err(|e| EmuError::AssemblerError {
         message: format!("Decode error at address {:#x}: {:?}", addr, e),
+        snippet: None,
     })?;
 
     let opcode = bad64_opcode_to_ir(instr.op())?;
@@ -453,6 +460,7 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                         }
                         _ => Err(EmuError::AssemblerError {
                             message: format!("Unsupported branch operand form: {:?}", op),
+                            snippet: None,
                         }),
                     }
                 })
@@ -490,6 +498,7 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                 }
                 Bad64Operand::FImm32(_fimm) => Err(EmuError::AssemblerError {
                     message: "FImm32 operands not yet supported".to_string(),
+                    snippet: None,
                 }),
                 Bad64Operand::ShiftReg { reg, shift } => {
                     let base_reg = bad64_reg_to_ir(*reg)?;
@@ -506,6 +515,7 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                 }
                 Bad64Operand::QualReg { reg: _, qual: _ } => Err(EmuError::AssemblerError {
                     message: "QualReg operands not yet supported".to_string(),
+                    snippet: None,
                 }),
                 Bad64Operand::Reg { reg, arrspec: _ } => {
                     let r = bad64_reg_to_ir(*reg)?;
@@ -516,9 +526,11 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                     arrspec: _,
                 } => Err(EmuError::AssemblerError {
                     message: "MultiReg operands not yet supported".to_string(),
+                    snippet: None,
                 }),
                 Bad64Operand::SysReg(_sysreg) => Err(EmuError::AssemblerError {
                     message: "SysReg operands not yet supported".to_string(),
+                    snippet: None,
                 }),
                 Bad64Operand::MemReg(reg) => {
                     let base_reg = bad64_reg_to_ir(*reg)?;
@@ -539,6 +551,7 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                             _ => {
                                 return Err(EmuError::AssemblerError {
                                     message: "Expected immediate for MemOffset".to_string(),
+                                    snippet: None,
                                 });
                             }
                         },
@@ -554,6 +567,7 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                             _ => {
                                 return Err(EmuError::AssemblerError {
                                     message: "Expected immediate for pre-index offset".to_string(),
+                                    snippet: None,
                                 });
                             }
                         },
@@ -577,6 +591,7 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                             _ => {
                                 return Err(EmuError::AssemblerError {
                                     message: "Expected immediate for post-index offset".to_string(),
+                                    snippet: None,
                                 });
                             }
                         },
@@ -616,9 +631,11 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                     imm: _,
                 } => Err(EmuError::AssemblerError {
                     message: "SmeTile operands not yet supported".to_string(),
+                    snippet: None,
                 }),
                 Bad64Operand::AccumArray { reg: _, imm: _ } => Err(EmuError::AssemblerError {
                     message: "AccumArray operands not yet supported".to_string(),
+                    snippet: None,
                 }),
                 Bad64Operand::IndexedElement {
                     regs,
@@ -634,6 +651,7 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                             _ => {
                                 return Err(EmuError::AssemblerError {
                                     message: "Expected immediate for IndexedElement".to_string(),
+                                    snippet: None,
                                 });
                             }
                         },
@@ -651,15 +669,19 @@ fn decode_bad64_to_ir(word: u32, addr: u64) -> EmuResult<InstructionIR> {
                     o2: _,
                 } => Err(EmuError::AssemblerError {
                     message: "ImplSpec operands not yet supported".to_string(),
+                    snippet: None,
                 }),
                 Bad64Operand::Cond(_cond) => Err(EmuError::AssemblerError {
                     message: "Cond operands not yet supported".to_string(),
+                    snippet: None,
                 }),
                 Bad64Operand::Name(_name) => Err(EmuError::AssemblerError {
                     message: "Name operands not yet supported".to_string(),
+                    snippet: None,
                 }),
                 Bad64Operand::StrImm { str: _, imm: _ } => Err(EmuError::AssemblerError {
                     message: "StrImm operands not yet supported".to_string(),
+                    snippet: None,
                 }),
             })
             .collect::<Result<Vec<_>, _>>()?,
