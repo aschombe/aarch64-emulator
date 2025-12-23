@@ -1,6 +1,6 @@
 	.section	__TEXT,__text,regular,pure_instructions
 	.build_version macos, 26, 0	sdk_version 26, 1
-	.globl	_fibbonacci                     ; -- Begin function fibbonacci
+	; .globl	_fibbonacci                     ; -- Begin function fibbonacci
 	.p2align	2
 _fibbonacci:                            ; @fibbonacci
 ; %bb.0:
