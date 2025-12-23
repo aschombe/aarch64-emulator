@@ -163,7 +163,7 @@ pub fn parse_instruction(
         .filter(|tok| !tok.trim().is_empty())
         .collect();
 
-    // --- Conditional Select (CSEL, CSINC, etc) ---
+    // Conditional Select (CSEL, CSINC, etc)
     let condsel_mnemonics = [
         "CSEL", "CSINC", "CSINV", "CSNEG", "CSET", "CSETM", "CINC", "CINV", "CNEG",
     ];
@@ -196,7 +196,7 @@ pub fn parse_instruction(
         }
         return Ok(InstructionIR { opcode, operands });
     }
-    // --- Conditional Compare (CCMP, CCMN) ---
+    // Conditional Compare (CCMP, CCMN)
     let condcmp_mnemonics = ["CCMP", "CCMN"];
     if condcmp_mnemonics.contains(&full_mnemonic.as_str()) {
         if tokens.len() < 4 {

@@ -54,7 +54,6 @@ pub fn load_data_into_cpu(cpu: &mut CpuState, data_blocks: &[AssemblyBlock]) -> 
                 }
             }
             _ => {
-                // Use base_addr if it's non-zero, else fallback to label_to_ip resolution
                 let mut base_addr = block.base_addr as Word;
                 if base_addr == 0 {
                     if let Some(addr) = cpu.program.label_to_ip.get(&block.label) {

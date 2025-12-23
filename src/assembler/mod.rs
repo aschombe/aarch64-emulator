@@ -191,7 +191,7 @@ fn flatten_and_resolve(
 
             // DATA SECTION: address
             AssemblyContent::Data(items) => {
-                label_to_ip.insert(block.label.clone(), current_data_addr_main); // ← UPDATE with real address
+                label_to_ip.insert(block.label.clone(), current_data_addr_main);
                 label_is_addr.insert(block.label.clone(), true);
                 let block_size: Word = items
                     .iter()
@@ -214,7 +214,7 @@ fn flatten_and_resolve(
 
             // BSS SECTION: address
             AssemblyContent::Bss(size) => {
-                label_to_ip.insert(block.label.clone(), current_data_addr_main); // ← UPDATE with real address
+                label_to_ip.insert(block.label.clone(), current_data_addr_main);
                 label_is_addr.insert(block.label.clone(), true);
                 current_data_addr_main += *size;
             }

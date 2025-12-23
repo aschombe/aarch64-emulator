@@ -137,7 +137,7 @@ pub fn clean_source_code(lines: &[String]) -> Vec<String> {
             } else if c == '/' && chars.peek() == Some(&'*') {
                 chars.next();
                 in_block_comment = true;
-            } else if c == '/' && chars.peek() == Some(&'/') {
+            } else if (c == '/' && chars.peek() == Some(&'/')) || c == ';' {
                 break;
             } else {
                 new_line.push(c);
@@ -150,33 +150,3 @@ pub fn clean_source_code(lines: &[String]) -> Vec<String> {
     }
     cleaned_lines
 }
-
-// pub fn preprocess_rept(lines: &[String]) -> Vec<String> {
-//     let mut out: Vec<String> = Vec::new();
-//     let mut i = 0;
-//     while i < lines.len() {
-//         let line = lines[i].trim();
-//         if line.starts_with(".rept") {
-//             let tokens: Vec<&str> = line.split_whitespace().collect();
-//             let count: usize = tokens
-//                 .get(1)
-//                 .and_then(|tok| tok.parse::<usize>().ok())
-//                 .unwrap_or(1);
-//             let mut rept_block = Vec::new();
-//             i += 1;
-//             while i < lines.len() && !lines[i].trim().starts_with(".endr") {
-//                 rept_block.push(lines[i].clone());
-//                 i += 1;
-//             }
-//             // Skip over the .endr
-//             i += 1;
-//             for _ in 0..count {
-//                 out.extend(rept_block.clone());
-//             }
-//         } else {
-//             out.push(lines[i].clone());
-//             i += 1;
-//         }
-//     }
-//     out
-// }

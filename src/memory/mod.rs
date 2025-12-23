@@ -80,7 +80,6 @@ impl Memory {
             buf.push(b);
             cur_addr += 1;
         }
-        // String::from_utf8(buf).map_err(|e| EmuError::InternalError(format!("UTF8 Error: {}", e)))
 
         String::from_utf8(buf).map_err(|e| EmuError::Utf8Error {
             message: format!("UTF8 Error: {}", e),

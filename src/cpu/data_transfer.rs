@@ -54,10 +54,6 @@ impl InstructionDataTransfer for CpuState {
                     self.set_reg_with_width(rd_id, src_val as i64, is_w);
                     Ok(false)
                 }
-                // _ => Err(EmuError::InternalError(format!(
-                //     "Invalid MOV operands: {:?}",
-                //     operands
-                // ))),
                 _ => Err(EmuError::CpuError {
                     message: format!("Invalid MOV operands: {:?}", operands),
                 }),

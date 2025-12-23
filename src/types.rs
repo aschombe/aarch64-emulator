@@ -134,7 +134,7 @@ pub enum EmuError {
         symbol: String,
     },
 
-    // Assembler & ELF & parser (all front‑end issues)
+    // Assembler & ELF & parser
     AssemblerError {
         message: String,
     },

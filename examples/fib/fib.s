@@ -3,14 +3,10 @@
 	.globl	_fibbonacci                     ; -- Begin function fibbonacci
 	.p2align	2
 _fibbonacci:                            ; @fibbonacci
-	.cfi_startproc
 ; %bb.0:
 	sub	sp, sp, #32
 	stp	x29, x30, [sp, #16]             ; 16-byte Folded Spill
 	add	x29, sp, #16
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
 	str	w0, [sp, #8]
 	ldr	w8, [sp, #8]
 	cbnz	w8, LBB0_2
@@ -45,19 +41,14 @@ LBB0_5:
 	ldp	x29, x30, [sp, #16]             ; 16-byte Folded Reload
 	add	sp, sp, #32
 	ret
-	.cfi_endproc
                                         ; -- End function
 	.globl	_main                           ; -- Begin function main
 	.p2align	2
 _main:                                  ; @main
-	.cfi_startproc
 ; %bb.0:
 	sub	sp, sp, #96
 	stp	x29, x30, [sp, #80]             ; 16-byte Folded Spill
 	add	x29, sp, #80
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
 	adrp	x8, ___stack_chk_guard@GOTPAGE
 	ldr	x8, [x8, ___stack_chk_guard@GOTPAGEOFF]
 	ldr	x8, [x8]
@@ -184,6 +175,5 @@ LBB1_16:
 	ldp	x29, x30, [sp, #80]             ; 16-byte Folded Reload
 	add	sp, sp, #96
 	ret
-	.cfi_endproc
                                         ; -- End function
 .subsections_via_symbols

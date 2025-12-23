@@ -162,7 +162,6 @@ impl PluginManager {
         Ok(())
     }
 
-    // ---- ONE-TO-ONE HOOKS, NO SKIP ----
     pub fn pre_pc_increment(&mut self, cpu: &crate::cpu::CpuState) -> EmuResult<()> {
         self.run_hooks("pre_pc_increment", cpu)
     }

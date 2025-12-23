@@ -273,13 +273,13 @@ fn bad64_opcode_to_ir(op: Op) -> EmuResult<OpCode> {
         Op::SDIV => Ok(OpCode::SDIV),
         Op::ADDS => Ok(OpCode::ADDS),
         Op::SUBS => Ok(OpCode::SUBS),
-        // Op::MULS => Ok(OpCode::MULS), // MULS not yet supported in bad64
+        // Op::MULS => Ok(OpCode::MULS), // MULS not supported in bad64
         Op::SMAX => Ok(OpCode::SMAX),
         Op::SMIN => Ok(OpCode::SMIN),
         Op::UMAX => Ok(OpCode::UMAX),
         Op::UMIN => Ok(OpCode::UMIN),
-        // Op::UDIVS => Ok(OpCode::UDIVS), // UDIVS not yet supported in bad64
-        // Op::SDIVS => Ok(OpCode::SDIVS), // SDIVS not yet supported in bad64
+        // Op::UDIVS => Ok(OpCode::UDIVS), // UDIVS not supported in bad64
+        // Op::SDIVS => Ok(OpCode::SDIVS), // SDIVS not supported in bad64
         Op::SWP => Ok(OpCode::SWP),
         Op::SWPB => Ok(OpCode::SWPB),
         Op::SWPH => Ok(OpCode::SWPH),
@@ -373,7 +373,7 @@ fn bad64_opcode_to_ir(op: Op) -> EmuResult<OpCode> {
 fn extract_imm_value(imm: &Imm) -> i64 {
     match imm {
         Imm::Signed(i) => *i,
-        Imm::Unsigned(u) => *u as i64, // Lossless if u64 fits in i64; otherwise handle overflow as needed
+        Imm::Unsigned(u) => *u as i64,
     }
 }
 
